@@ -2,6 +2,10 @@
 
 MAG画像・TSLテキストアニメ・M-MASL (.MMS) を、AndroidのChromeから開く統合プレーヤーです。バージョン0.1.0は検証版です。APKではなく、ホーム画面に追加できるPWAです。
 
+**起動URL:** https://pc98-archive-player-seven.vercel.app/
+
+**GitHub:** https://github.com/Kanepiro/pc98-archive-player （非公開）
+
 ## 使い方
 
 1. 配布URLをChromeで開きます。
@@ -52,14 +56,14 @@ npm run build
 
 ```sh
 MMS_ROOT=/path/to/MMS npm run test:corpus
-CHROME_PATH=/path/to/chrome npm run test:browser
+MMS_ROOT=/path/to/MMS CHROME_PATH=/path/to/chrome npm run test:browser
 ```
 
-ブラウザー試験はLinuxテスト環境向けのスクリプトです。tests/browser.mjs内のMMS試料パスは環境に合わせて変更してください。npm run devを別ターミナルで起動してから実行します。作品や画面キャプチャーはGitへ追加しないでください。
+ブラウザー試験はLinuxテスト環境向けのスクリプトです。MMS_ROOTでMMS試料フォルダーを指定してください。npm run devを別ターミナルで起動してから実行します。作品や画面キャプチャーはGitへ追加しないでください。
 
 ## GitHubとVercel
 
-GitHubがソース管理先、Vercelが配布先です。VercelのGit連携を接続し、mainをProduction Branchに指定します。Build Commandはnpm run build、Output Directoryはdist、Install Commandはnpm ciです。変更をブランチへpushし、Previewで確認してからmainへ反映します。
+GitHubがソース管理先、Vercelが配布先です。VercelのGit連携は接続済みで、mainへのpushから自動デプロイします。Build Commandはnpm run build、Output Directoryはdist、Install Commandはnpm ciです。変更をブランチへpushし、Previewで確認してからmainへ反映します。
 
 GitHub Actionsはnpm testとnpm run buildを実行します。APIキー・データベース・ユーザー登録は必要ありません。Vercelの既定のアクセス保護は維持します。
 

@@ -3,6 +3,7 @@ import {mkdir,writeFile,readdir} from 'node:fs/promises';
 import {resolve,join} from 'node:path';
 import assert from 'node:assert/strict';
 await mkdir('verification/private',{recursive:true});
+const mmsRoot=process.env.MMS_ROOT||'reference/MMS';
 const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',args:['--no-sandbox','--autoplay-policy=no-user-gesture-required']});
 const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
 const page=await context.newPage(),errors=[],requests=[];page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>requests.push({url:r.url(),method:r.method()}));
@@ -35,7 +36,7 @@ try{
   results.checks.push(name+' opened in UI');await page.screenshot({path:'verification/private/'+ext.slice(1)+'.png',fullPage:true});
  }
  for(const name of ['ALV_MM03.MMS','ESP_NAD0.MMS']){
-  await page.setInputFiles('#file',resolve('../mmasl_player_20261102/reference/MMS',name));await page.waitForFunction(n=>document.getElementById('filename').textContent===n,name);await page.click('#play');
+  await page.setInputFiles('#file',resolve(mmsRoot,name));await page.waitForFunction(n=>document.getElementById('filename').textContent===n,name);await page.click('#play');
   await page.waitForFunction(()=>window.playerDiagnostics.seconds>=10,{},{timeout:40000});
   results[name]=await page.evaluate(()=>window.playerDiagnostics);await page.click('#stop');assert.equal(results[name].gapSamples,0);assert.ok(results[name].frames>0);
   await page.screenshot({path:'verification/private/'+name+'.png',fullPage:true});

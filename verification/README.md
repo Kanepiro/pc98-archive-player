@@ -22,3 +22,9 @@
 音声欠落0はAudioWorkletのバッファー充足の計測結果です。Androidの物理スピーカーからの出力を録音・聴取した結果ではありません。全件の「正常鑑賞」判定にはしていません。
 
 機械可読結果: corpus-results.json、browser-results.json、native-wasm.json。元作品とそのキャプチャーは配布しません。
+
+## Vercel配布版の実行確認
+
+https://pc98-archive-player-seven.vercel.app/ へ新しいChromeセッションからアクセスし、同じブラウザー試験を実施しました。全チェック成功。通常の自作MMSは12.02秒で715表示フレーム、音声バッファー欠落0。重点2件も10秒再生で音声欠落0。オフライン再読込、破損ファイル後の復旧、停止を確認しました。
+
+公開版結果はbrowser-results.json、ローカル版結果はlocal-browser-results.jsonです。実作品のアップロードは行っていません。

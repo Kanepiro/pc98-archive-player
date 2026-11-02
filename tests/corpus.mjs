@@ -5,7 +5,7 @@ import {decodeMAG} from '../public/mag.js';
 import {parseTSL,tslFrameAt} from '../public/tsl.js';
 import createCore from '../public/mms-core.mjs';
 async function scan(root,ext){const result=[];for(const e of await readdir(root,{withFileTypes:true})){const path=join(root,e.name);if(e.isDirectory())result.push(...await scan(path,ext));else if(e.name.toLowerCase().endsWith(ext))result.push(path);}return result.sort();}
-const root=process.env.CORPUS_ROOT||'reference',mmsRoot=process.env.MMS_ROOT||'../mmasl_player_20261102/reference/MMS';
+const root=process.env.CORPUS_ROOT||'reference',mmsRoot=process.env.MMS_ROOT||'reference/MMS';
 const out=[],wasm=await createCore({wasmBinary:await readFile('public/mms-core.wasm')});
 for(const kind of ['MAG','TSL','MMS']){
  const paths=await scan(kind==='MMS'?mmsRoot:join(root,kind==='TSL'?'TASL':'MAG'),'.'+kind.toLowerCase());
