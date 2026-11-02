@@ -1,0 +1,129 @@
+import {decodeMAG} from './mag.js';
+import {parseTSL,tslFrameAt,drawTSL} from './tsl.js';
+const $=id=>document.getElementById(id),canvas=$('screen'),ctx=canvas.getContext('2d',{alpha:false});
+let current=null,session=null,serial=0,loadSerial=0,frameRequest=0,installPrompt=null,swRegistration=null;
+const events=[],metrics={version:'0.1.0',kind:null,frames:0,seconds:0,underruns:0,gapSamples:0};
+function log(type,detail={}){events.push({time:new Date().toISOString(),type,...detail});if(events.length>120)events.shift();}
+function status(s){$('status').textContent=s;}
+function clock(t){metrics.seconds=t;$('clock').textContent=Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0');}
+function buttons(running=false){$('play').disabled=!current||current.kind==='MAG'||running;$('stop').disabled=!running;}
+function ratio(w,h){$('stage').style.aspectRatio=w+'/'+h;}
+function paint(frame){if(canvas.width!==frame.width||canvas.height!==frame.height){canvas.width=frame.width;canvas.height=frame.height;}ctx.putImageData(new ImageData(new Uint8ClampedArray(frame.pixels),frame.width,frame.height),0,0);ratio(frame.width,frame.height);metrics.frames++;}
+function release(s){
+ if(!s)return;s.worker?.terminate();s.node?.port.postMessage({type:'stop'});
+ s.node?.disconnect();s.gain?.disconnect();s.audio?.close().catch(()=>{});
+}
+function stop(message='停止しました'){
+ serial++;cancelAnimationFrame(frameRequest);release(session);session=null;buttons(false);
+ document.querySelectorAll('.keypad .down').forEach(b=>b.classList.remove('down'));
+ if(current)status(message);
+}
+function failure(e){
+ log('error',{message:String(e.message||e)});stop();status('再生できません: '+String(e.message||e));
+}
+async function openFile(file){
+ const id=++loadSerial;stop();current=null;buttons();status('読み込み中…');
+ try{
+  if(!file||file.size>128*1024*1024)throw Error('128MB以下のファイルを選んでください');
+  const bytes=await file.arrayBuffer();if(id!==loadSerial)return;
+  const head=String.fromCharCode(...new Uint8Array(bytes,0,Math.min(16,bytes.byteLength))),ext=file.name.split('.').pop().toUpperCase();
+  let kind,data;
+  if(head.startsWith('MAKI02  ')){kind='MAG';data=decodeMAG(bytes);}
+  else if(ext==='MMS'){kind='MMS';}
+  else if(ext==='TSL'){kind='TSL';data=parseTSL(new TextDecoder('shift_jis').decode(bytes));}
+  else throw Error('MAG・TSL・MMSのいずれかを選んでください');
+  current={kind,data,bytes,name:file.name};Object.assign(metrics,{kind,filename:file.name,frames:0,seconds:0,underruns:0,gapSamples:0});
+  $('empty').hidden=true;$('filename').textContent=file.name;$('kind').textContent=kind;$('keys').hidden=kind!=='MMS';
+  $('volume').disabled=kind!=='MMS';$('loop').disabled=kind==='MAG';clock(0);
+  canvas.width=640;canvas.height=400;ctx.fillStyle='#05080b';ctx.fillRect(0,0,640,400);ratio(640,400);
+  if(kind==='MAG'){paint({width:data.width,height:data.height,pixels:data.rgba.buffer});ratio(data.width,data.height*data.pixelAspect);status(data.width+' × '+data.height+' / '+data.colors+'色');}
+  else if(kind==='TSL'){drawTSL(canvas,data,tslFrameAt(data,0));ratio(canvas.width,canvas.height);status('再生できます（TSLには音声がありません）');}
+  else status('再生できます');
+  buttons();log('open',{name:file.name,kind,size:file.size});
+ }catch(e){if(id===loadSerial){current=null;buttons();failure(e);}}
+}
+function finish(s){
+ if(session!==s)return;
+ cancelAnimationFrame(frameRequest);release(s);session=null;buttons(false);status('再生が終了しました');log('ended',{...metrics});
+ if($('loop').checked&&!document.hidden)play();
+}
+function tick(s){
+ if(session!==s)return;
+ if(s.kind==='TSL'){
+  const t=(performance.now()-s.started)/1000,at=Math.min(t,current.data.duration);clock(at);
+  const index=tslFrameAt(current.data,at);if(index!==s.last){drawTSL(canvas,current.data,index);ratio(canvas.width,canvas.height);s.last=index;metrics.frames++;}
+  if(t>=current.data.duration){finish(s);return;}
+ }else if(s.clock){
+  const output=s.audio.getOutputTimestamp?.(),now=output?.contextTime>0?output.contextTime+Math.max(0,(performance.now()-output.performanceTime)/1000):s.audio.currentTime-(s.audio.baseLatency||0)-(s.audio.outputLatency||0);
+  const t=Math.max(0,s.clock.seconds+Math.min(.025,now-s.clock.contextTime));clock(t);
+  let latest;while(s.frames.length&&s.frames[0].time<=t+.001)latest=s.frames.shift();
+  if(latest)paint(latest);
+  if(s.ending&&now>=s.ending.contextTime){clock(s.ending.seconds);if(s.frames.length)paint(s.frames.at(-1));finish(s);return;}
+ }
+ frameRequest=requestAnimationFrame(()=>tick(s));
+}
+async function play(){
+ if(!current||current.kind==='MAG')return;
+ stop();const token=++serial,s=session={kind:current.kind,frames:[],started:performance.now(),last:-1};buttons(true);
+ Object.assign(metrics,{frames:0,seconds:0,underruns:0,gapSamples:0});clock(0);status('再生準備中…');
+ try{
+  if(s.kind==='TSL'){status('再生中');tick(s);return;}
+  if(!window.AudioWorkletNode)throw Error('このブラウザーはAudioWorkletに対応していません。Chromeで開いてください');
+  s.audio=new AudioContext({latencyHint:'playback'});await s.audio.resume();
+  await s.audio.audioWorklet.addModule('/pcm-worklet.js');if(token!==serial){release(s);return;}
+  s.node=new AudioWorkletNode(s.audio,'pc98-pcm',{numberOfInputs:0,numberOfOutputs:1,outputChannelCount:[1]});
+  s.gain=s.audio.createGain();s.gain.gain.value=Number($('volume').value)/100;s.node.connect(s.gain).connect(s.audio.destination);
+  const channel=new MessageChannel();s.node.port.postMessage({type:'connect',port:channel.port1},[channel.port1]);
+  s.node.port.onmessage=({data:d})=>{
+   if(session!==s)return;
+   if(d.type==='clock'){s.clock=d;metrics.underruns=d.underruns;metrics.gapSamples=d.gapSamples;}
+   else if(d.type==='ended'){s.ending=d;Object.assign(metrics,{underruns:d.underruns,gapSamples:d.gapSamples});}
+  };
+  s.worker=new Worker('/mms-worker.js',{type:'module'});
+  s.worker.onerror=e=>{if(session===s)failure(Error(e.message||'再生ワーカーのエラー'));};
+  s.worker.onmessage=({data:d})=>{
+   if(session!==s)return;
+   if(d.type==='frame'){s.frames.push(d);if(s.frames.length>180)failure(Error('映像の処理が追いつきません'));}
+   else if(d.type==='ready'){status('再生中');log('audio-start',{rate:s.audio.sampleRate,baseLatency:s.audio.baseLatency});}
+   else if(d.type==='error')failure(Error(d.message));
+   else if(d.type==='generated-end')log('generated-end',d);
+  };
+  const bytes=current.bytes.slice(0);s.worker.postMessage({type:'load',bytes,rate:s.audio.sampleRate,port:channel.port2},[bytes,channel.port2]);tick(s);
+ }catch(e){if(token===serial)failure(e);else release(s);}
+}
+$('open').onclick=$('open-empty').onclick=()=>$('file').click();
+$('file').onchange=()=>{const file=$('file').files[0];$('file').value='';if(file)openFile(file);};
+$('play').onclick=play;$('stop').onclick=()=>stop();
+$('volume').oninput=()=>{if(session?.gain)session.gain.gain.setTargetAtTime(Number($('volume').value)/100,session.audio.currentTime,.015);};
+$('fullscreen').onclick=()=>{const p=document.fullscreenElement?document.exitFullscreen():$('stage').requestFullscreen?.();p?.catch(e=>status('全画面表示: '+e.message));};
+$('demo').onclick=async()=>{try{const r=await fetch('/ContinuityTest.MMS');if(!r.ok)throw Error('動作確認データを取得できません');await openFile(new File([await r.arrayBuffer()],'ContinuityTest.MMS'));}catch(e){failure(e);}};
+function key(code,down){session?.worker?.postMessage({type:'key',key:code,down});}
+for(const b of document.querySelectorAll('[data-key]')){
+ const code=Number(b.dataset.key);
+ b.onpointerdown=e=>{e.preventDefault();b.setPointerCapture(e.pointerId);b.classList.add('down');key(code,true);};
+ b.onpointerup=b.onpointercancel=b.onlostpointercapture=()=>{b.classList.remove('down');key(code,false);};
+}
+window.addEventListener('keydown',e=>{if(session?.kind==='MMS'&&!['INPUT','BUTTON','SUMMARY'].includes(e.target.tagName)){e.preventDefault();key(e.keyCode,true);}});
+window.addEventListener('keyup',e=>key(e.keyCode,false));
+window.addEventListener('blur',()=>{for(let i=0;i<256;i++)key(i,false);});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&session)stop('画面を離れたため停止しました');});
+$('diagnostics').onclick=()=>{
+ const payload={...metrics,userAgent:navigator.userAgent,events},url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'})),a=document.createElement('a');
+ a.href=url;a.download='pc98-player-diagnostics.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;$('install').hidden=false;});
+$('install').onclick=async()=>{if(installPrompt){await installPrompt.prompt();installPrompt=null;$('install').hidden=true;}};
+async function setupOffline(){
+ if(!('serviceWorker' in navigator))return;
+ try{
+  swRegistration=await navigator.serviceWorker.register('/sw.js');await navigator.serviceWorker.ready;
+  $('offline').textContent='オフライン準備済み';
+  const show=()=>{if(swRegistration.waiting)$('update').hidden=false;};show();
+  swRegistration.addEventListener('updatefound',()=>swRegistration.installing?.addEventListener('statechange',show));
+ }catch(e){$('offline').textContent='オフライン保存は利用できません';log('offline-error',{message:e.message});}
+}
+$('update').onclick=()=>{stop();swRegistration?.waiting?.postMessage({type:'activate'});};
+navigator.serviceWorker?.addEventListener('controllerchange',()=>{if(!$('update').hidden)location.reload();});
+setupOffline();
+// Read-only operational metrics used by browser verification and the diagnostic download.
+Object.defineProperty(window,'playerDiagnostics',{get:()=>JSON.parse(JSON.stringify({...metrics,events}))});

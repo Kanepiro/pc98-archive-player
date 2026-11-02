@@ -1,0 +1,24 @@
+[
+  {
+    "file": "ALV_MM03.MMS",
+    "native": {
+      "frames": 62,
+      "samples": 240000,
+      "nonzero": 218588,
+      "videoHash": "8b87f1793f980b70a0a5b628da147417067bda23eb68acc5b039e5e4610403cc",
+      "audioHash": "c07c1ee6579b5f2a747c2deec25d3df2694913dc48da76c9ea8fc9997728eedb"
+    },
+    "wasmMatches": true
+  },
+  {
+    "file": "ESP_NAD0.MMS",
+    "native": {
+      "frames": 66,
+      "samples": 240000,
+      "nonzero": 192717,
+      "videoHash": "216e6ec57f2d504bee03dab5471bcb3c80d2e0f79c0703402f2297bc11191b65",
+      "audioHash": "7361a3a7d98f1bc025410d84c877bedc1314a5f3b47ae5cca62777763a19bced"
+    },
+    "wasmMatches": true
+  }
+]

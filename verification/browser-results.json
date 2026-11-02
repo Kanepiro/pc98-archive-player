@@ -1,0 +1,269 @@
+{
+  "environment": "Linux Chrome / 390x844 mobile viewport; not a physical Android device",
+  "checks": [
+    "Mobile layout fits 390px",
+    "Continuous MMS audio with 150ms main-thread stalls for 6s",
+    "Stop releases playback",
+    "Offline reload and cached MMS playback",
+    "AKANE_U1.MAG opened in UI",
+    "CHA.TSL opened in UI",
+    "Corrupt MMS handled without page crash",
+    "Playback recovers after invalid file",
+    "MMS completes with audio output drained",
+    "No external requests / no artwork uploads"
+  ],
+  "errors": [],
+  "continuity": {
+    "version": "0.1.0",
+    "kind": "MMS",
+    "frames": 502,
+    "seconds": 9.158333333333333,
+    "underruns": 0,
+    "gapSamples": 0,
+    "filename": "ContinuityTest.MMS",
+    "events": [
+      {
+        "time": "2026-11-02T23:37:56.770Z",
+        "type": "open",
+        "name": "ContinuityTest.MMS",
+        "kind": "MMS",
+        "size": 198873
+      },
+      {
+        "time": "2026-11-02T23:37:57.008Z",
+        "type": "audio-start",
+        "rate": 48000,
+        "baseLatency": 0.021333333333333333
+      }
+    ]
+  },
+  "ALV_MM03.MMS": {
+    "version": "0.1.0",
+    "kind": "MMS",
+    "frames": 132,
+    "seconds": 10.023146666666667,
+    "underruns": 0,
+    "gapSamples": 0,
+    "filename": "ALV_MM03.MMS",
+    "events": [
+      {
+        "time": "2026-11-02T23:38:06.998Z",
+        "type": "open",
+        "name": "ContinuityTest.MMS",
+        "kind": "MMS",
+        "size": 198873
+      },
+      {
+        "time": "2026-11-02T23:38:07.159Z",
+        "type": "audio-start",
+        "rate": 48000,
+        "baseLatency": 0.021333333333333333
+      },
+      {
+        "time": "2026-11-02T23:38:08.402Z",
+        "type": "open",
+        "name": "AKANE_U1.MAG",
+        "kind": "MAG",
+        "size": 17306
+      },
+      {
+        "time": "2026-11-02T23:38:08.482Z",
+        "type": "open",
+        "name": "CHA.TSL",
+        "kind": "TSL",
+        "size": 14454
+      },
+      {
+        "time": "2026-11-02T23:38:09.788Z",
+        "type": "open",
+        "name": "ALV_MM03.MMS",
+        "kind": "MMS",
+        "size": 283332
+      },
+      {
+        "time": "2026-11-02T23:38:09.921Z",
+        "type": "audio-start",
+        "rate": 48000,
+        "baseLatency": 0.021333333333333333
+      }
+    ]
+  },
+  "ESP_NAD0.MMS": {
+    "version": "0.1.0",
+    "kind": "MMS",
+    "frames": 107,
+    "seconds": 10.017427666809716,
+    "underruns": 0,
+    "gapSamples": 0,
+    "filename": "ESP_NAD0.MMS",
+    "events": [
+      {
+        "time": "2026-11-02T23:38:06.998Z",
+        "type": "open",
+        "name": "ContinuityTest.MMS",
+        "kind": "MMS",
+        "size": 198873
+      },
+      {
+        "time": "2026-11-02T23:38:07.159Z",
+        "type": "audio-start",
+        "rate": 48000,
+        "baseLatency": 0.021333333333333333
+      },
+      {
+        "time": "2026-11-02T23:38:08.402Z",
+        "type": "open",
+        "name": "AKANE_U1.MAG",
+        "kind": "MAG",
+        "size": 17306
+      },
+      {
+        "time": "2026-11-02T23:38:08.482Z",
+        "type": "open",
+        "name": "CHA.TSL",
+        "kind": "TSL",
+        "size": 14454
+      },
+      {
+        "time": "2026-11-02T23:38:09.788Z",
+        "type": "open",
+        "name": "ALV_MM03.MMS",
+        "kind": "MMS",
+        "size": 283332
+      },
+      {
+        "time": "2026-11-02T23:38:09.921Z",
+        "type": "audio-start",
+        "rate": 48000,
+        "baseLatency": 0.021333333333333333
+      },
+      {
+        "time": "2026-11-02T23:38:20.151Z",
+        "type": "open",
+        "name": "ESP_NAD0.MMS",
+        "kind": "MMS",
+        "size": 1464667
+      },
+      {
+        "time": "2026-11-02T23:38:20.301Z",
+        "type": "audio-start",
+        "rate": 48000,
+        "baseLatency": 0.021333333333333333
+      }
+    ]
+  },
+  "normalEnd": {
+    "version": "0.1.0",
+    "kind": "MMS",
+    "frames": 706,
+    "seconds": 12.02,
+    "underruns": 0,
+    "gapSamples": 0,
+    "filename": "ContinuityTest.MMS",
+    "events": [
+      {
+        "time": "2026-11-02T23:38:06.998Z",
+        "type": "open",
+        "name": "ContinuityTest.MMS",
+        "kind": "MMS",
+        "size": 198873
+      },
+      {
+        "time": "2026-11-02T23:38:07.159Z",
+        "type": "audio-start",
+        "rate": 48000,
+        "baseLatency": 0.021333333333333333
+      },
+      {
+        "time": "2026-11-02T23:38:08.402Z",
+        "type": "open",
+        "name": "AKANE_U1.MAG",
+        "kind": "MAG",
+        "size": 17306
+      },
+      {
+        "time": "2026-11-02T23:38:08.482Z",
+        "type": "open",
+        "name": "CHA.TSL",
+        "kind": "TSL",
+        "size": 14454
+      },
+      {
+        "time": "2026-11-02T23:38:09.788Z",
+        "type": "open",
+        "name": "ALV_MM03.MMS",
+        "kind": "MMS",
+        "size": 283332
+      },
+      {
+        "time": "2026-11-02T23:38:09.921Z",
+        "type": "audio-start",
+        "rate": 48000,
+        "baseLatency": 0.021333333333333333
+      },
+      {
+        "time": "2026-11-02T23:38:20.151Z",
+        "type": "open",
+        "name": "ESP_NAD0.MMS",
+        "kind": "MMS",
+        "size": 1464667
+      },
+      {
+        "time": "2026-11-02T23:38:20.301Z",
+        "type": "audio-start",
+        "rate": 48000,
+        "baseLatency": 0.021333333333333333
+      },
+      {
+        "time": "2026-11-02T23:38:30.555Z",
+        "type": "open",
+        "name": "bad.MMS",
+        "kind": "MMS",
+        "size": 7
+      },
+      {
+        "time": "2026-11-02T23:38:30.651Z",
+        "type": "error",
+        "message": "Not an M-MASL MMS file"
+      },
+      {
+        "time": "2026-11-02T23:38:30.712Z",
+        "type": "open",
+        "name": "ContinuityTest.MMS",
+        "kind": "MMS",
+        "size": 198873
+      },
+      {
+        "time": "2026-11-02T23:38:30.846Z",
+        "type": "audio-start",
+        "rate": 48000,
+        "baseLatency": 0.021333333333333333
+      },
+      {
+        "time": "2026-11-02T23:38:32.132Z",
+        "type": "audio-start",
+        "rate": 48000,
+        "baseLatency": 0.021333333333333333
+      },
+      {
+        "time": "2026-11-02T23:38:43.926Z",
+        "type": "generated-end",
+        "seconds": 12.02,
+        "instructions": 5774,
+        "audioStarts": 1
+      },
+      {
+        "time": "2026-11-02T23:38:44.256Z",
+        "type": "ended",
+        "version": "0.1.0",
+        "kind": "MMS",
+        "frames": 706,
+        "seconds": 12.02,
+        "underruns": 0,
+        "gapSamples": 0,
+        "filename": "ContinuityTest.MMS"
+      }
+    ]
+  },
+  "status": "pass"
+}
