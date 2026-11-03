@@ -46,7 +46,7 @@ async function newOutput(canvas, withAudio) {
   output.addVideoTrack(video);
   let audio = null;
   if (withAudio) {
-    audio = new AudioBufferSource({codec:'aac',quality:new Quality('high')});
+    audio = new AudioBufferSource({codec:'aac',quality:new Quality('medium')});
     output.addAudioTrack(audio);
   }
   await output.start();
@@ -141,61 +141,95 @@ function mmsWorker(bytes) {
   return {worker,ask,open:()=>ask('open',{bytes},[bytes]),next:()=>ask('next')};
 }
 async function exportMms(current, signal, onProgress) {
+  // Preflight the timeline with the exact same deterministic MMS renderer.
+  // Some scripts wait for keyboard input after their last visual/audio sample.
+  async function scanDuration() {
+    const renderer=mmsWorker(current.bytes.slice(0));
+    try {
+      await renderer.open();
+      while(true) {
+        aborted(signal);
+        const chunk=await renderer.next();
+        if(chunk.seconds>MAX_SECONDS)throw Error('MMSの再生が5分を超えました。自動終了できない作品です');
+        if(chunk.ended){
+          if(!(chunk.endTime>0))throw Error('MMSの終了時刻を判定できませんでした');
+          return chunk.endTime;
+        }
+      }
+    } finally {renderer.worker.terminate();}
+  }
+  const duration=await scanDuration();
   const canvas=newCanvas(640,400);
   const {output,video,audio}=await newOutput(canvas,true);
-  const renderer=mmsWorker(current.bytes.slice(0));
-  let pendingFrame=null;
-  let lastTime=0,frameCount=0;
+  const totalAudioSamples=Math.round(duration*AUDIO_RATE);
   const dst=canvas.getContext('2d',{alpha:false});
   dst.fillStyle='#05080b';dst.fillRect(0,0,canvas.width,canvas.height);
-  try {
-    aborted(signal);
-    await renderer.open();
-    while (true) {
-      aborted(signal);
-      const chunk=await renderer.next();
-      const pcm=new Float32Array(chunk.pcm);
-      const buffer=new AudioBuffer({length:pcm.length,numberOfChannels:1,sampleRate:AUDIO_RATE});
-      buffer.copyToChannel(pcm,0);
-      await audio.add(buffer);
-      lastTime=chunk.seconds;
-      if (lastTime>MAX_SECONDS) throw Error('MMSが5分以内に終了しません。対話型・ループ作品の可能性があります');
-      for (const frame of chunk.frames) {
+  // Video and audio MUST be fed independently and concurrently.
+  // Awaiting audio.add() before video.add() can deadlock a muxer on sparse MMS frames.
+  async function videoPass() {
+    const renderer=mmsWorker(current.bytes.slice(0));
+    let pendingFrame=null;
+    let encodedFrames=0;
+    try {
+      await renderer.open();
+      while(true) {
         aborted(signal);
-        const t=Math.max(0,Math.min(lastTime,frame.time));
-        if (pendingFrame && t>pendingFrame.time+1e-7) {
-          drawFrame(canvas,pendingFrame);
-          await video.add(pendingFrame.time,t-pendingFrame.time);
-          frameCount++;
+        const chunk=await renderer.next();
+        for(const frame of chunk.frames) {
+          const t=Math.max(0,Math.min(chunk.seconds,frame.time));
+          if(t>duration+1e-7)continue;
+          if(pendingFrame&&t>pendingFrame.time+1e-7){
+            drawFrame(canvas,pendingFrame);
+            await video.add(pendingFrame.time,t-pendingFrame.time);
+            encodedFrames++;
+          }
+          if(!pendingFrame&&t>0){
+            await video.add(0,t);
+            encodedFrames++;
+          }
+          pendingFrame={...frame,time:t};
         }
-        if (!pendingFrame && t>0) {
-          // Show a black screen before the first frame, as in the live player.
-          await video.add(0,t);
-          frameCount++;
-        }
-        pendingFrame={...frame,time:t};
+        if(chunk.ended||chunk.seconds>=duration)break;
       }
-      onProgress?.(lastTime,null);
-      if (chunk.ended) break;
-    }
-    aborted(signal);
-    if(pendingFrame) {
-      drawFrame(canvas,pendingFrame);
-      await video.add(pendingFrame.time,Math.max(1/60,lastTime-pendingFrame.time));
-      frameCount++;
-    } else {
-      await video.add(0,Math.max(1/60,lastTime));
-      frameCount++;
-    }
-    if(!frameCount) throw Error('MMSの映像フレームを出力できませんでした');
-    video.close();audio.close();
-    await output.finalize();
-    aborted(signal);
-    return result(output);
-  } finally {
-    renderer.worker.terminate();
+      aborted(signal);
+      if(pendingFrame){
+        drawFrame(canvas,pendingFrame);
+        await video.add(pendingFrame.time,Math.max(1/60,duration-pendingFrame.time));
+      }else{
+        await video.add(0,Math.max(1/60,duration));
+      }
+      encodedFrames++;
+      if(!encodedFrames)throw Error('MMSの映像フレームがありません');
+      video.close();
+    }finally{renderer.worker.terminate();}
   }
+  async function audioPass() {
+    const renderer=mmsWorker(current.bytes.slice(0));
+    let sent=0;
+    try {
+      await renderer.open();
+      while(sent<totalAudioSamples){
+        aborted(signal);
+        const chunk=await renderer.next();
+        const pcm=new Float32Array(chunk.pcm);
+        const take=Math.min(pcm.length,totalAudioSamples-sent);
+        const buffer=new AudioBuffer({length:take,numberOfChannels:1,sampleRate:AUDIO_RATE});
+        buffer.copyToChannel(take===pcm.length?pcm:pcm.subarray(0,take),0);
+        await audio.add(buffer);
+        sent+=take;
+        onProgress?.(sent/AUDIO_RATE,duration);
+        if(chunk.ended&&sent<totalAudioSamples)throw Error('MMSの最後の音声が不足しています');
+      }
+      audio.close();
+    }finally{renderer.worker.terminate();}
+  }
+  aborted(signal);
+  await Promise.all([videoPass(),audioPass()]);
+  aborted(signal);
+  await output.finalize();
+  return result(output);
 }
+
 export async function exportMP4(current,{signal,onProgress}={}) {
   if (!current) throw Error('作品を選択してください');
   aborted(signal);
