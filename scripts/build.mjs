@@ -1,4 +1,5 @@
 import {cp,mkdir,readdir,readFile,writeFile} from 'node:fs/promises';
+import {build} from 'esbuild';
 import {createHash} from 'node:crypto';
 const sources=['src/mms/core.hpp','src/mms/engine.hpp','src/mms/bridge.cpp'];
 const hash=createHash('sha256');for(const f of sources)hash.update(await readFile(f));
@@ -6,6 +7,11 @@ const expected=(await readFile('src/mms/wasm-source.sha256','utf8')).trim();
 if(hash.digest('hex')!==expected)throw Error('MMS sources changed: run npm run build:wasm with Emscripten 3.1.69 before committing.');
 await mkdir('dist',{recursive:true});await cp('public','dist',{recursive:true});
 await cp('licenses','dist/licenses',{recursive:true});await cp('LICENSE','dist/LICENSE');
+// Bundle the exporter and its AAC fallback locally for offline use; keep license notices.
+await build({entryPoints:['public/mp4-export.js'],outfile:'dist/mp4-export.js',platform:'browser',format:'esm',bundle:true,minify:true,legalComments:'eof'});
+await cp('node_modules/mediabunny/LICENSE','dist/licenses/mediabunny.txt');
+await cp('node_modules/@mediabunny/aac-encoder/LICENSE','dist/licenses/mediabunny-aac-encoder.txt');
+await cp('node_modules/@mediabunny/aac-encoder/licenses/ffmpeg','dist/licenses/ffmpeg-aac',{recursive:true});
 async function walk(dir,prefix=''){const a=[];for(const e of await readdir(dir,{withFileTypes:true})){if(e.isDirectory())a.push(...await walk(dir+'/'+e.name,prefix+e.name+'/'));else if(e.name!=='sw.js')a.push(prefix+e.name);}return a;}
 const names=(await walk('dist')).sort();
 const digest=createHash('sha256');for(const name of names)digest.update(await readFile('dist/'+name));
