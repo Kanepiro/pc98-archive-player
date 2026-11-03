@@ -1,12 +1,24 @@
 import {decodeMAG} from './mag.js';
 import {parseTSL,tslFrameAt,drawTSL} from './tsl.js';
+import {exportMP4,mp4Name} from './mp4-export.js';
 const $=id=>document.getElementById(id),canvas=$('screen'),ctx=canvas.getContext('2d',{alpha:false});
 let current=null,session=null,serial=0,loadSerial=0,frameRequest=0,installPrompt=null,swRegistration=null;
-const events=[],metrics={version:'0.1.0',kind:null,frames:0,seconds:0,underruns:0,gapSamples:0};
+let exportController=null, exportDownloadUrl=null;
+const events=[],metrics={version:'0.2.0',kind:null,frames:0,seconds:0,underruns:0,gapSamples:0};
 function log(type,detail={}){events.push({time:new Date().toISOString(),type,...detail});if(events.length>120)events.shift();}
 function status(s){$('status').textContent=s;}
 function clock(t){metrics.seconds=t;$('clock').textContent=Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0');}
-function buttons(running=false){$('play').disabled=!current||current.kind==='MAG'||running;$('stop').disabled=!running;}
+function buttons(running=false){
+ const busy=!!exportController;
+ $('play').disabled=!current||current.kind==='MAG'||running||busy;
+ $('stop').disabled=!running;
+ $('export-mp4').disabled=!current||busy;
+ $('cancel-mp4').hidden=!busy;
+ $('open').disabled=busy;
+ $('open-empty').disabled=busy;
+ $('file').disabled=busy;
+ $('demo').disabled=busy;
+}
 function ratio(w,h){$('stage').style.aspectRatio=w+'/'+h;}
 function paint(frame){if(canvas.width!==frame.width||canvas.height!==frame.height){canvas.width=frame.width;canvas.height=frame.height;}ctx.putImageData(new ImageData(new Uint8ClampedArray(frame.pixels),frame.width,frame.height),0,0);ratio(frame.width,frame.height);metrics.frames++;}
 function release(s){
@@ -23,6 +35,8 @@ function failure(e){
 }
 async function openFile(file){
  const id=++loadSerial;stop();current=null;buttons();status('読み込み中…');
+ if(exportDownloadUrl)URL.revokeObjectURL(exportDownloadUrl);
+ exportDownloadUrl=null;$('mp4-download').hidden=true;
  try{
   if(!file||file.size>128*1024*1024)throw Error('128MB以下のファイルを選んでください');
   const bytes=await file.arrayBuffer();if(id!==loadSerial)return;
@@ -94,6 +108,32 @@ async function play(){
 $('open').onclick=$('open-empty').onclick=()=>$('file').click();
 $('file').onchange=()=>{const file=$('file').files[0];$('file').value='';if(file)openFile(file);};
 $('play').onclick=play;$('stop').onclick=()=>stop();
+$('export-mp4').onclick=async()=>{
+ if(!current||exportController)return;
+ stop('MP4保存のため再生を停止しました');
+ const selected=current;
+ exportController=new AbortController();buttons(false);
+ $('mp4-download').hidden=true;
+ let lastShown=-1;
+ status('MP4書き出し準備中…');
+ try {
+  const blob=await exportMP4(selected,{signal:exportController.signal,onProgress:(seconds,total)=>{
+   const count=Math.floor(seconds);
+   if(count!==lastShown){lastShown=count;status('MP4変換中 '+Math.floor(seconds/60)+':'+String(count%60).padStart(2,'0')+(total?' / '+Math.ceil(total)+'秒':''));}
+  }});
+  if(exportDownloadUrl)URL.revokeObjectURL(exportDownloadUrl);
+  exportDownloadUrl=URL.createObjectURL(blob);
+  const link=$('mp4-download');link.href=exportDownloadUrl;link.download=mp4Name(selected.name);link.hidden=false;
+  const a=document.createElement('a');a.href=exportDownloadUrl;a.download=mp4Name(selected.name);
+  document.body.append(a);a.click();a.remove();
+  status('MP4を書き出しました（'+(blob.size/1024/1024).toFixed(1)+' MB）');
+  log('mp4-export',{name:a.download,bytes:blob.size});
+ } catch (e) {
+  log('mp4-export-error',{message:String(e.message||e)});
+  status(e.name==='AbortError'?'MP4変換を中止しました':'MP4保存失敗: '+String(e.message||e));
+ } finally {exportController=null;buttons(false);}
+};
+$('cancel-mp4').onclick=()=>{exportController?.abort();status('MP4変換を中止しています…');};
 $('volume').oninput=()=>{if(session?.gain)session.gain.gain.setTargetAtTime(Number($('volume').value)/100,session.audio.currentTime,.015);};
 $('fullscreen').onclick=()=>{const p=document.fullscreenElement?document.exitFullscreen():$('stage').requestFullscreen?.();p?.catch(e=>status('全画面表示: '+e.message));};
 $('demo').onclick=async()=>{try{const r=await fetch('/ContinuityTest.MMS');if(!r.ok)throw Error('動作確認データを取得できません');await openFile(new File([await r.arrayBuffer()],'ContinuityTest.MMS'));}catch(e){failure(e);}};

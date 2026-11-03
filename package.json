@@ -1,6 +1,6 @@
 {
   "name": "pc98-archive-player",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,6 +15,11 @@
     "node": ">=20"
   },
   "devDependencies": {
-    "@playwright/test": "1.64.1"
+    "@playwright/test": "1.64.1",
+    "esbuild": "0.25.12"
+  },
+  "dependencies": {
+    "@mediabunny/aac-encoder": "1.65.0",
+    "mediabunny": "1.65.0"
   }
 }
