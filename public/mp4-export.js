@@ -6,30 +6,44 @@ import {drawTSL, tslFrameAt} from './tsl.js';
 
 const MAX_SECONDS = 300;
 const AUDIO_RATE = 48000;
+// MAG and MMS retain their existing 720p export limit.
 const MAX_SIDE = {width:1280, height:720};
+// TSL text needs enough pixels per glyph; keep its native raster up to Full HD.
+const TSL_FULL_HD = {portrait:{width:1080,height:1920},landscape:{width:1920,height:1080}};
+const TSL_HD = {portrait:{width:720,height:1280},landscape:MAX_SIDE};
 const MAG_SECONDS = 5;
 
 function aborted(signal) {
   if (signal?.aborted) throw new DOMException('MP4書き出しを中止しました', 'AbortError');
 }
-function dimensions(width, height) {
+function dimensions(width, height, limits = MAX_SIDE, upscale = false) {
   if (!(width > 0 && height > 0)) throw Error('映像サイズが不正です');
-  const scale = Math.min(1, MAX_SIDE.width / width, MAX_SIDE.height / height);
+  const scale = Math.min(upscale ? Infinity : 1, limits.width / width, limits.height / height);
   // H.264 encoders expect even dimensions.
   return {width:Math.max(16,Math.round(width*scale/2)*2),
     height:Math.max(16,Math.round(height*scale/2)*2)};
 }
-function newCanvas(width, height) {
+function newCanvas(width, height, limits = MAX_SIDE) {
   const canvas = document.createElement('canvas');
-  Object.assign(canvas, dimensions(width,height));
+  Object.assign(canvas, dimensions(width,height,limits));
   return canvas;
+}
+// Order highest-quality TSL output first, with portrait-preserving fallbacks.
+export function tslExportCandidates(width, height) {
+  const orientation = height >= width ? 'portrait' : 'landscape';
+  const limits = [TSL_FULL_HD[orientation], TSL_HD[orientation], MAX_SIDE];
+  const sizes = limits.map(limit=>dimensions(width,height,limit,orientation==='portrait'));
+  return sizes.filter((size,i)=>sizes.findIndex(other=>other.width===size.width&&other.height===size.height)===i);
 }
 async function checkCodec(canvas, withAudio) {
   if (typeof globalThis.VideoEncoder?.isConfigSupported !== 'function') {
     throw Error('このブラウザーはMP4出力に必要なWebCodecsに対応していません');
   }
+  // H.264 Level 3.1 cannot encode 1080x1920 at 30fps; Level 4.0 can.
+  const mbPerFrame=Math.ceil(canvas.width/16)*Math.ceil(canvas.height/16);
+  const codec=mbPerFrame>3600||mbPerFrame*30>108000?'avc1.42E028':'avc1.42E01F';
   const video = await VideoEncoder.isConfigSupported({
-    codec:'avc1.42E01F',width:canvas.width,height:canvas.height,
+    codec,width:canvas.width,height:canvas.height,
     bitrate:2_000_000,framerate:30,
   });
   if (!video.supported) throw Error('この端末のH.264動画エンコーダーは利用できません');
@@ -88,14 +102,27 @@ async function exportMag(current, signal, onProgress) {
   onProgress?.(MAG_SECONDS, MAG_SECONDS);
   return result(output);
 }
-async function exportTsl(current, signal, onProgress) {
+async function exportTsl(current, signal, onProgress, onResolution) {
   const data=current.data;
   if (data.duration > MAX_SECONDS) throw Error('この作品は5分を超えるためMP4書き出しの対象外です');
-  const original=document.createElement('canvas');
-  drawTSL(original,data,tslFrameAt(data,0));
-  const canvas=newCanvas(original.width,original.height);
-  const {output,video}=await newOutput(canvas,false);
-  const dst=canvas.getContext('2d',{alpha:false});
+  const nativeWidth=data.width*12,nativeHeight=data.height*24;
+  let canvas,output,video,lastError;
+  for (const size of tslExportCandidates(nativeWidth,nativeHeight)) {
+    aborted(signal);
+    const candidate=document.createElement('canvas');
+    Object.assign(candidate,size);
+    try {
+      ({output,video}=await newOutput(candidate,false));
+      canvas=candidate;
+      break;
+    } catch(e) {lastError=e;}
+  }
+  if(!canvas)throw lastError||Error('TSLのMP4書き出しに対応する解像度がありません');
+  onResolution?.(canvas.width,canvas.height);
+  // Draw glyphs at the final video resolution, rather than enlarging small
+  // rasterized text. This is especially important for larger font-px grids.
+  const render={cellWidth:canvas.width/data.width,cellHeight:canvas.height/data.height,
+   fontSize:canvas.height/data.height*20/24};
   let frames=0;
   for (let i=0;i<data.schedule.length;i++) {
     aborted(signal);
@@ -104,9 +131,7 @@ async function exportTsl(current, signal, onProgress) {
     const start=currentFrame.start;
     const end=next ? next.start : data.duration;
     if (end<=start) continue;
-    drawTSL(original,data,currentFrame.frame);
-    dst.imageSmoothingEnabled=false;
-    dst.drawImage(original,0,0,canvas.width,canvas.height);
+    drawTSL(canvas,data,currentFrame.frame,render);
     await video.add(start,end-start,{keyFrame:frames%60===0});
     frames++;
     onProgress?.(end,data.duration);
@@ -230,11 +255,11 @@ async function exportMms(current, signal, onProgress) {
   return result(output);
 }
 
-export async function exportMP4(current,{signal,onProgress}={}) {
+export async function exportMP4(current,{signal,onProgress,onResolution}={}) {
   if (!current) throw Error('作品を選択してください');
   aborted(signal);
   if(current.kind==='MAG') return exportMag(current,signal,onProgress);
-  if(current.kind==='TSL') return exportTsl(current,signal,onProgress);
+  if(current.kind==='TSL') return exportTsl(current,signal,onProgress,onResolution);
   if(current.kind==='MMS') return exportMms(current,signal,onProgress);
   throw Error('この形式のMP4書き出しは未対応です');
 }

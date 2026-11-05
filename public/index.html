@@ -26,7 +26,7 @@
 <details><summary>変換設定（任意）</summary>
 <fieldset id="converter-settings"><div class="converter-options">
 <label>生成モード<select id="video-mode"><option value="portrait" selected>スマホ縦 9:16（標準）</option><option value="screen">この端末の縦画面比率</option><option value="pc98">PC-98向け</option></select></label>
-<label id="portrait-grid">文字の細かさ<select id="video-columns"><option value="60">粗め · 60列基準</option><option value="90" selected>標準 · 90列基準</option><option value="120">細かめ · 120列基準</option></select></label>
+<label id="portrait-font-setting">文字の大きさ（px）<input id="video-font-px" type="number" min="16" max="64" step="1" value="20" inputmode="numeric"><small class="muted">16〜64px · 大きいほど文字が読みやすく、文字数が減ります（フルHD基準）</small></label>
 <label id="pc-grid" hidden>文字数<select id="video-size"><option value="79x27">79 × 27（標準）</option><option value="80x25">80 × 25</option><option value="120x40">120 × 40</option><option value="160x50">160 × 50</option></select></label>
 <label>フレームレート<select id="video-fps"><option value="5">5 fps</option><option value="10" selected>10 fps（標準）</option><option value="15">15 fps</option><option value="24">24 fps</option><option value="30">30 fps</option></select></label>
 <label>画面への収め方<select id="video-fit"><option value="cover" selected>画面いっぱい（切り抜き）</option><option value="contain">全体を表示（余白あり）</option></select></label>
@@ -40,7 +40,7 @@
 <p id="converter-status" role="status" aria-live="polite">MP4（H.264）に対応。動画は端末内で処理します。</p><p id="converter-detail" class="muted"></p>
 <button id="cancel-tsl" hidden>変換中止</button></div>
 <div id="tsl-result" hidden><a id="tsl-download" class="download-button">TSLをダウンロード</a><button id="preview-tsl-full">縦画面いっぱいで再生</button><button id="preview-tsl">プレーヤーで再生</button></div>
-<p class="converter-note">音声は含まれません。標準は縦9:16・中央切り抜きです。全画面中はタップで「戻る」を表示します。文字の縦横比は保ちます。最大2GB・2時間・4K。長尺は最大10,000画面・出力48MB以内に収まるよう自動調整します。WebMはブラウザーで読み取れる場合に利用できます。</p>
+<p class="converter-note">TSLにはフォントのpx値は保存されません。指定値は文字数・行数に反映され、MP4保存時は再描画します。PC-98向けモードは固定文字数です。音声は含まれません。標準は縦9:16・中央切り抜きです。全画面中はタップで「戻る」を表示します。文字の縦横比は保ちます。最大2GB・2時間・4K。長尺は最大10,000画面・出力48MB以内に収まるよう自動調整します。WebMはブラウザーで読み取れる場合に利用できます。</p>
 </section>
 <footer><p>選んだ作品は端末内で処理します。</p><div class="footer-actions"><button id="demo">動作確認データ</button><span id="offline"></span><button id="update" hidden>更新を適用</button></div><details><summary>使い方・確認状況</summary><p>AndroidのChromeで開き、メニューの「ホーム画面に追加」から起動できます。初回読み込み後、アプリ本体を保存できた場合はオフラインでも使えます。</p><p>MAGは画像表示、TSLとMMSは再生・停止に対応。MMSの操作ボタンは押している間だけキー入力します。バックグラウンドに移ると再生を停止します。</p><p>検証版 0.3.0。Android実機での互換性・音声遅延は未確認です。MAGの特殊機種モード、MMSの外部シナリオ呼び出しは未対応です。</p><button id="diagnostics">診断ログを保存</button></details></footer>
 </main><script type="module" src="/app.js"></script></body></html>

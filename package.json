@@ -10,7 +10,9 @@
     "test:corpus": "node tests/corpus.mjs",
     "test:browser": "node tests/browser.mjs",
     "dev": "node scripts/serve.mjs",
-    "test:converter": "node tests/converter-browser.mjs"
+    "test:converter": "node tests/converter-browser.mjs",
+    "test:tsl-export": "node tests/tsl-mp4-export.browser.mjs",
+    "test:font-px": "node tests/font-pixels.browser.mjs"
   },
   "engines": {
     "node": ">=20"

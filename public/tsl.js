@@ -27,11 +27,11 @@ export function tslFrameAt(data,seconds){
  while(low+1<high){const mid=(low+high)>>1;if(data.schedule[mid].start<=seconds)low=mid;else high=mid;}
  return data.schedule[low].frame;
 }
-export function drawTSL(canvas,data,index){
- const cw=12,ch=24,w=data.width*cw,h=data.height*ch;
+export function drawTSL(canvas,data,index,{cellWidth=12,cellHeight=24,fontSize=20}={}){
+ const cw=cellWidth,ch=cellHeight,w=Math.round(data.width*cw),h=Math.round(data.height*ch);
  if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
  const c=canvas.getContext('2d');c.fillStyle='#080d12';c.fillRect(0,0,w,h);
- c.fillStyle='#e3f4e8';c.font='20px monospace';c.textBaseline='top';
+ c.fillStyle='#e3f4e8';c.font=fontSize+'px monospace';c.textBaseline='top';
  const lines=data.frames[index].split('\n');
  for(let y=0;y<Math.min(lines.length,data.height);y++){
   let x=0;

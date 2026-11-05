@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parseTSL,tslFrameAt} from '../public/tsl.js';
-import {makePlan,optionsFor,portraitGrid,fitRect,rgbaToASCII,densityRamp,TSLWriter,tslName,CANDIDATE_RAMP,MAX_OUTPUT_BYTES} from '../public/tsl-converter-core.js';
+import {makePlan,optionsFor,portraitGrid,portraitGridForPixels,fitRect,rgbaToASCII,densityRamp,TSLWriter,tslName,CANDIDATE_RAMP,MAX_OUTPUT_BYTES} from '../public/tsl-converter-core.js';
 
 test('60 Hz schedule preserves duration within half a tick and has no cumulative drift',()=>{
  for(const duration of [.001,.1,1,10.01,60.123,600,7200])for(const fps of [5,10,15,24,29.97,30]){
@@ -75,4 +75,21 @@ test('tall smartphone TSL round trips through the unchanged player',async()=>{
  const grid=portraitGrid(390/844),p=makePlan(1,grid),w=new TSLWriter(p);
  for(let i=0;i<p.count;i++)w.append(('Y'.repeat(p.width)+'\r\n').repeat(p.height));
  const d=parseTSL(await w.finish().text());assert.equal(d.width,grid.width);assert.equal(d.height,grid.height);
+});
+
+test('Portrait font pixel control computes a full-HD-equivalent character grid',()=>{
+ assert.deepEqual(portraitGridForPixels(9/16,20),portraitGrid(9/16,90));
+ assert.deepEqual(portraitGridForPixels(9/16,40),portraitGrid(9/16,45));
+ assert.deepEqual(portraitGridForPixels(9/16,64),portraitGrid(9/16,28));
+ for(const aspect of [9/16,390/844,9/20]){
+  let prev=Infinity;
+  for(const px of [16,20,24,32,40,48,64]){
+   const g=portraitGridForPixels(aspect,px);
+   assert.ok(g.width<=prev,'Larger glyphs should reduce columns');
+   assert.ok(g.width<=160&&g.height<=100&&g.width>=20&&g.height>=10);
+   assert.ok(Math.abs(g.width*.5/g.height-aspect)/aspect<.025);
+   prev=g.width;
+  }
+ }
+ for(const px of [0,15,65,Infinity,32.5,NaN])assert.throws(()=>portraitGridForPixels(9/16,px));
 });

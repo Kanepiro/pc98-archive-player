@@ -1,5 +1,5 @@
 import {convertVideo} from './video-to-tsl.js';
-import {tslName,portraitGrid} from './tsl-converter-core.js';
+import {tslName,portraitGridForPixels} from './tsl-converter-core.js';
 export function setupConverter({openPreview,stopPlayback,isExporting,enterImmersive}) {
  const $=id=>document.getElementById(id);
  let controller=null,result=null,downloadUrl=null,selected=null;
@@ -42,7 +42,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   try{
    const mode=$('video-mode').value;
    const target=mode==='screen'?Math.min(screen.width,screen.height)/Math.max(screen.width,screen.height):9/16;
-   const grid=mode==='pc98'?Object.fromEntries(['width','height'].map((k,i)=>[k,Number($('video-size').value.split('x')[i])])):portraitGrid(target,Number($('video-columns').value));
+   const grid=mode==='pc98'?Object.fromEntries(['width','height'].map((k,i)=>[k,Number($('video-size').value.split('x')[i])])):portraitGridForPixels(target,Number($('video-font-px').value));
    const {width,height}=grid;
    result=await convertVideo(file,{signal:controller.signal,width,height,fps:Number($('video-fps').value),
     brightness:Number($('video-brightness').value),contrast:Number($('video-contrast').value),
@@ -58,7 +58,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
    const a=$('tsl-download');a.href=downloadUrl;a.download=tslName(file.name);
    $('tsl-result').hidden=false;
    $('converter-status').textContent='変換が完了しました';
-   $('converter-detail').textContent=result.plan.width+' × '+result.plan.height+'文字 · '+result.plan.count.toLocaleString()+'画面 · '+result.plan.duration.toFixed(2)+'秒 · '+(result.blob.size/1024/1024).toFixed(2)+' MB'+(result.plan.reduced?' · 長尺のためフレームレートを自動調整':'');
+   $('converter-detail').textContent=result.plan.width+' × '+result.plan.height+'文字'+(mode==='pc98'?'':' · 約'+Number($('video-font-px').value)+'px')+' · '+result.plan.count.toLocaleString()+'画面 · '+result.plan.duration.toFixed(2)+'秒 · '+(result.blob.size/1024/1024).toFixed(2)+' MB'+(result.plan.reduced?' · 長尺のためフレームレートを自動調整':'');
   }catch(e){
    clearResult();$('converter-status').textContent=e.name==='AbortError'?'変換を中止しました':'変換できません: '+e.message;
    $('converter-detail').textContent='';$('tsl-progress').hidden=true;
@@ -80,14 +80,16 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  };
  function layoutHint(){
   const mode=$('video-mode').value,pc=mode==='pc98';
-  $('pc-grid').hidden=!pc;$('portrait-grid').hidden=pc;
+  $('pc-grid').hidden=!pc;$('portrait-font-setting').hidden=pc;
+  if(pc){$('layout-hint').textContent='PC-98向けの文字数は固定です。TASL Ver.1.08実機での再生は未検証です。';return;}
   const target=mode==='screen'?Math.min(screen.width,screen.height)/Math.max(screen.width,screen.height):9/16;
-  const grid=pc?null:portraitGrid(target,Number($('video-columns').value));
-  $('layout-hint').textContent=pc?'PC-98向けの文字数。TASL Ver.1.08実機での再生は未検証です。':
-   grid.width+'列 × '+grid.height+'行を生成。縦画面TSLはWebプレーヤー向けで、PC-98 TASLの標準画面範囲を超えます。';
+  try{
+   const pixels=Number($('video-font-px').value),grid=portraitGridForPixels(target,pixels);
+   $('layout-hint').textContent=`文字サイズ約${pixels}px → ${grid.width}列 × ${grid.height}行で生成（フルHD換算）。縦画面TSLはWebプレーヤー向けで、PC-98の標準画面範囲外です。`;
+  }catch(e){$('layout-hint').textContent=e.message;}
  }
  $('video-mode').onchange=()=>{$('video-fit').value=$('video-mode').value==='pc98'?'contain':'cover';layoutHint();};
- $('video-columns').onchange=layoutHint;layoutHint();
+ $('video-font-px').oninput=layoutHint;layoutHint();
  const drop=$('video-drop');
  drop.addEventListener('dragover',e=>{e.preventDefault();if(!controller)drop.classList.add('dragover');});
  drop.addEventListener('dragleave',()=>drop.classList.remove('dragover'));
