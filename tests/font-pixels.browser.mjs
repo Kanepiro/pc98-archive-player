@@ -19,13 +19,22 @@ try{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(url);
  await page.click('#tab-converter');
- await page.locator('#panel-converter summary').click();
+ assert.equal(await page.locator('#converter-options').evaluate(x=>x.open),true);
+ assert.equal(await page.locator('#convert-tsl').isDisabled(),true);
+ assert.equal(await page.locator('header').getByText('v0.3.0').isVisible(),true);
  assert.equal(await page.locator('#video-font-px').inputValue(),'24');
  for(const [px,columns,rows,expectedW,expectedH] of [[256,7,6,1080,1852],[128,14,12,1080,1852],[40,45,40,1080,1920],[24,75,67,1074,1920],[20,90,80,1080,1920]]){
   await page.locator('#video-font-px').fill(String(px));
   assert.match(await page.locator('#layout-hint').textContent(),new RegExp(columns+'列 × '+rows+'行'));
-  if(px===256)await page.setInputFiles('#video-file',sample);
-  else await page.click('#convert-again');
+  if(px===256){
+   const [chooser]=await Promise.all([page.waitForEvent('filechooser'),page.click('#video-choose')]);
+   await chooser.setFiles(sample);
+   assert.equal(await page.locator('#convert-tsl').isEnabled(),true);
+   assert.equal(await page.locator('#tsl-result').isVisible(),false);
+   assert.equal(await page.locator('#tsl-progress').isVisible(),false);
+   assert.match(await page.locator('#converter-status').textContent(),/動画を選択しました/);
+  }
+  await page.click('#convert-tsl');
   await page.waitForFunction(()=>/変換が完了しました|変換できません/.test(document.getElementById('converter-status').textContent),{},{timeout:90000});
   assert.equal(await page.locator('#converter-status').textContent(),'変換が完了しました');
   const [tslDownload]=await Promise.all([page.waitForEvent('download'),page.click('#tsl-download')]);
@@ -50,6 +59,24 @@ try{
    mp4:probe.streams[0],output:mp4}));
   await page.click('#tab-converter');
  }
+ // Selecting a replacement must invalidate the old result without autostarting.
+ await page.setInputFiles('#video-file',sample);
+ assert.match(await page.locator('#converter-status').textContent(),/動画を選択しました/);
+ assert.equal(await page.locator('#tsl-result').isVisible(),false);
+ assert.equal(await page.locator('#tsl-progress').isVisible(),false);
+ assert.equal(await page.locator('#convert-tsl').isEnabled(),true);
+ // Drag-and-drop must also only select, never begin conversion.
+ const fileBytes=await readFile(sample);
+ const transfer=await page.evaluateHandle(bytes=>{
+  const data=new DataTransfer();data.items.add(new File([new Uint8Array(bytes)],'dropped.mp4',{type:'video/mp4'}));return data;
+ },[...fileBytes]);
+ await page.dispatchEvent('#video-drop','drop',{dataTransfer:transfer});
+ assert.match(await page.locator('#converter-status').textContent(),/動画を選択しました/);
+ assert.equal(await page.locator('#tsl-result').isVisible(),false);
+ assert.match(await page.locator('#video-name').textContent(),/dropped.mp4/);
+ await transfer.dispose();
+ await page.screenshot({path:join(out,'mobile-ui-selection.png'),fullPage:true});
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  await page.selectOption('#video-mode','pc98');
  assert.equal(await page.locator('#portrait-font-setting').isVisible(),false);
  assert.equal(await page.locator('#pc-grid').isVisible(),true);

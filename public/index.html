@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#101b22"><meta name="description" content="MAG画像、TSLテキストアニメ、M-MASLを一つのプレーヤーで。"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css"><title>PC-98 Archive Player</title></head>
 <body><main>
-<header><div class="brand"><span class="brandmark">98</span><div><h1>Archive Player</h1><p>MAG · TSL · M-MASL</p></div></div><button id="install" hidden>アプリを追加</button></header>
+<header><div class="brand"><span class="brandmark">98</span><div><h1>Archive Player</h1><p>MAG · TSL · M-MASL · v0.3.0</p></div></div><button id="install" hidden>アプリを追加</button></header>
 <nav class="tabs" role="tablist" aria-label="機能"><button id="tab-player" role="tab" aria-controls="panel-player" aria-selected="true">プレーヤー</button><button id="tab-converter" role="tab" aria-controls="panel-converter" aria-selected="false" tabindex="-1">動画 → TSL</button></nav>
 <div id="panel-player" role="tabpanel" aria-labelledby="tab-player">
 <section class="viewer" aria-label="再生画面"><div id="stage"><canvas id="screen" width="640" height="400" aria-label="作品の表示"></canvas><div id="empty"><span class="format">PC-98 ARCHIVE</span><h2>あの頃の作品を、<br>もう一度。</h2><p>スマホに保存したファイルを開いてください</p><button class="primary" id="open-empty">ファイルを開く</button></div></div><div class="caption"><strong id="filename">ファイル未選択</strong><span id="kind">MAG / TSL / MMS</span></div></section>
@@ -17,13 +17,13 @@
 <div id="video-drop">
 <span class="format">VIDEO TO TEXT ANIMATION</span>
 <h2>動画を、文字のアニメに。</h2>
-<p>動画を選ぶだけで、自動的にTSLへ変換します。</p>
+<p>動画を選んで設定を確認し、「変換」を押してください。</p>
 <button id="video-choose" class="primary">動画を選ぶ</button>
 <input id="video-file" type="file" accept=".mp4,.m4v,.webm,video/mp4,video/webm" hidden>
 <p class="muted">ここに動画をドラッグ＆ドロップ</p>
 <p id="video-name"></p>
 </div>
-<details><summary>変換設定（任意）</summary>
+<details id="converter-options" open><summary>変換設定（任意）</summary>
 <fieldset id="converter-settings"><div class="converter-options">
 <label>生成モード<select id="video-mode"><option value="portrait" selected>スマホ縦 9:16（標準）</option><option value="screen">この端末の縦画面比率</option><option value="pc98">PC-98向け</option></select></label>
 <label id="portrait-font-setting">文字の大きさ（px）<input id="video-font-px" type="number" min="16" max="256" step="1" value="24" inputmode="numeric"><small class="muted">標準24px · 16〜256px · 大きいほど文字が読みやすく、文字数が減ります（フルHD基準）</small></label>
@@ -34,8 +34,9 @@
 <label>切り抜き位置 · 上下<input id="crop-y" type="range" min="0" max="100" value="50"></label>
 <label>明るさ<input id="video-brightness" type="number" min="-100" max="100" step="5" value="0"></label>
 <label>コントラスト<input id="video-contrast" type="number" min="0.25" max="3" step="0.05" value="1"></label>
-</div><p id="layout-hint" class="muted"></p></fieldset><button id="convert-again" hidden>設定を変えて再変換</button>
+</div><p id="layout-hint" class="muted"></p></fieldset>
 </details>
+<button id="convert-tsl" class="primary convert-action" disabled>変換</button>
 <div class="conversion-state"><progress id="tsl-progress" max="100" value="0" aria-label="TSL変換の進捗" hidden></progress>
 <p id="converter-status" role="status" aria-live="polite">MP4（H.264）に対応。動画は端末内で処理します。</p><p id="converter-detail" class="muted"></p>
 <button id="cancel-tsl" hidden>変換中止</button></div>

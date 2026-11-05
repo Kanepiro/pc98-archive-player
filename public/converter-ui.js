@@ -22,20 +22,29 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   };
  }
  function busy(value){
-  for(const id of ['video-file','video-choose','convert-again','converter-settings'])$(id).disabled=value;
+  for(const id of ['video-file','video-choose','converter-settings'])$(id).disabled=value;
+  $('convert-tsl').disabled=value||!selected;
   $('cancel-tsl').hidden=!value;
   $('preview-tsl').disabled=value||!result;
   $('preview-tsl-full').disabled=value||!result;
-  $('convert-again').hidden=!selected;
  }
  function clearResult(){
   result=null;$('tsl-result').hidden=true;
   if(downloadUrl)URL.revokeObjectURL(downloadUrl);downloadUrl=null;
  }
- async function start(file){
-  if(controller||isExporting())return;
-  selected=file;clearResult();controller=new AbortController();busy(true);
-  $('video-name').textContent=file.name;
+ function selectFile(file){
+  if(!file||controller||isExporting())return;
+  selected=file;clearResult();
+  $('video-name').textContent='選択した動画：'+file.name;
+  $('tsl-progress').hidden=true;
+  $('converter-status').textContent='動画を選択しました。設定を確認して「変換」を押してください。';
+  $('converter-detail').textContent='';
+  busy(false);
+ }
+ async function start(){
+  if(controller||isExporting()||!selected)return;
+  const file=selected;
+  clearResult();controller=new AbortController();busy(true);
   $('tsl-progress').removeAttribute('value');$('tsl-progress').hidden=false;
   $('converter-status').textContent='動画を読み込み中…';$('converter-detail').textContent='';
   let last=0;
@@ -65,8 +74,8 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   }finally{controller=null;busy(false);}
  }
  $('video-choose').onclick=()=>$('video-file').click();
- $('video-file').onchange=()=>{const file=$('video-file').files[0];$('video-file').value='';if(file)start(file);};
- $('convert-again').onclick=()=>{if(selected)start(selected);};
+ $('video-file').onchange=()=>{const file=$('video-file').files[0];$('video-file').value='';selectFile(file);};
+ $('convert-tsl').onclick=start;
  $('cancel-tsl').onclick=()=>{controller?.abort();$('converter-status').textContent='中止しています…';};
  $('preview-tsl').onclick=async()=>{
   if(!result||isExporting())return;
@@ -96,7 +105,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  drop.addEventListener('drop',e=>{
   e.preventDefault();drop.classList.remove('dragover');
   if(e.dataTransfer.files.length!==1){if(!controller)$('converter-status').textContent='動画を1本ずつ選んでください';return;}
-  start(e.dataTransfer.files[0]);
+  selectFile(e.dataTransfer.files[0]);
  });
  window.addEventListener('pagehide',()=>controller?.abort());
  busy(false);
