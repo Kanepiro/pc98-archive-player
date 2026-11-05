@@ -42,7 +42,7 @@ async function setColor(id,value){
 }
 try{
  await page.goto(url);
- assert.equal(await page.locator('#tsl-colors').isVisible(),false);
+ assert.equal(await page.locator('#tsl-colors').isVisible(),true);
  await page.setInputFiles('#file',{name:'original.TSL',mimeType:'application/octet-stream',buffer:original});
  await page.waitForFunction(()=>document.querySelector('#filename').textContent==='original.TSL');
  assert.equal(await page.locator('#tsl-colors').isVisible(),true);
@@ -79,7 +79,7 @@ try{
  assert.ok(original.length>0);
  await page.click('#demo');
  await page.waitForFunction(()=>document.querySelector('#kind').textContent==='MMS');
- assert.equal(await page.locator('#tsl-colors').isVisible(),false);
+ assert.equal(await page.locator('#tsl-colors').isVisible(),true);
  assert.deepEqual(errors,[]);
  assert.deepEqual(uploads,[]);
  console.log(JSON.stringify({status:'PASS',playerBackground:pixels.background,playerGreenGlyphs:pixels.greenPixels,mp4:{width,height,bg:last,redPixels:reds},sourceBytes:original.length}));

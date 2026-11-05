@@ -6,7 +6,7 @@ import {exportMP4,mp4Name} from './mp4-export.js';
 const $=id=>document.getElementById(id),canvas=$('screen'),ctx=canvas.getContext('2d',{alpha:false});
 let current=null,session=null,serial=0,loadSerial=0,frameRequest=0,installPrompt=null,swRegistration=null;
 let exportController=null, exportDownloadUrl=null;
-const events=[],metrics={version:'0.3.1',kind:null,frames:0,seconds:0,underruns:0,gapSamples:0};
+const events=[],metrics={version:'0.3.2',kind:null,frames:0,seconds:0,underruns:0,gapSamples:0};
 function log(type,detail={}){events.push({time:new Date().toISOString(),type,...detail});if(events.length>120)events.shift();}
 function status(s){$('status').textContent=s;}
 function clock(t){metrics.seconds=t;$('clock').textContent=Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0');}
@@ -48,7 +48,7 @@ function failure(e){
  log('error',{message:String(e.message||e)});stop();status('再生できません: '+String(e.message||e));
 }
 async function openFile(file){
- const id=++loadSerial;stop();current=null;$('tsl-colors').hidden=true;buttons();status('読み込み中…');
+ const id=++loadSerial;stop();current=null;buttons();status('読み込み中…');
  if(exportDownloadUrl)URL.revokeObjectURL(exportDownloadUrl);
  exportDownloadUrl=null;$('mp4-download').hidden=true;
  try{
@@ -62,7 +62,7 @@ async function openFile(file){
   else throw Error('MAG・TSL・MMSのいずれかを選んでください');
   current={kind,data,bytes,name:file.name};Object.assign(metrics,{kind,filename:file.name,frames:0,seconds:0,underruns:0,gapSamples:0});
   $('empty').hidden=true;$('filename').textContent=file.name;$('kind').textContent=kind;$('keys').hidden=kind!=='MMS';
-  $('volume').disabled=kind!=='MMS';$('loop').disabled=kind==='MAG';$('tsl-colors').hidden=kind!=='TSL';clock(0);
+  $('volume').disabled=kind!=='MMS';$('loop').disabled=kind==='MAG';clock(0);
   canvas.width=640;canvas.height=400;ctx.fillStyle='#05080b';ctx.fillRect(0,0,640,400);ratio(640,400);
   if(kind==='MAG'){paint({width:data.width,height:data.height,pixels:data.rgba.buffer});ratio(data.width,data.height*data.pixelAspect);status(data.width+' × '+data.height+' / '+data.colors+'色');}
   else if(kind==='TSL'){drawTSL(canvas,data,tslFrameAt(data,0),tslAppearance());ratio(canvas.width,canvas.height);status('再生できます（TSLには音声がありません）');}

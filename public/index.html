@@ -1,14 +1,14 @@
 <!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#101b22"><meta name="description" content="MAG画像、TSLテキストアニメ、M-MASLを一つのプレーヤーで。"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css"><title>PC-98 Archive Player</title></head>
 <body><main>
-<header><div class="brand"><span class="brandmark">98</span><div><h1>Archive Player</h1><p>MAG · TSL · M-MASL · v0.3.1</p></div></div><button id="install" hidden>アプリを追加</button></header>
+<header><div class="brand"><span class="brandmark">98</span><div><h1>Archive Player</h1><p>MAG · TSL · M-MASL · v0.3.2</p></div></div><button id="install" hidden>アプリを追加</button></header>
 <nav class="tabs" role="tablist" aria-label="機能"><button id="tab-player" role="tab" aria-controls="panel-player" aria-selected="true">プレーヤー</button><button id="tab-converter" role="tab" aria-controls="panel-converter" aria-selected="false" tabindex="-1">動画 → TSL</button></nav>
 <div id="panel-player" role="tabpanel" aria-labelledby="tab-player">
 <section class="viewer" aria-label="再生画面"><div id="stage"><canvas id="screen" width="640" height="400" aria-label="作品の表示"></canvas><div id="empty"><span class="format">PC-98 ARCHIVE</span><h2>あの頃の作品を、<br>もう一度。</h2><p>スマホに保存したファイルを開いてください</p><button class="primary" id="open-empty">ファイルを開く</button></div></div><div class="caption"><strong id="filename">ファイル未選択</strong><span id="kind">MAG / TSL / MMS</span></div></section>
 <section class="controls" aria-label="再生操作">
 <input id="file" type="file" accept=".mag,.MAG,.tsl,.TSL,.mms,.MMS" hidden>
 <div class="buttons"><button id="open">開く</button><button id="play" class="primary" disabled>再生</button><button id="stop" disabled>停止</button><button id="fullscreen" aria-label="全画面表示">全画面</button><button id="export-mp4" disabled>MP4保存</button><button id="cancel-mp4" hidden>変換中止</button></div>
-<div id="tsl-colors" class="tsl-color-settings" hidden><span>TSL表示色（MP4保存にも反映）</span><div class="tsl-color-pickers"><label>文字色 <input id="tsl-text-color" type="color" value="#e3f4e8" aria-label="TSL文字色"></label><label>背景色 <input id="tsl-bg-color" type="color" value="#080d12" aria-label="TSL背景色"></label></div></div>
+<div id="tsl-colors" class="tsl-color-settings"><span>TSL表示色（TSL再生・MP4保存に反映）</span><div class="tsl-color-pickers"><label>文字色 <input id="tsl-text-color" type="color" value="#e3f4e8" aria-label="TSL文字色"></label><label>背景色 <input id="tsl-bg-color" type="color" value="#080d12" aria-label="TSL背景色"></label></div></div>
 <div class="adjust"><label>音量 <input id="volume" type="range" min="0" max="100" value="80" aria-label="音量"></label><label id="loop-label"><input id="loop" type="checkbox"> 繰り返す</label></div>
 <div class="state"><span id="status" role="status" aria-live="polite">ファイルを開くと形式を自動で判別します</span><time id="clock">0:00</time></div><a id="mp4-download" hidden>MP4ファイルを保存する</a>
 </section>
@@ -41,8 +41,8 @@
 <div class="conversion-state"><progress id="tsl-progress" max="100" value="0" aria-label="TSL変換の進捗" hidden></progress>
 <p id="converter-status" role="status" aria-live="polite">MP4（H.264）に対応。動画は端末内で処理します。</p><p id="converter-detail" class="muted"></p>
 <button id="cancel-tsl" hidden>変換中止</button></div>
-<div id="tsl-result" hidden><a id="tsl-download" class="download-button">TSLをダウンロード</a><button id="preview-tsl-full">縦画面いっぱいで再生</button><button id="preview-tsl">プレーヤーで再生</button></div>
+<div id="tsl-result" hidden><p class="muted">文字色と背景色は「プレーヤー」タブで変更できます。</p><a id="tsl-download" class="download-button">TSLをダウンロード</a><button id="preview-tsl-full">縦画面いっぱいで再生</button><button id="preview-tsl">プレーヤーで再生</button></div>
 <p class="converter-note">TSLにはフォントのpx値は保存されません。指定値は文字数・行数に反映され、MP4保存時は再描画します。PC-98向けモードは固定文字数です。音声は含まれません。標準は縦9:16・中央切り抜きです。全画面中はタップで「戻る」を表示します。文字の縦横比は保ちます。最大2GB・2時間・4K。長尺は最大10,000画面・出力48MB以内に収まるよう自動調整します。WebMはブラウザーで読み取れる場合に利用できます。</p>
 </section>
-<footer><p>選んだ作品は端末内で処理します。</p><div class="footer-actions"><button id="demo">動作確認データ</button><span id="offline"></span><button id="update" hidden>更新を適用</button></div><details><summary>使い方・確認状況</summary><p>AndroidのChromeで開き、メニューの「ホーム画面に追加」から起動できます。初回読み込み後、アプリ本体を保存できた場合はオフラインでも使えます。</p><p>MAGは画像表示、TSLとMMSは再生・停止に対応。MMSの操作ボタンは押している間だけキー入力します。バックグラウンドに移ると再生を停止します。</p><p>検証版 0.3.1。Android実機での互換性・音声遅延は未確認です。MAGの特殊機種モード、MMSの外部シナリオ呼び出しは未対応です。</p><button id="diagnostics">診断ログを保存</button></details></footer>
+<footer><p>選んだ作品は端末内で処理します。</p><div class="footer-actions"><button id="demo">動作確認データ</button><span id="offline"></span><button id="update" hidden>更新を適用</button></div><details><summary>使い方・確認状況</summary><p>AndroidのChromeで開き、メニューの「ホーム画面に追加」から起動できます。初回読み込み後、アプリ本体を保存できた場合はオフラインでも使えます。</p><p>MAGは画像表示、TSLとMMSは再生・停止に対応。MMSの操作ボタンは押している間だけキー入力します。バックグラウンドに移ると再生を停止します。</p><p>検証版 0.3.2。Android実機での互換性・音声遅延は未確認です。MAGの特殊機種モード、MMSの外部シナリオ呼び出しは未対応です。</p><button id="diagnostics">診断ログを保存</button></details></footer>
 </main><script type="module" src="/app.js"></script></body></html>
