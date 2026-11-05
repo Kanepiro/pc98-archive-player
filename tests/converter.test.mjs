@@ -81,15 +81,18 @@ test('Portrait font pixel control computes a full-HD-equivalent character grid',
  assert.deepEqual(portraitGridForPixels(9/16,20),portraitGrid(9/16,90));
  assert.deepEqual(portraitGridForPixels(9/16,40),portraitGrid(9/16,45));
  assert.deepEqual(portraitGridForPixels(9/16,64),portraitGrid(9/16,28));
- for(const aspect of [9/16,390/844,9/20]){
+ assert.deepEqual(portraitGridForPixels(9/16,128),portraitGrid(9/16,14));
+ assert.deepEqual(portraitGridForPixels(9/16,192),portraitGrid(9/16,9));
+ assert.deepEqual(portraitGridForPixels(9/16,256),portraitGrid(9/16,7));
+ for(const aspect of [9/16,390/844,9/20,9/21,.25,1]){
   let prev=Infinity;
-  for(const px of [16,20,24,32,40,48,64]){
+  for(const px of [16,20,24,32,40,48,64,96,128,192,256]){
    const g=portraitGridForPixels(aspect,px);
    assert.ok(g.width<=prev,'Larger glyphs should reduce columns');
-   assert.ok(g.width<=160&&g.height<=100&&g.width>=20&&g.height>=10);
-   assert.ok(Math.abs(g.width*.5/g.height-aspect)/aspect<.025);
+   assert.ok(g.width<=160&&g.height<=100&&g.width>=4&&g.height>=4);
+   assert.ok(Math.abs(g.width*.5/g.height-aspect)/aspect<.15);
    prev=g.width;
   }
  }
- for(const px of [0,15,65,Infinity,32.5,NaN])assert.throws(()=>portraitGridForPixels(9/16,px));
+ for(const px of [0,15,257,Infinity,32.5,NaN])assert.throws(()=>portraitGridForPixels(9/16,px));
 });

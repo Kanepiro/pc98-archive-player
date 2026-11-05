@@ -5,7 +5,7 @@ export const MAX_OUTPUT_BYTES = 48 * 1024 * 1024;
 export const DEFAULTS = Object.freeze({width:79,height:27,fps:10,brightness:0,contrast:1});
 export function optionsFor(input={}) {
  const o={...DEFAULTS,...input};
- for(const [k,min,max] of [['width',20,160],['height',10,100],['fps',1,30],['brightness',-100,100],['contrast',.25,3]]) {
+ for(const [k,min,max] of [['width',4,160],['height',4,100],['fps',1,30],['brightness',-100,100],['contrast',.25,3]]) {
   if(!Number.isFinite(o[k])||o[k]<min||o[k]>max)throw Error('設定値が範囲外です: '+k);
  }
  if(!Number.isInteger(o.width)||!Number.isInteger(o.height))throw Error('文字数は整数で指定してください');
@@ -26,7 +26,7 @@ export function makePlan(duration,input={}) {
   estimatedBytes:count*bytesPerFrame+4096,reduced:count<Math.ceil(duration*o.fps)};
 }
 export function portraitGrid(aspect=9/16,columns=90) {
- if(!Number.isFinite(aspect)||aspect<.25||aspect>1||!Number.isInteger(columns)||columns<20||columns>160)throw Error('縦画面の比率または文字数が不正です');
+ if(!Number.isFinite(aspect)||aspect<.25||aspect>1||!Number.isInteger(columns)||columns<4||columns>160)throw Error('縦画面の比率または文字数が不正です');
  let width=columns,height=Math.round(width*.5/aspect);
  if(height>100){height=100;width=Math.round(height*aspect/.5);}
  return {width,height,targetAspect:aspect};
@@ -36,10 +36,10 @@ export function portraitGrid(aspect=9/16,columns=90) {
 // 12x24 cell with a 20px font, so requested pixels set the grid density.
 export const DEFAULT_FONT_PIXELS = 20;
 export function portraitGridForPixels(aspect=9/16,fontPixels=DEFAULT_FONT_PIXELS) {
- if(!Number.isInteger(fontPixels)||fontPixels<16||fontPixels>64)throw Error('文字サイズは16〜64pxの整数で指定してください');
+ if(!Number.isInteger(fontPixels)||fontPixels<16||fontPixels>256)throw Error('文字サイズは16〜256pxの整数で指定してください');
  if(!Number.isFinite(aspect)||aspect<.25||aspect>1)throw Error('縦画面の比率が不正です');
  const referenceWidth=Math.min(1080,Math.round(1920*aspect));
- const columns=Math.max(20,Math.min(160,Math.round(referenceWidth/(fontPixels*.6))));
+ const columns=Math.max(4,Math.min(160,Math.round(referenceWidth/(fontPixels*.6))));
  return portraitGrid(aspect,columns);
 }
 

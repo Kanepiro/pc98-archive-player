@@ -21,10 +21,10 @@ try{
  await page.click('#tab-converter');
  await page.locator('#panel-converter summary').click();
  assert.equal(await page.locator('#video-font-px').inputValue(),'20');
- for(const [px,columns,rows] of [[40,45,40],[20,90,80]]){
+ for(const [px,columns,rows,expectedW,expectedH] of [[256,7,6,1080,1852],[128,14,12,1080,1852],[40,45,40,1080,1920],[20,90,80,1080,1920]]){
   await page.locator('#video-font-px').fill(String(px));
   assert.match(await page.locator('#layout-hint').textContent(),new RegExp(columns+'列 × '+rows+'行'));
-  if(px===40)await page.setInputFiles('#video-file',sample);
+  if(px===256)await page.setInputFiles('#video-file',sample);
   else await page.click('#convert-again');
   await page.waitForFunction(()=>/変換が完了しました|変換できません/.test(document.getElementById('converter-status').textContent),{},{timeout:90000});
   assert.equal(await page.locator('#converter-status').textContent(),'変換が完了しました');
@@ -42,10 +42,10 @@ try{
   const mp4=join(out,'font-'+px+'px.mp4');await mp4Download.saveAs(mp4);
   const probe=JSON.parse(execFileSync('ffprobe',['-v','error','-select_streams','v:0',
    '-show_entries','stream=width,height,codec_name','-of','json',mp4],{encoding:'utf8'}));
-  assert.equal(probe.streams[0].width,1080);
-  assert.equal(probe.streams[0].height,1920);
+  assert.equal(probe.streams[0].width,expectedW);
+  assert.equal(probe.streams[0].height,expectedH);
   assert.equal(probe.streams[0].codec_name,'h264');
-  assert.match(await page.locator('#status').textContent(),/1080×1920/);
+  assert.match(await page.locator('#status').textContent(),new RegExp(expectedW+'×'+expectedH));
   console.log(JSON.stringify({pixels:px,grid:columns+'x'+rows,
    mp4:probe.streams[0],output:mp4}));
   await page.click('#tab-converter');
