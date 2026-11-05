@@ -1,16 +1,17 @@
 # PC-98 Archive Player
 
-MAG画像・TSLテキストアニメ・M-MASL (.MMS) を、AndroidのChromeから開く統合プレーヤーです。バージョン0.3.0は検証版です。APKではなく、ホーム画面に追加できるPWAです。
+MAG画像・TSLテキストアニメ・M-MASL (.MMS) を、AndroidのChromeから開く統合プレーヤーです。バージョン0.3.1は検証版です。APKではなく、ホーム画面に追加できるPWAです。
 
 **起動URL:** https://pc98-archive-player-seven.vercel.app/
 
-**GitHub:** https://github.com/Kanepiro/pc98-archive-player （非公開）
+**GitHub:** https://github.com/Kanepiro/pc98-archive-player （公開）
 
 ## 使い方
 
 1. 配布URLをChromeで開きます。
 2. 「ファイルを開く」で端末のMAG / TSL / MMSを選びます。
 3. MAGは画像を表示します。TSL / MMSは「再生」を押します。
+   TSLを開くとプレーヤー側に「文字色」「背景色」が表示されます。色はいつでも変更でき、再生画面・MP4保存にも反映されます（TSLファイルは変更しません）。MAG・MMSの表示色には影響しません。
 4. 「停止」「音量」「全画面」を必要に応じて使います。MMSの選択肢には「作品内のキー操作」を使います。
 5. 「MP4保存」を押すと、作品を端末内でH.264/AACのMP4に変換して保存します。進行中は「変換中止」を押せます。
 

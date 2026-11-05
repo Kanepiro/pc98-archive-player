@@ -1,6 +1,6 @@
 {
   "name": "pc98-archive-player",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,7 +12,8 @@
     "dev": "node scripts/serve.mjs",
     "test:converter": "node tests/converter-browser.mjs",
     "test:tsl-export": "node tests/tsl-mp4-export.browser.mjs",
-    "test:font-px": "node tests/font-pixels.browser.mjs"
+    "test:font-px": "node tests/font-pixels.browser.mjs",
+    "test:colors": "node tests/tsl-colors.browser.mjs"
   },
   "engines": {
     "node": ">=20"

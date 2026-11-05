@@ -6,7 +6,7 @@ import {exportMP4,mp4Name} from './mp4-export.js';
 const $=id=>document.getElementById(id),canvas=$('screen'),ctx=canvas.getContext('2d',{alpha:false});
 let current=null,session=null,serial=0,loadSerial=0,frameRequest=0,installPrompt=null,swRegistration=null;
 let exportController=null, exportDownloadUrl=null;
-const events=[],metrics={version:'0.3.0',kind:null,frames:0,seconds:0,underruns:0,gapSamples:0};
+const events=[],metrics={version:'0.3.1',kind:null,frames:0,seconds:0,underruns:0,gapSamples:0};
 function log(type,detail={}){events.push({time:new Date().toISOString(),type,...detail});if(events.length>120)events.shift();}
 function status(s){$('status').textContent=s;}
 function clock(t){metrics.seconds=t;$('clock').textContent=Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0');}
@@ -22,6 +22,16 @@ function buttons(running=false){
  $('open-empty').disabled=busy;
  $('file').disabled=busy;
  $('demo').disabled=busy;
+ $('tsl-text-color').disabled=busy;
+ $('tsl-bg-color').disabled=busy;
+}
+function tslAppearance(){return {foreground:$('tsl-text-color').value,background:$('tsl-bg-color').value};}
+function recolorTsl(){
+ if(current?.kind!=='TSL')return;
+ const seconds=session?.kind==='TSL'?Math.max(0,(performance.now()-session.started)/1000):metrics.seconds;
+ const frame=tslFrameAt(current.data,Math.min(seconds,current.data.duration));
+ drawTSL(canvas,current.data,frame,tslAppearance());ratio(canvas.width,canvas.height);
+ if(session?.kind==='TSL')session.last=frame;
 }
 function ratio(w,h){$('stage').style.aspectRatio=w+'/'+h;}
 function paint(frame){if(canvas.width!==frame.width||canvas.height!==frame.height){canvas.width=frame.width;canvas.height=frame.height;}ctx.putImageData(new ImageData(new Uint8ClampedArray(frame.pixels),frame.width,frame.height),0,0);ratio(frame.width,frame.height);metrics.frames++;}
@@ -38,7 +48,7 @@ function failure(e){
  log('error',{message:String(e.message||e)});stop();status('再生できません: '+String(e.message||e));
 }
 async function openFile(file){
- const id=++loadSerial;stop();current=null;buttons();status('読み込み中…');
+ const id=++loadSerial;stop();current=null;$('tsl-colors').hidden=true;buttons();status('読み込み中…');
  if(exportDownloadUrl)URL.revokeObjectURL(exportDownloadUrl);
  exportDownloadUrl=null;$('mp4-download').hidden=true;
  try{
@@ -52,10 +62,10 @@ async function openFile(file){
   else throw Error('MAG・TSL・MMSのいずれかを選んでください');
   current={kind,data,bytes,name:file.name};Object.assign(metrics,{kind,filename:file.name,frames:0,seconds:0,underruns:0,gapSamples:0});
   $('empty').hidden=true;$('filename').textContent=file.name;$('kind').textContent=kind;$('keys').hidden=kind!=='MMS';
-  $('volume').disabled=kind!=='MMS';$('loop').disabled=kind==='MAG';clock(0);
+  $('volume').disabled=kind!=='MMS';$('loop').disabled=kind==='MAG';$('tsl-colors').hidden=kind!=='TSL';clock(0);
   canvas.width=640;canvas.height=400;ctx.fillStyle='#05080b';ctx.fillRect(0,0,640,400);ratio(640,400);
   if(kind==='MAG'){paint({width:data.width,height:data.height,pixels:data.rgba.buffer});ratio(data.width,data.height*data.pixelAspect);status(data.width+' × '+data.height+' / '+data.colors+'色');}
-  else if(kind==='TSL'){drawTSL(canvas,data,tslFrameAt(data,0));ratio(canvas.width,canvas.height);status('再生できます（TSLには音声がありません）');}
+  else if(kind==='TSL'){drawTSL(canvas,data,tslFrameAt(data,0),tslAppearance());ratio(canvas.width,canvas.height);status('再生できます（TSLには音声がありません）');}
   else status('再生できます');
   buttons();log('open',{name:file.name,kind,size:file.size});
  }catch(e){if(id===loadSerial){current=null;buttons();failure(e);}}
@@ -69,7 +79,7 @@ function tick(s){
  if(session!==s)return;
  if(s.kind==='TSL'){
   const t=(performance.now()-s.started)/1000,at=Math.min(t,current.data.duration);clock(at);
-  const index=tslFrameAt(current.data,at);if(index!==s.last){drawTSL(canvas,current.data,index);ratio(canvas.width,canvas.height);s.last=index;metrics.frames++;}
+  const index=tslFrameAt(current.data,at);if(index!==s.last){drawTSL(canvas,current.data,index,tslAppearance());ratio(canvas.width,canvas.height);s.last=index;metrics.frames++;}
   if(t>=current.data.duration){finish(s);return;}
  }else if(s.clock){
   const output=s.audio.getOutputTimestamp?.(),now=output?.contextTime>0?output.contextTime+Math.max(0,(performance.now()-output.performanceTime)/1000):s.audio.currentTime-(s.audio.baseLatency||0)-(s.audio.outputLatency||0);
@@ -112,16 +122,18 @@ async function play(){
 $('open').onclick=$('open-empty').onclick=()=>$('file').click();
 $('file').onchange=()=>{const file=$('file').files[0];$('file').value='';if(file)openFile(file);};
 $('play').onclick=play;$('stop').onclick=()=>stop();
+$('tsl-text-color').oninput=recolorTsl;
+$('tsl-bg-color').oninput=recolorTsl;
 $('export-mp4').onclick=async()=>{
  if(!current||exportController)return;
  stop('MP4保存のため再生を停止しました');
- const selected=current;
+ const selected=current,appearance=selected.kind==='TSL'?tslAppearance():undefined;
  exportController=new AbortController();buttons(false);
  $('mp4-download').hidden=true;
  let lastShown=-1,exportResolution='';
  status('MP4書き出し準備中…');
  try {
-  const blob=await exportMP4(selected,{signal:exportController.signal,onResolution:(w,h)=>{exportResolution=`${w}×${h} / `;},onProgress:(seconds,total)=>{
+  const blob=await exportMP4(selected,{signal:exportController.signal,tslAppearance:appearance,onResolution:(w,h)=>{exportResolution=`${w}×${h} / `;},onProgress:(seconds,total)=>{
    const count=Math.floor(seconds);
    if(count!==lastShown){lastShown=count;status('MP4変換中 '+Math.floor(seconds/60)+':'+String(count%60).padStart(2,'0')+(total?' / '+Math.ceil(total)+'秒':''));}
   }});
