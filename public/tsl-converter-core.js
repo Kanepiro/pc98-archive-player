@@ -34,7 +34,7 @@ export function portraitGrid(aspect=9/16,columns=90) {
 // Font pixels are a Full-HD-equivalent *target* for new portrait TSLs.
 // TSL itself stores a character grid, not font metrics. The player uses a
 // 12x24 cell with a 20px font, so requested pixels set the grid density.
-export const DEFAULT_FONT_PIXELS = 20;
+export const DEFAULT_FONT_PIXELS = 24;
 export function portraitGridForPixels(aspect=9/16,fontPixels=DEFAULT_FONT_PIXELS) {
  if(!Number.isInteger(fontPixels)||fontPixels<16||fontPixels>256)throw Error('文字サイズは16〜256pxの整数で指定してください');
  if(!Number.isFinite(aspect)||aspect<.25||aspect>1)throw Error('縦画面の比率が不正です');

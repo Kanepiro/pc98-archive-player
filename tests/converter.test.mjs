@@ -78,6 +78,8 @@ test('tall smartphone TSL round trips through the unchanged player',async()=>{
 });
 
 test('Portrait font pixel control computes a full-HD-equivalent character grid',()=>{
+ assert.deepEqual(portraitGridForPixels(),portraitGrid(9/16,75));
+ assert.deepEqual(portraitGridForPixels(9/16,24),portraitGrid(9/16,75));
  assert.deepEqual(portraitGridForPixels(9/16,20),portraitGrid(9/16,90));
  assert.deepEqual(portraitGridForPixels(9/16,40),portraitGrid(9/16,45));
  assert.deepEqual(portraitGridForPixels(9/16,64),portraitGrid(9/16,28));

@@ -20,8 +20,8 @@ try{
  await page.goto(url);
  await page.click('#tab-converter');
  await page.locator('#panel-converter summary').click();
- assert.equal(await page.locator('#video-font-px').inputValue(),'20');
- for(const [px,columns,rows,expectedW,expectedH] of [[256,7,6,1080,1852],[128,14,12,1080,1852],[40,45,40,1080,1920],[20,90,80,1080,1920]]){
+ assert.equal(await page.locator('#video-font-px').inputValue(),'24');
+ for(const [px,columns,rows,expectedW,expectedH] of [[256,7,6,1080,1852],[128,14,12,1080,1852],[40,45,40,1080,1920],[24,75,67,1074,1920],[20,90,80,1080,1920]]){
   await page.locator('#video-font-px').fill(String(px));
   assert.match(await page.locator('#layout-hint').textContent(),new RegExp(columns+'列 × '+rows+'行'));
   if(px===256)await page.setInputFiles('#video-file',sample);
