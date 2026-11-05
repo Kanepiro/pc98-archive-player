@@ -1,15 +1,19 @@
+import {setupImmersive} from './immersive.js';
+import {setupConverter} from './converter-ui.js';
 import {decodeMAG} from './mag.js';
 import {parseTSL,tslFrameAt,drawTSL} from './tsl.js';
 import {exportMP4,mp4Name} from './mp4-export.js';
 const $=id=>document.getElementById(id),canvas=$('screen'),ctx=canvas.getContext('2d',{alpha:false});
 let current=null,session=null,serial=0,loadSerial=0,frameRequest=0,installPrompt=null,swRegistration=null;
 let exportController=null, exportDownloadUrl=null;
-const events=[],metrics={version:'0.2.1',kind:null,frames:0,seconds:0,underruns:0,gapSamples:0};
+const events=[],metrics={version:'0.3.0',kind:null,frames:0,seconds:0,underruns:0,gapSamples:0};
 function log(type,detail={}){events.push({time:new Date().toISOString(),type,...detail});if(events.length>120)events.shift();}
 function status(s){$('status').textContent=s;}
 function clock(t){metrics.seconds=t;$('clock').textContent=Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0');}
 function buttons(running=false){
  const busy=!!exportController;
+ $('tab-converter').disabled=busy;
+ $('tab-player').disabled=busy;
  $('play').disabled=!current||current.kind==='MAG'||running||busy;
  $('stop').disabled=!running;
  $('export-mp4').disabled=!current||busy;
@@ -167,3 +171,5 @@ navigator.serviceWorker?.addEventListener('controllerchange',()=>{if(!$('update'
 setupOffline();
 // Read-only operational metrics used by browser verification and the diagnostic download.
 Object.defineProperty(window,'playerDiagnostics',{get:()=>JSON.parse(JSON.stringify({...metrics,events}))});
+const enterImmersive=setupImmersive({stage:$('stage'),stop:()=>stop()});
+setupConverter({enterImmersive,openPreview:async file=>{await openFile(file);if(current?.kind==='TSL')await play();},stopPlayback:()=>stop(),isExporting:()=>!!exportController});

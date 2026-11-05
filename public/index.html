@@ -2,6 +2,8 @@
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#101b22"><meta name="description" content="MAG画像、TSLテキストアニメ、M-MASLを一つのプレーヤーで。"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css"><title>PC-98 Archive Player</title></head>
 <body><main>
 <header><div class="brand"><span class="brandmark">98</span><div><h1>Archive Player</h1><p>MAG · TSL · M-MASL</p></div></div><button id="install" hidden>アプリを追加</button></header>
+<nav class="tabs" role="tablist" aria-label="機能"><button id="tab-player" role="tab" aria-controls="panel-player" aria-selected="true">プレーヤー</button><button id="tab-converter" role="tab" aria-controls="panel-converter" aria-selected="false" tabindex="-1">動画 → TSL</button></nav>
+<div id="panel-player" role="tabpanel" aria-labelledby="tab-player">
 <section class="viewer" aria-label="再生画面"><div id="stage"><canvas id="screen" width="640" height="400" aria-label="作品の表示"></canvas><div id="empty"><span class="format">PC-98 ARCHIVE</span><h2>あの頃の作品を、<br>もう一度。</h2><p>スマホに保存したファイルを開いてください</p><button class="primary" id="open-empty">ファイルを開く</button></div></div><div class="caption"><strong id="filename">ファイル未選択</strong><span id="kind">MAG / TSL / MMS</span></div></section>
 <section class="controls" aria-label="再生操作">
 <input id="file" type="file" accept=".mag,.MAG,.tsl,.TSL,.mms,.MMS" hidden>
@@ -10,5 +12,35 @@
 <div class="state"><span id="status" role="status" aria-live="polite">ファイルを開くと形式を自動で判別します</span><time id="clock">0:00</time></div><a id="mp4-download" hidden>MP4ファイルを保存する</a>
 </section>
 <details id="keys" hidden><summary>作品内のキー操作</summary><div class="keypad"><button data-key="13">Enter</button><button data-key="32">Space</button><button data-key="38">↑</button><button data-key="37">←</button><button data-key="40">↓</button><button data-key="39">→</button><button data-key="49">1</button><button data-key="50">2</button><button data-key="51">3</button><button data-key="52">4</button><button data-key="53">5</button><button data-key="54">6</button><button data-key="55">7</button><button data-key="56">8</button><button data-key="57">9</button><button data-key="48">0</button><button data-key="112">F1</button><button data-key="113">F2</button><button data-key="114">F3</button><button data-key="115">F4</button><button data-key="116">F5</button><button data-key="117">F6</button><button data-key="118">F7</button><button data-key="119">F8</button><button data-key="120">F9</button><button data-key="121">F10</button></div></details>
-<footer><p>選んだ作品は端末内で処理します。</p><div class="footer-actions"><button id="demo">動作確認データ</button><span id="offline"></span><button id="update" hidden>更新を適用</button></div><details><summary>使い方・確認状況</summary><p>AndroidのChromeで開き、メニューの「ホーム画面に追加」から起動できます。初回読み込み後、アプリ本体を保存できた場合はオフラインでも使えます。</p><p>MAGは画像表示、TSLとMMSは再生・停止に対応。MMSの操作ボタンは押している間だけキー入力します。バックグラウンドに移ると再生を停止します。</p><p>検証版 0.2.1。Android実機での互換性・音声遅延は未確認です。MAGの特殊機種モード、MMSの外部シナリオ呼び出しは未対応です。</p><button id="diagnostics">診断ログを保存</button></details></footer>
+</div>
+<section id="panel-converter" role="tabpanel" aria-labelledby="tab-converter" hidden>
+<div id="video-drop">
+<span class="format">VIDEO TO TEXT ANIMATION</span>
+<h2>動画を、文字のアニメに。</h2>
+<p>動画を選ぶだけで、自動的にTSLへ変換します。</p>
+<button id="video-choose" class="primary">動画を選ぶ</button>
+<input id="video-file" type="file" accept=".mp4,.m4v,.webm,video/mp4,video/webm" hidden>
+<p class="muted">ここに動画をドラッグ＆ドロップ</p>
+<p id="video-name"></p>
+</div>
+<details><summary>変換設定（任意）</summary>
+<fieldset id="converter-settings"><div class="converter-options">
+<label>生成モード<select id="video-mode"><option value="portrait" selected>スマホ縦 9:16（標準）</option><option value="screen">この端末の縦画面比率</option><option value="pc98">PC-98向け</option></select></label>
+<label id="portrait-grid">文字の細かさ<select id="video-columns"><option value="60">粗め · 60列基準</option><option value="90" selected>標準 · 90列基準</option><option value="120">細かめ · 120列基準</option></select></label>
+<label id="pc-grid" hidden>文字数<select id="video-size"><option value="79x27">79 × 27（標準）</option><option value="80x25">80 × 25</option><option value="120x40">120 × 40</option><option value="160x50">160 × 50</option></select></label>
+<label>フレームレート<select id="video-fps"><option value="5">5 fps</option><option value="10" selected>10 fps（標準）</option><option value="15">15 fps</option><option value="24">24 fps</option><option value="30">30 fps</option></select></label>
+<label>画面への収め方<select id="video-fit"><option value="cover" selected>画面いっぱい（切り抜き）</option><option value="contain">全体を表示（余白あり）</option></select></label>
+<label>切り抜き位置 · 左右<input id="crop-x" type="range" min="0" max="100" value="50"></label>
+<label>切り抜き位置 · 上下<input id="crop-y" type="range" min="0" max="100" value="50"></label>
+<label>明るさ<input id="video-brightness" type="number" min="-100" max="100" step="5" value="0"></label>
+<label>コントラスト<input id="video-contrast" type="number" min="0.25" max="3" step="0.05" value="1"></label>
+</div><p id="layout-hint" class="muted"></p></fieldset><button id="convert-again" hidden>設定を変えて再変換</button>
+</details>
+<div class="conversion-state"><progress id="tsl-progress" max="100" value="0" aria-label="TSL変換の進捗" hidden></progress>
+<p id="converter-status" role="status" aria-live="polite">MP4（H.264）に対応。動画は端末内で処理します。</p><p id="converter-detail" class="muted"></p>
+<button id="cancel-tsl" hidden>変換中止</button></div>
+<div id="tsl-result" hidden><a id="tsl-download" class="download-button">TSLをダウンロード</a><button id="preview-tsl-full">縦画面いっぱいで再生</button><button id="preview-tsl">プレーヤーで再生</button></div>
+<p class="converter-note">音声は含まれません。標準は縦9:16・中央切り抜きです。全画面中はタップで「戻る」を表示します。文字の縦横比は保ちます。最大2GB・2時間・4K。長尺は最大10,000画面・出力48MB以内に収まるよう自動調整します。WebMはブラウザーで読み取れる場合に利用できます。</p>
+</section>
+<footer><p>選んだ作品は端末内で処理します。</p><div class="footer-actions"><button id="demo">動作確認データ</button><span id="offline"></span><button id="update" hidden>更新を適用</button></div><details><summary>使い方・確認状況</summary><p>AndroidのChromeで開き、メニューの「ホーム画面に追加」から起動できます。初回読み込み後、アプリ本体を保存できた場合はオフラインでも使えます。</p><p>MAGは画像表示、TSLとMMSは再生・停止に対応。MMSの操作ボタンは押している間だけキー入力します。バックグラウンドに移ると再生を停止します。</p><p>検証版 0.3.0。Android実機での互換性・音声遅延は未確認です。MAGの特殊機種モード、MMSの外部シナリオ呼び出しは未対応です。</p><button id="diagnostics">診断ログを保存</button></details></footer>
 </main><script type="module" src="/app.js"></script></body></html>

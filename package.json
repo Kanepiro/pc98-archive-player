@@ -1,15 +1,16 @@
 {
   "name": "pc98-archive-player",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
     "build:wasm": "bash scripts/build-wasm.sh",
-    "test": "node --test tests/unit.test.mjs",
+    "test": "node --test tests/*.test.mjs",
     "test:corpus": "node tests/corpus.mjs",
     "test:browser": "node tests/browser.mjs",
-    "dev": "node scripts/serve.mjs"
+    "dev": "node scripts/serve.mjs",
+    "test:converter": "node tests/converter-browser.mjs"
   },
   "engines": {
     "node": ">=20"

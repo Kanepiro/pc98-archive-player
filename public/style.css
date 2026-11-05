@@ -2,3 +2,22 @@
 
 #mp4-download{display:inline-block;padding:8px 0;color:#8fe9c7;font-size:13px;text-decoration:underline;text-underline-offset:4px}
 [hidden]{display:none!important}
+.tabs{display:flex;gap:8px;margin-bottom:18px}.tabs button{flex:1}.tabs [aria-selected=true]{border-color:#79dfc3;color:#92ebd2;background:#16352f}
+#video-drop{border:1px dashed #42615f;border-radius:16px;padding:36px 20px;text-align:center;background:radial-gradient(ellipse at 50% 100%,#15342f,#0d1920 75%)}
+#video-drop h2{font-size:clamp(24px,4vw,34px)}#video-drop p{font-size:14px;line-height:1.7}#video-drop.dragover{outline:3px solid #79dfc3}
+#video-name{overflow-wrap:anywhere;color:#93e1ca}.muted,.converter-note{color:#8faab5;font-size:12px;line-height:1.8}
+.converter-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}fieldset{border:0;padding:12px 0;margin:0;min-width:0}
+.converter-options label{display:flex;flex-direction:column;gap:8px}.converter-options select,.converter-options input{width:100%;min-width:0;min-height:44px;background:#14232c;border:1px solid #3c5662;color:#e6f0f5;border-radius:7px;padding:8px;font:inherit}
+.conversion-state{padding:14px 0}.conversion-state p{overflow-wrap:anywhere}progress{width:100%;height:10px;accent-color:#79dfc3}
+#tsl-result{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:6px 0 20px}
+.download-button{display:inline-block;padding:12px 18px;border-radius:9px;background:#79dfc3;color:#08241e;font-size:14px;font-weight:650;text-decoration:none}
+a:focus-visible,select:focus-visible{outline:2px solid #74e5c6;outline-offset:4px}
+
+body.immersive-active{overflow:hidden}
+#stage.immersive{position:fixed;inset:0;z-index:1000;width:100vw;width:100dvw;height:100vh;height:100dvh;min-height:0;aspect-ratio:auto;background:#080d12;border:0}
+#stage.immersive canvas{width:100%;height:100%;object-fit:contain}
+#exit-immersive{position:absolute;right:max(12px,env(safe-area-inset-right));top:max(12px,env(safe-area-inset-top));z-index:1;background:#071118d9;opacity:0;transition:opacity .2s}
+#stage.show-exit #exit-immersive,#exit-immersive:focus-visible{opacity:1}
+.converter-options input[type=range]{width:100%}
+
+body.immersive-active header,body.immersive-active .tabs,body.immersive-active footer,body.immersive-active .controls,body.immersive-active .caption,body.immersive-active #keys{visibility:hidden}

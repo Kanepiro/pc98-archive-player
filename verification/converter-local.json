@@ -1,0 +1,50 @@
+{
+  "url": "http://127.0.0.1:4184/",
+  "environment": "Linux Google Chrome, 390x844 mobile emulation; not Windows or Android hardware",
+  "checks": [
+    "MP4 selection → automatic conversion → download → existing player preview completes",
+    "Generated TSL exports back to MP4 using existing exporter",
+    "Cancel mid-conversion releases worker and hides incomplete result",
+    "Corrupt MP4 displays a recoverable error",
+    "350-screen TSL download reloads through original player",
+    "WebM VP9 decoding",
+    "9:16 and device-ratio TSL; native/fallback fullscreen uses shared canvas without glyph distortion",
+    "Offline reload, local MP4 conversion and download",
+    "Desktop width and mobile width fit without horizontal overflow",
+    "Drag and drop triggers automatic conversion",
+    "No page errors and no upload requests"
+  ],
+  "errors": [],
+  "short": {
+    "frames": 21,
+    "duration": 2.0333333333333337,
+    "bytes": 154795
+  },
+  "ramp": " .:/|(Y$#V%0O8@D",
+  "over300": {
+    "frames": 350,
+    "duration": 35.00000000000023
+  },
+  "long": {
+    "sourceSeconds": 600,
+    "frames": 3000,
+    "elapsedSeconds": 13.881,
+    "bytes": 6595950
+  },
+  "portrait": {
+    "width": 90,
+    "height": 97,
+    "viewport": {
+      "w": 390,
+      "h": 844
+    },
+    "stage": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844
+    },
+    "aspectError": 0.0018322177163238584
+  },
+  "status": "pass"
+}
