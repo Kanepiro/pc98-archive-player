@@ -6,7 +6,7 @@ import {exportMP4,mp4Name} from './mp4-export.js';
 const $=id=>document.getElementById(id),canvas=$('screen'),ctx=canvas.getContext('2d',{alpha:false});
 let current=null,session=null,serial=0,loadSerial=0,frameRequest=0,installPrompt=null,swRegistration=null;
 let exportController=null, exportDownloadUrl=null;
-const events=[],metrics={version:'0.3.2',kind:null,frames:0,seconds:0,underruns:0,gapSamples:0};
+const events=[],metrics={version:'0.3.3',kind:null,frames:0,seconds:0,underruns:0,gapSamples:0};
 function log(type,detail={}){events.push({time:new Date().toISOString(),type,...detail});if(events.length>120)events.shift();}
 function status(s){$('status').textContent=s;}
 function clock(t){metrics.seconds=t;$('clock').textContent=Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0');}
@@ -24,14 +24,19 @@ function buttons(running=false){
  $('demo').disabled=busy;
  $('tsl-text-color').disabled=busy;
  $('tsl-bg-color').disabled=busy;
+ $('apply-tsl-colors').disabled=busy||current?.kind!=='TSL';
 }
 function tslAppearance(){return {foreground:$('tsl-text-color').value,background:$('tsl-bg-color').value};}
 function recolorTsl(){
  if(current?.kind!=='TSL')return;
  const seconds=session?.kind==='TSL'?Math.max(0,(performance.now()-session.started)/1000):metrics.seconds;
  const frame=tslFrameAt(current.data,Math.min(seconds,current.data.duration));
- drawTSL(canvas,current.data,frame,tslAppearance());ratio(canvas.width,canvas.height);
- if(session?.kind==='TSL')session.last=frame;
+ const appearance=tslAppearance();
+ drawTSL(canvas,current.data,frame,appearance);ratio(canvas.width,canvas.height);
+ if(session?.kind==='TSL'){
+  session.last=frame;
+  session.lastColors=appearance.foreground+'|'+appearance.background;
+ }
 }
 function ratio(w,h){$('stage').style.aspectRatio=w+'/'+h;}
 function paint(frame){if(canvas.width!==frame.width||canvas.height!==frame.height){canvas.width=frame.width;canvas.height=frame.height;}ctx.putImageData(new ImageData(new Uint8ClampedArray(frame.pixels),frame.width,frame.height),0,0);ratio(frame.width,frame.height);metrics.frames++;}
@@ -79,7 +84,9 @@ function tick(s){
  if(session!==s)return;
  if(s.kind==='TSL'){
   const t=(performance.now()-s.started)/1000,at=Math.min(t,current.data.duration);clock(at);
-  const index=tslFrameAt(current.data,at);if(index!==s.last){drawTSL(canvas,current.data,index,tslAppearance());ratio(canvas.width,canvas.height);s.last=index;metrics.frames++;}
+  const index=tslFrameAt(current.data,at),appearance=tslAppearance();
+  const colors=appearance.foreground+'|'+appearance.background;
+  if(index!==s.last||colors!==s.lastColors){drawTSL(canvas,current.data,index,appearance);ratio(canvas.width,canvas.height);s.last=index;s.lastColors=colors;metrics.frames++;}
   if(t>=current.data.duration){finish(s);return;}
  }else if(s.clock){
   const output=s.audio.getOutputTimestamp?.(),now=output?.contextTime>0?output.contextTime+Math.max(0,(performance.now()-output.performanceTime)/1000):s.audio.currentTime-(s.audio.baseLatency||0)-(s.audio.outputLatency||0);
@@ -122,8 +129,16 @@ async function play(){
 $('open').onclick=$('open-empty').onclick=()=>$('file').click();
 $('file').onchange=()=>{const file=$('file').files[0];$('file').value='';if(file)openFile(file);};
 $('play').onclick=play;$('stop').onclick=()=>stop();
-$('tsl-text-color').oninput=recolorTsl;
-$('tsl-bg-color').oninput=recolorTsl;
+for(const id of ['tsl-text-color','tsl-bg-color']){
+ const picker=$(id);
+ // Android native color dialogs may commit on change rather than input.
+ picker.addEventListener('input',recolorTsl);
+ picker.addEventListener('change',recolorTsl);
+ picker.addEventListener('blur',recolorTsl);
+}
+// Explicit fallback even when a native picker changes its value without firing events.
+$('apply-tsl-colors').onclick=recolorTsl;
+window.addEventListener('focus',()=>requestAnimationFrame(recolorTsl));
 $('export-mp4').onclick=async()=>{
  if(!current||exportController)return;
  stop('MP4保存のため再生を停止しました');

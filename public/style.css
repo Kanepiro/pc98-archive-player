@@ -4,6 +4,7 @@
 .tsl-color-pickers{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}
 .tsl-color-pickers label{display:flex;align-items:center;gap:10px;color:#e6f0f5}
 .tsl-color-pickers input[type=color]{width:50px;height:40px;min-width:50px;padding:3px;background:#14232c;border:1px solid #52707b;border-radius:7px;cursor:pointer}
+#apply-tsl-colors{margin-top:10px;width:100%;min-height:44px}
 #mp4-download{display:inline-block;padding:8px 0;color:#8fe9c7;font-size:13px;text-decoration:underline;text-underline-offset:4px}
 [hidden]{display:none!important}
 .tabs{display:flex;gap:8px;margin-bottom:18px}.tabs button{flex:1}.tabs [aria-selected=true]{border-color:#79dfc3;color:#92ebd2;background:#16352f}

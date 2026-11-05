@@ -43,9 +43,11 @@ async function setColor(id,value){
 try{
  await page.goto(url);
  assert.equal(await page.locator('#tsl-colors').isVisible(),true);
+ assert.equal(await page.locator('#apply-tsl-colors').isDisabled(),true);
  await page.setInputFiles('#file',{name:'original.TSL',mimeType:'application/octet-stream',buffer:original});
  await page.waitForFunction(()=>document.querySelector('#filename').textContent==='original.TSL');
  assert.equal(await page.locator('#tsl-colors').isVisible(),true);
+ assert.equal(await page.locator('#apply-tsl-colors').isEnabled(),true);
  assert.equal(await page.locator('#tsl-text-color').inputValue(),'#e3f4e8');
  assert.equal(await page.locator('#tsl-bg-color').inputValue(),'#080d12');
  await setColor('#tsl-text-color','#ff0033');
@@ -61,6 +63,24 @@ try{
  assert.ok(pixels.greenPixels>100,'On-the-fly recoloring during playback failed');
  await page.click('#stop');
  await setColor('#tsl-text-color','#ff0033');
+ // Android native color pickers may only dispatch change on commit.
+ await page.locator('#tsl-text-color').evaluate(el=>{
+  el.value='#00ff22';el.dispatchEvent(new Event('change',{bubbles:true}));
+ });
+ pixels=await pixelSummary();
+ assert.ok(pixels.greenPixels>100,'A change-only color selection did not redraw');
+ // A native picker may even update its value without an observable input/change.
+ // The explicit button must repaint that new value reliably.
+ await page.locator('#tsl-text-color').evaluate(el=>{el.value='#ff0033';});
+ await page.locator('#tsl-bg-color').evaluate(el=>{el.value='#ffffff';});
+ await page.click('#apply-tsl-colors');
+ pixels=await pixelSummary();
+ assert.deepEqual(pixels.background,[255,255,255]);
+ assert.ok(pixels.redPixels>100,'Explicit apply did not recolor glyphs');
+ await page.locator('#tsl-bg-color').evaluate(el=>{el.value='#112244';});
+ await page.click('#apply-tsl-colors');
+ pixels=await pixelSummary();
+ assert.deepEqual(pixels.background,[17,34,68]);
  await page.screenshot({path:join(out,'tsl-color-player.png'),fullPage:true});
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  const [file]=await Promise.all([page.waitForEvent('download',{timeout:90000}),page.click('#export-mp4')]);
