@@ -114,10 +114,10 @@ $('export-mp4').onclick=async()=>{
  const selected=current;
  exportController=new AbortController();buttons(false);
  $('mp4-download').hidden=true;
- let lastShown=-1;
+ let lastShown=-1,exportResolution='';
  status('MP4書き出し準備中…');
  try {
-  const blob=await exportMP4(selected,{signal:exportController.signal,onProgress:(seconds,total)=>{
+  const blob=await exportMP4(selected,{signal:exportController.signal,onResolution:(w,h)=>{exportResolution=`${w}×${h} / `;},onProgress:(seconds,total)=>{
    const count=Math.floor(seconds);
    if(count!==lastShown){lastShown=count;status('MP4変換中 '+Math.floor(seconds/60)+':'+String(count%60).padStart(2,'0')+(total?' / '+Math.ceil(total)+'秒':''));}
   }});
@@ -126,7 +126,7 @@ $('export-mp4').onclick=async()=>{
   const link=$('mp4-download');link.href=exportDownloadUrl;link.download=mp4Name(selected.name);link.hidden=false;
   const a=document.createElement('a');a.href=exportDownloadUrl;a.download=mp4Name(selected.name);
   document.body.append(a);a.click();a.remove();
-  status('MP4を書き出しました（'+(blob.size/1024/1024).toFixed(1)+' MB）');
+  status('MP4を書き出しました（'+exportResolution+(blob.size/1024/1024).toFixed(1)+' MB）');
   log('mp4-export',{name:a.download,bytes:blob.size});
  } catch (e) {
   log('mp4-export-error',{message:String(e.message||e)});

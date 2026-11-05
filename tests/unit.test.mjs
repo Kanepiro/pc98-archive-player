@@ -1,3 +1,4 @@
+import {tslExportCandidates} from '../public/mp4-export.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -44,4 +45,19 @@ test('AudioWorklet preserves PCM across arbitrary block boundaries and reports u
 test('TSL accepts real long animations exceeding the old 300-frame limit',()=>{
  const n=1178,text='1.08\n'+n+'\n79\n27\n1\n-1\n\f\n1 1\n1178 2\n0 0\n\f\n'+Array(n).fill('A\n').join('\f\n')+'\f\n';
  const d=parseTSL(text);assert.equal(d.frames.length,n);assert.equal(tslFrameAt(d,.02),1177);
+});
+
+
+test('Portrait TSL MP4 prefers native 1080x1920 and preserves portrait in fallback',()=>{
+  assert.deepEqual(tslExportCandidates(1080,1920),[
+    {width:1080,height:1920},
+    {width:720,height:1280},
+    {width:406,height:720},
+  ]);
+});
+
+test('Landscape TSL MP4 preserves aspect ratio and avoids duplicate fallback sizes',()=>{
+  const sizes=tslExportCandidates(1920,1200);
+  assert.deepEqual(sizes,[{width:1728,height:1080},{width:1152,height:720}]);
+  assert.deepEqual(tslExportCandidates(640,400),[{width:640,height:400}]);
 });

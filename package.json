@@ -9,6 +9,7 @@
     "test": "node --test tests/unit.test.mjs",
     "test:corpus": "node tests/corpus.mjs",
     "test:browser": "node tests/browser.mjs",
+    "test:tsl-export": "node tests/tsl-mp4-export.browser.mjs",
     "dev": "node scripts/serve.mjs"
   },
   "engines": {
