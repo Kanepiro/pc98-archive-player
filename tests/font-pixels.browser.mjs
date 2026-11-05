@@ -21,7 +21,7 @@ try{
  await page.click('#tab-converter');
  assert.equal(await page.locator('#converter-options').evaluate(x=>x.open),true);
  assert.equal(await page.locator('#convert-tsl').isDisabled(),true);
- assert.equal(await page.locator('header').getByText('v0.3.3').isVisible(),true);
+ assert.equal(await page.locator('header').getByText('v0.3.4').isVisible(),true);
  assert.equal(await page.locator('#video-font-px').inputValue(),'24');
  for(const [px,columns,rows,expectedW,expectedH] of [[256,7,6,1080,1852],[128,14,12,1080,1852],[40,45,40,1080,1920],[24,75,67,1074,1920],[20,90,80,1080,1920]]){
   await page.locator('#video-font-px').fill(String(px));

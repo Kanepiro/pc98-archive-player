@@ -6,7 +6,7 @@ import {exportMP4,mp4Name} from './mp4-export.js';
 const $=id=>document.getElementById(id),canvas=$('screen'),ctx=canvas.getContext('2d',{alpha:false});
 let current=null,session=null,serial=0,loadSerial=0,frameRequest=0,installPrompt=null,swRegistration=null;
 let exportController=null, exportDownloadUrl=null;
-const events=[],metrics={version:'0.3.3',kind:null,frames:0,seconds:0,underruns:0,gapSamples:0};
+const events=[],metrics={version:'0.3.4',kind:null,frames:0,seconds:0,underruns:0,gapSamples:0};
 function log(type,detail={}){events.push({time:new Date().toISOString(),type,...detail});if(events.length>120)events.shift();}
 function status(s){$('status').textContent=s;}
 function clock(t){metrics.seconds=t;$('clock').textContent=Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0');}
@@ -28,14 +28,32 @@ function buttons(running=false){
 }
 function tslAppearance(){return {foreground:$('tsl-text-color').value,background:$('tsl-bg-color').value};}
 function recolorTsl(){
- if(current?.kind!=='TSL')return;
- const seconds=session?.kind==='TSL'?Math.max(0,(performance.now()-session.started)/1000):metrics.seconds;
- const frame=tslFrameAt(current.data,Math.min(seconds,current.data.duration));
  const appearance=tslAppearance();
- drawTSL(canvas,current.data,frame,appearance);ratio(canvas.width,canvas.height);
- if(session?.kind==='TSL'){
-  session.last=frame;
-  session.lastColors=appearance.foreground+'|'+appearance.background;
+ const details=$('tsl-color-status');
+ if(current?.kind!=='TSL'){
+  details.textContent='TSLファイルを開くと色が反映されます。';
+  return;
+ }
+ try{
+  const seconds=session?.kind==='TSL'?Math.max(0,(performance.now()-session.started)/1000):metrics.seconds;
+  const frame=tslFrameAt(current.data,Math.min(seconds,current.data.duration));
+  drawTSL(canvas,current.data,frame,appearance);ratio(canvas.width,canvas.height);
+  if(session?.kind==='TSL'){
+   session.last=frame;
+   session.lastColors=appearance.foreground+'|'+appearance.background;
+  }
+  // Read back a blank pixel in the last character cell to distinguish a
+  // stale JavaScript bundle from a native canvas paint failure on Android.
+  const actual=canvas.getContext('2d').getImageData(canvas.width-1,canvas.height-1,1,1).data;
+  const expected=[1,3,5].map(i=>parseInt(appearance.background.slice(i,i+2),16));
+  const matches=expected.every((channel,i)=>Math.abs(channel-actual[i])<=2);
+  details.textContent=matches
+   ?'反映済み：文字 '+appearance.foreground+' ／ 背景 '+appearance.background
+   :'描画確認エラー：設定 背景 '+appearance.background+' ／ 実際 '+[...actual.slice(0,3)].join(',');
+  log('tsl-color-render',{appearance,readback:[...actual.slice(0,3)],ok:matches});
+ }catch(e){
+  details.textContent='色の反映に失敗しました: '+e.message;
+  log('tsl-color-error',{message:String(e.message||e)});
  }
 }
 function ratio(w,h){$('stage').style.aspectRatio=w+'/'+h;}
@@ -187,14 +205,22 @@ $('install').onclick=async()=>{if(installPrompt){await installPrompt.prompt();in
 async function setupOffline(){
  if(!('serviceWorker' in navigator))return;
  try{
-  swRegistration=await navigator.serviceWorker.register('/sw.js');await navigator.serviceWorker.ready;
+  swRegistration=await navigator.serviceWorker.register('/sw.js?v=0.3.4',{updateViaCache:'none'});await navigator.serviceWorker.ready;
+  swRegistration.update().catch(()=>{});
   $('offline').textContent='オフライン準備済み';
   const show=()=>{if(swRegistration.waiting)$('update').hidden=false;};show();
   swRegistration.addEventListener('updatefound',()=>swRegistration.installing?.addEventListener('statechange',show));
  }catch(e){$('offline').textContent='オフライン保存は利用できません';log('offline-error',{message:e.message});}
 }
-$('update').onclick=()=>{stop();swRegistration?.waiting?.postMessage({type:'activate'});};
-navigator.serviceWorker?.addEventListener('controllerchange',()=>{if(!$('update').hidden)location.reload();});
+$('update').onclick=()=>{stop();if(swRegistration?.waiting)swRegistration.waiting.postMessage({type:'activate'});else location.reload();};
+let hadServiceWorkerController=!!navigator.serviceWorker?.controller;
+navigator.serviceWorker?.addEventListener('controllerchange',()=>{
+ // First install is not an update: do not reset the active tab or file selection.
+ if(!hadServiceWorkerController){hadServiceWorkerController=true;return;}
+ // An existing PWA was upgraded; refresh only when no user work can be lost.
+ if(!current&&!exportController)location.reload();
+ else { $('update').hidden=false; $('offline').textContent='新版を取得しました。作業後に更新を適用してください'; }
+});
 setupOffline();
 // Read-only operational metrics used by browser verification and the diagnostic download.
 Object.defineProperty(window,'playerDiagnostics',{get:()=>JSON.parse(JSON.stringify({...metrics,events}))});

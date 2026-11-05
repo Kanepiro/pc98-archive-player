@@ -54,6 +54,7 @@ try{
  await setColor('#tsl-bg-color','#112244');
  let pixels=await pixelSummary();
  assert.deepEqual(pixels.background,[17,34,68]);
+ assert.match(await page.locator('#tsl-color-status').textContent(),/反映済み.*#ff0033.*#112244/);
  assert.ok(pixels.redPixels>100,'No red glyphs rendered');
  await page.click('#play');
  await page.waitForTimeout(250);
@@ -76,6 +77,7 @@ try{
  await page.click('#apply-tsl-colors');
  pixels=await pixelSummary();
  assert.deepEqual(pixels.background,[255,255,255]);
+ assert.match(await page.locator('#tsl-color-status').textContent(),/反映済み.*#ff0033.*#ffffff/);
  assert.ok(pixels.redPixels>100,'Explicit apply did not recolor glyphs');
  await page.locator('#tsl-bg-color').evaluate(el=>{el.value='#112244';});
  await page.click('#apply-tsl-colors');
