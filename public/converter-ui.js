@@ -1,8 +1,9 @@
 import {convertVideo} from './video-to-tsl.js';
 import {tslName,portraitGridForPixels} from './tsl-converter-core.js';
+import {fileIdentity,readCheckpointSummary} from './tsl-checkpoint.js';
 export function setupConverter({openPreview,stopPlayback,isExporting,enterImmersive}) {
  const $=id=>document.getElementById(id);
- let controller=null,result=null,downloadUrl=null,selected=null;
+ let controller=null,result=null,downloadUrl=null,selected=null,selectSerial=0;
  function show(which){
   if(isExporting())return;
   stopPlayback();
@@ -32,18 +33,33 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   result=null;$('tsl-result').hidden=true;
   if(downloadUrl)URL.revokeObjectURL(downloadUrl);downloadUrl=null;
  }
+ function converterConfig(){
+  return Object.fromEntries(['video-mode','video-font-px','video-size','video-fps','video-fit','crop-x','crop-y','video-brightness','video-contrast'].map(id=>[id,$(id).value]));
+ }
+ function restoreConfig(config){
+  for(const [id,value] of Object.entries(config||{}))if($(id)&&typeof value==='string')$(id).value=value;
+  layoutHint();
+ }
  function selectFile(file){
   if(!file||controller||isExporting())return;
-  selected=file;clearResult();
+  selected=file;clearResult();const serial=++selectSerial;
   $('video-name').textContent='選択した動画：'+file.name;
+  $('convert-tsl').textContent='変換';
   $('tsl-progress').hidden=true;
   $('converter-status').textContent='動画を選択しました。設定を確認して「変換」を押してください。';
   $('converter-detail').textContent='';
   busy(false);
+  readCheckpointSummary().then(job=>{
+   if(serial!==selectSerial||selected!==file||controller||!job||job.identity!==fileIdentity(file)||!job.done)return;
+   restoreConfig(job.config);
+   $('convert-tsl').textContent=job.done===job.total?'結果を復元':'続きから再開';
+   $('converter-status').textContent='動画を選択しました。保存済み '+job.done.toLocaleString()+' / '+job.total.toLocaleString()+'画面から再開できます。';
+   $('converter-detail').textContent='動画ファイルは再選択が必要です。変換設定は保存時の値へ戻しました。';
+  }).catch(()=>{});
  }
  async function start(){
   if(controller||isExporting()||!selected)return;
-  const file=selected;
+  const file=selected,checkpointConfig=converterConfig();
   clearResult();controller=new AbortController();busy(true);
   $('tsl-progress').removeAttribute('value');$('tsl-progress').hidden=false;
   $('converter-status').textContent='動画を読み込み中…';$('converter-detail').textContent='';
@@ -56,12 +72,18 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
    result=await convertVideo(file,{signal:controller.signal,width,height,fps:Number($('video-fps').value),
     brightness:Number($('video-brightness').value),contrast:Number($('video-contrast').value),
     fit:$('video-fit').value,positionX:Number($('crop-x').value)/100,positionY:Number($('crop-y').value)/100,
+    checkpointConfig,
+    onCheckpointIssue:()=>{$('converter-detail').textContent='端末に途中保存できません。変換は続行しますが、閉じると再開できない場合があります。';},
     onProgress:p=>{
      if(p.phase==='loading')return;
+     if(p.phase==='resumed'){
+      $('tsl-progress').max=p.total;$('tsl-progress').value=p.done;
+      $('converter-status').textContent='保存済み '+p.done.toLocaleString()+'画面から再開します…';return;
+     }
      const now=performance.now();if(now-last<150&&p.done!==p.total)return;last=now;
      $('tsl-progress').max=p.total;$('tsl-progress').value=p.done;
      $('converter-status').textContent='変換中 '+Math.floor(p.done/p.total*100)+'% · '+p.done.toLocaleString()+' / '+p.total.toLocaleString()+'画面';
-     $('converter-detail').textContent=(p.plan.reduced?'長尺のため自動調整 · ':'')+p.plan.effectiveFps.toFixed(2)+' fps · 残り約'+Math.ceil(p.remaining)+'秒';
+     $('converter-detail').textContent=(p.plan.reduced?'長尺のため自動調整 · ':'')+p.plan.effectiveFps.toFixed(2)+' fps · 残り約'+Math.ceil(p.remaining)+'秒 · 途中保存済み '+p.saved.toLocaleString()+'画面';
     }});
    downloadUrl=URL.createObjectURL(result.blob);
    const a=$('tsl-download');a.href=downloadUrl;a.download=tslName(file.name);
@@ -71,7 +93,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   }catch(e){
    clearResult();$('converter-status').textContent=e.name==='AbortError'?'変換を中止しました':'変換できません: '+e.message;
    $('converter-detail').textContent='';$('tsl-progress').hidden=true;
-  }finally{controller=null;busy(false);}
+  }finally{controller=null;busy(false);$('convert-tsl').textContent='変換';}
  }
  $('video-choose').onclick=()=>$('video-file').click();
  $('video-file').onchange=()=>{const file=$('video-file').files[0];$('video-file').value='';selectFile(file);};
@@ -107,6 +129,10 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   if(e.dataTransfer.files.length!==1){if(!controller)$('converter-status').textContent='動画を1本ずつ選んでください';return;}
   selectFile(e.dataTransfer.files[0]);
  });
- window.addEventListener('pagehide',()=>controller?.abort());
+ readCheckpointSummary().then(job=>{
+  if(!selected&&!controller&&job?.done>0){
+   $('converter-status').textContent='途中保存あり：'+job.done.toLocaleString()+' / '+job.total.toLocaleString()+'画面。同じ動画を選ぶと続きから再開できます。';
+  }
+ }).catch(()=>{});
  busy(false);
 }
