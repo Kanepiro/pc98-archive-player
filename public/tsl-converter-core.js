@@ -88,6 +88,14 @@ export class TSLWriter {
   if(this.size>MAX_OUTPUT_BYTES-4096-this.plan.count*24)throw Error('出力サイズ上限を超えました');
   this.batch.push(part);this.frames++;
   if(this.batch.length>=64){this.parts.push(new Blob(this.batch));this.batch=[];}
+  return part;
+ }
+ resumeChunk(chunk) {
+  if(!chunk||chunk.start!==this.frames||!Number.isInteger(chunk.count)||chunk.count<1||!(chunk.blob instanceof Blob))
+   throw Error('途中保存データの順序が不正です');
+  if(this.frames+chunk.count>this.plan.count||this.size+chunk.blob.size>MAX_OUTPUT_BYTES-4096-this.plan.count*24)
+   throw Error('途中保存データが出力上限を超えています');
+  this.parts.push(chunk.blob);this.size+=chunk.blob.size;this.frames+=chunk.count;
  }
  finish() {
   if(this.frames!==this.plan.count)throw Error('画面データが不足しています');
