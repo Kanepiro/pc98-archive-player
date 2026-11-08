@@ -1,5 +1,5 @@
 import {convertVideo} from './video-to-tsl.js';
-import {tslName,portraitGridForPixels} from './tsl-converter-core.js';
+import {tslName,portraitGridForPixels,landscapeGridForPixels} from './tsl-converter-core.js';
 import {fileIdentity,readCheckpointSummary} from './tsl-checkpoint.js';
 export function setupConverter({openPreview,stopPlayback,isExporting,enterImmersive}) {
  const $=id=>document.getElementById(id);
@@ -40,6 +40,17 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   for(const [id,value] of Object.entries(config||{}))if($(id)&&typeof value==='string')$(id).value=value;
   layoutHint();
  }
+ function selectedGrid(){
+  const mode=$('video-mode').value;
+  if(mode==='pc98'){
+   const [width,height]=$('video-size').value.split('x').map(Number);
+   return {width,height};
+  }
+  const pixels=Number($('video-font-px').value);
+  if(mode==='landscape')return landscapeGridForPixels(pixels);
+  const aspect=mode==='screen'?Math.min(screen.width,screen.height)/Math.max(screen.width,screen.height):9/16;
+  return portraitGridForPixels(aspect,pixels);
+ }
  function selectFile(file){
   if(!file||controller||isExporting())return;
   selected=file;clearResult();const serial=++selectSerial;
@@ -66,8 +77,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   let last=0;
   try{
    const mode=$('video-mode').value;
-   const target=mode==='screen'?Math.min(screen.width,screen.height)/Math.max(screen.width,screen.height):9/16;
-   const grid=mode==='pc98'?Object.fromEntries(['width','height'].map((k,i)=>[k,Number($('video-size').value.split('x')[i])])):portraitGridForPixels(target,Number($('video-font-px').value));
+   const grid=selectedGrid();
    const {width,height}=grid;
    result=await convertVideo(file,{signal:controller.signal,width,height,fps:Number($('video-fps').value),
     brightness:Number($('video-brightness').value),contrast:Number($('video-contrast').value),
@@ -111,12 +121,12 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  };
  function layoutHint(){
   const mode=$('video-mode').value,pc=mode==='pc98';
-  $('pc-grid').hidden=!pc;$('portrait-font-setting').hidden=pc;
+  $('pc-grid').hidden=!pc;$('video-font-setting').hidden=pc;
   if(pc){$('layout-hint').textContent='PC-98向けの文字数は固定です。TASL Ver.1.08実機での再生は未検証です。';return;}
-  const target=mode==='screen'?Math.min(screen.width,screen.height)/Math.max(screen.width,screen.height):9/16;
   try{
-   const pixels=Number($('video-font-px').value),grid=portraitGridForPixels(target,pixels);
-   $('layout-hint').textContent=`文字サイズ約${pixels}px → ${grid.width}列 × ${grid.height}行で生成（フルHD換算）。縦画面TSLはWebプレーヤー向けで、PC-98の標準画面範囲外です。`;
+   const pixels=Number($('video-font-px').value),grid=selectedGrid();
+   const note=mode==='landscape'?'横16:9・文字は回転しません。':'縦画面の文字アニメです。';
+   $('layout-hint').textContent=`文字サイズ約${pixels}px → ${grid.width}列 × ${grid.height}行で生成（フルHD換算）。${note}PC-98実機互換ではなく、Webプレーヤー向けです。`;
   }catch(e){$('layout-hint').textContent=e.message;}
  }
  $('video-mode').onchange=()=>{$('video-fit').value=$('video-mode').value==='pc98'?'contain':'cover';layoutHint();};

@@ -62,6 +62,12 @@ test('Landscape TSL MP4 preserves aspect ratio and avoids duplicate fallback siz
   assert.deepEqual(tslExportCandidates(640,400),[{width:640,height:400}]);
 });
 
+test('16:9 landscape TSL renders to Full HD without rotating its text',()=>{
+ assert.deepEqual(tslExportCandidates(128*12,36*24),[
+  {width:1920,height:1080},{width:1280,height:720},
+ ]);
+});
+
 test('Upscales a reduced-density portrait TSL to sharp native Full HD video',()=>{
  assert.deepEqual(tslExportCandidates(540,960),[
   {width:1080,height:1920}, {width:720,height:1280}, {width:406,height:720}
