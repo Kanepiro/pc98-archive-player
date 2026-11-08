@@ -21,7 +21,7 @@ try{
  await page.click('#tab-converter');
  assert.equal(await page.locator('#converter-options').evaluate(x=>x.open),true);
  assert.equal(await page.locator('#convert-tsl').isDisabled(),true);
- assert.equal(await page.locator('header').getByText('v0.3.4').isVisible(),true);
+ assert.equal(await page.locator('header').getByText('v0.3.6').isVisible(),true);
  assert.equal(await page.locator('#video-font-px').inputValue(),'24');
  for(const [px,columns,rows,expectedW,expectedH] of [[256,7,6,1080,1852],[128,14,12,1080,1852],[40,45,40,1080,1920],[24,75,67,1074,1920],[20,90,80,1080,1920]]){
   await page.locator('#video-font-px').fill(String(px));
@@ -78,10 +78,10 @@ try{
  await page.screenshot({path:join(out,'mobile-ui-selection.png'),fullPage:true});
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  await page.selectOption('#video-mode','pc98');
- assert.equal(await page.locator('#portrait-font-setting').isVisible(),false);
+ assert.equal(await page.locator('#video-font-setting').isVisible(),false);
  assert.equal(await page.locator('#pc-grid').isVisible(),true);
  await page.selectOption('#video-mode','portrait');
- assert.equal(await page.locator('#portrait-font-setting').isVisible(),true);
+ assert.equal(await page.locator('#video-font-setting').isVisible(),true);
  assert.deepEqual(errors,[]);
  console.log('Font-pixel converter + direct-render MP4 end-to-end: PASS');
 }finally {await browser.close();}

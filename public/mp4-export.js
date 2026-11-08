@@ -32,7 +32,11 @@ function newCanvas(width, height, limits = MAX_SIDE) {
 export function tslExportCandidates(width, height) {
   const orientation = height >= width ? 'portrait' : 'landscape';
   const limits = [TSL_FULL_HD[orientation], TSL_HD[orientation], MAX_SIDE];
-  const sizes = limits.map(limit=>dimensions(width,height,limit,orientation==='portrait'));
+  // Full-HD redraw also applies to near-16:9 landscape text; this is
+  // the direct, unrotated video-to-TSL landscape path. Keep legacy
+  // landscape formats at their previous native raster sizes.
+  const wide16x9=orientation==='landscape'&&Math.abs(width/height/(16/9)-1)<.02;
+  const sizes = limits.map(limit=>dimensions(width,height,limit,orientation==='portrait'||wide16x9));
   return sizes.filter((size,i)=>sizes.findIndex(other=>other.width===size.width&&other.height===size.height)===i);
 }
 async function checkCodec(canvas, withAudio) {

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parseTSL,tslFrameAt} from '../public/tsl.js';
-import {makePlan,optionsFor,portraitGrid,portraitGridForPixels,fitRect,rgbaToASCII,densityRamp,TSLWriter,tslName,CANDIDATE_RAMP,MAX_OUTPUT_BYTES} from '../public/tsl-converter-core.js';
+import {makePlan,optionsFor,portraitGrid,portraitGridForPixels,landscapeGridForPixels,fitRect,rgbaToASCII,densityRamp,TSLWriter,tslName,CANDIDATE_RAMP,MAX_OUTPUT_BYTES} from '../public/tsl-converter-core.js';
 
 test('60 Hz schedule preserves duration within half a tick and has no cumulative drift',()=>{
  for(const duration of [.001,.1,1,10.01,60.123,600,7200])for(const fps of [5,10,15,24,29.97,30]){
@@ -97,4 +97,30 @@ test('Portrait font pixel control computes a full-HD-equivalent character grid',
   }
  }
  for(const px of [0,15,257,Infinity,32.5,NaN])assert.throws(()=>portraitGridForPixels(9/16,px));
+});
+
+test('landscape 16:9 font grids keep characters upright at approximately Full-HD cell size',async()=>{
+ const expected={width:128,height:36,targetAspect:16/9};
+ assert.deepEqual(landscapeGridForPixels(24),expected);
+ const values=[16,20,24,28,32,40,48,64,96,128,192,256];
+ let last=Infinity;
+ for(const px of values){
+  const grid=landscapeGridForPixels(px);
+  assert.ok(grid.width>=4&&grid.width<=160);
+  assert.ok(grid.height>=4&&grid.height<=100);
+  assert.ok(grid.width<=last,'larger font size cannot increase grid columns');
+  assert.ok(Math.abs(grid.width*.5/grid.height/(16/9)-1)<.02,'cell aspect remains within 2% of 16:9');
+  last=grid.width;
+ }
+ for(const px of [0,15,257,NaN,Infinity,24.1])assert.throws(()=>landscapeGridForPixels(px));
+ const plan=makePlan(1.25,{...expected,fps:24}),writer=new TSLWriter(plan);
+ const row='Y'.repeat(plan.width)+'\r\n';
+ for(let i=0;i<plan.count;i++)writer.append(row.repeat(plan.height));
+ const decoded=parseTSL(await writer.finish().text());
+ assert.equal(decoded.width,128);
+ assert.equal(decoded.height,36);
+ assert.equal(decoded.frames.length,plan.count);
+ const rect=fitRect(1920,1080,128*4,36*4,.5,'cover');
+ assert.ok(Math.abs(rect.width-512)<1e-9);
+ assert.ok(Math.abs(rect.height-144)<1e-9);
 });

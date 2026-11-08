@@ -42,6 +42,22 @@ export function portraitGridForPixels(aspect=9/16,fontPixels=DEFAULT_FONT_PIXELS
  const columns=Math.max(4,Math.min(160,Math.round(referenceWidth/(fontPixels*.6))));
  return portraitGrid(aspect,columns);
 }
+// A landscape Full-HD image must remain horizontal throughout video -> TSL -> MP4.
+// Text cells are 12 x 24 (aspect .5), so choose integer columns/rows closest to
+// 16:9 without rotating any glyphs. Prefer the correct aspect over an exact px hint.
+export function landscapeGridForPixels(fontPixels=DEFAULT_FONT_PIXELS) {
+ if(!Number.isInteger(fontPixels)||fontPixels<16||fontPixels>256)throw Error('文字サイズは16〜256pxの整数で指定してください');
+ const aspect=16/9,targetColumns=Math.min(160,1920/(fontPixels*.6));
+ let best;
+ for(let width=4;width<=160;width++){
+  const height=Math.round(width*.5/aspect);
+  if(height<4||height>100)continue;
+  const error=Math.abs((width*.5/height)/aspect-1);
+  const score=40*error+Math.abs(width/targetColumns-1);
+  if(!best||score<best.score)best={width,height,score};
+ }
+ return {width:best.width,height:best.height,targetAspect:aspect};
+}
 
 export function fitRect(sourceWidth,sourceHeight,width,height,cellAspect=.5,fit='contain',positionX=.5,positionY=.5) {
  if(!(sourceWidth>0&&sourceHeight>0))throw Error('動画サイズを取得できません');
