@@ -1,5 +1,6 @@
 import {makePlan,fitRect,densityRamp,TSLWriter,optionsFor} from './tsl-converter-core.js';
 import {drawTSL} from './tsl.js';
+import {makeGlyphAtlas} from './tsl-quality.js';
 import {fileIdentity,fingerprint,readCheckpoint,beginCheckpoint,appendCheckpoint} from './tsl-checkpoint.js';
 
 const aborted=()=>new DOMException('変換を中止しました','AbortError');
@@ -34,6 +35,22 @@ function convertFrame(worker,pixels,width,height,options,signal) {
   worker.postMessage({pixels:pixels.buffer,width,height,options},[pixels.buffer]);
  });
 }
+function readQualityState(worker,signal){
+ return new Promise((resolve,reject)=>{
+  check(signal);
+  const finish=(error,state)=>{
+   clearTimeout(timer);worker.onmessage=null;worker.onerror=null;
+   signal?.removeEventListener('abort',cancel);
+   error?reject(error):resolve(state);
+  };
+  const cancel=()=>finish(aborted());
+  const timer=setTimeout(()=>finish(Error('文字状態の保存がタイムアウトしました')),30000);
+  signal?.addEventListener('abort',cancel,{once:true});
+  worker.onerror=e=>finish(Error(e.message||'文字状態の保存に失敗しました'));
+  worker.onmessage=({data:d})=>finish(d.error?Error(d.error):null,d.state);
+  worker.postMessage({type:'snapshot'});
+ });
+}
 export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIssue=()=>{},checkpointConfig={},...input}={}) {
  check(signal);const options=optionsFor(input);
  const {fit='contain',positionX=.5,positionY=.5}=input;
@@ -50,25 +67,29 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   const plan=makePlan(video.duration,options);
   if(!video.videoWidth||!video.videoHeight)throw Error('映像トラックがありません');
   if(video.videoWidth*video.videoHeight>3840*2160)throw Error('動画の解像度は4K（約830万画素）以下にしてください');
-  const canvas=document.createElement('canvas'),sample=4;
+  const canvas=document.createElement('canvas'),sample=options.conversionMode==='quality'?6:4;
   canvas.width=plan.width*sample;canvas.height=plan.height*sample;
   const ctx=canvas.getContext('2d',{willReadFrequently:true,alpha:false});
   const rect=fitRect(video.videoWidth,video.videoHeight,canvas.width,canvas.height,.5,fit,positionX,positionY);
-  const ramp=calibrateRamp();
-  let writer=new TSLWriter(plan),checkpoint=null,checkpointEnabled=true,resumeStart=0,saved=0;
+  const ramp=options.conversionMode==='legacy'?calibrateRamp():undefined;
+  let writer=new TSLWriter(plan),checkpoint=null,checkpointEnabled=true,resumeStart=0,saved=0,resumeState=null;
   // Each checkpoint is keyed by the source, content sample, conversion settings and video metadata.
   // The video itself is deliberately NOT persisted.
   try{
    const identity=fileIdentity(file);
-   const engineVersion=options.conversionMode==='outline'?3:2;
+   const engineVersion=options.conversionMode==='quality'?5:2;
    const signature=JSON.stringify([engineVersion,identity,await fingerprint(file),
-    [options.width,options.height,options.fps,options.brightness,options.contrast,options.gamma,options.edge,options.conversionMode,options.outlineThreshold,fit,positionX,positionY],
+    [options.width,options.height,options.fps,options.brightness,options.contrast,options.gamma,options.edge,options.conversionMode,fit,positionX,positionY],
     [video.videoWidth,video.videoHeight,video.duration,plan.count]]);
    const previous=await readCheckpoint();
    if(previous?.job.signature===signature){
     try{
      for(const chunk of previous.chunks)writer.resumeChunk(chunk);
      if(writer.frames!==previous.job.done)throw Error('途中データの画面数が一致しません');
+     if(options.conversionMode==='quality'&&writer.frames>0){
+      if(!previous.qualityState)throw Error('文字の時間状態が保存されていません');
+      resumeState=previous.qualityState;
+     }
      checkpoint=previous.job;
      resumeStart=saved=writer.frames;
     }catch(e){
@@ -86,7 +107,26 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   if(resumeStart>0)onProgress({phase:'resumed',done:resumeStart,total:plan.count,plan,saved});
   const started=performance.now();
   let pending=[],startIndex=resumeStart;
-  if(resumeStart<plan.count)worker=new Worker(new URL('./tsl-converter-worker.js',import.meta.url),{type:'module'});
+  if(resumeStart<plan.count){
+   worker=new Worker(new URL('./tsl-converter-worker.js',import.meta.url),{type:'module'});
+   if(options.conversionMode==='quality'){
+    const atlas=makeGlyphAtlas(sample);
+    await new Promise((resolve,reject)=>{
+     check(signal);
+     const timeout=setTimeout(()=>finish(Error('文字パレットの準備がタイムアウトしました')),30000);
+     const finish=error=>{
+      clearTimeout(timeout);worker.onmessage=null;worker.onerror=null;
+      signal?.removeEventListener('abort',cancel);
+      error?reject(error):resolve();
+     };
+     const cancel=()=>finish(aborted());
+     signal?.addEventListener('abort',cancel,{once:true});
+     worker.onerror=e=>finish(Error(e.message||'変換ワーカーを開始できませんでした'));
+     worker.onmessage=({data:d})=>finish(d.error?Error(d.error):null);
+     worker.postMessage({type:'init',atlas,sample,state:resumeState});
+    });
+   }
+  }
   for(let i=resumeStart;i<plan.count;i++){
    check(signal);
    const time=Math.min(plan.steps[i].time,Math.max(0,video.duration-.001));
@@ -99,8 +139,14 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
    // Commit small batches atomically; at most 15 latest frames are lost on an abrupt close.
    if(pending.length>=16||i===plan.count-1){
     if(checkpointEnabled){
-     try{await appendCheckpoint(checkpoint,startIndex,pending);saved=i+1;}
-     catch(e){checkpointEnabled=false;onCheckpointIssue(e);}
+     try{
+      const state=options.conversionMode==='quality'?await readQualityState(worker,signal):null;
+      await appendCheckpoint(checkpoint,startIndex,pending,state);
+      saved=i+1;
+     }catch(e){
+      if(e.name==='AbortError')throw e;
+      checkpointEnabled=false;onCheckpointIssue(e);
+     }
     }
     startIndex=i+1;pending=[];
    }

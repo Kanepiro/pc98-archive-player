@@ -8,7 +8,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  $('converter-settings').addEventListener('input',()=>{userAdjustedSettings=true;});
  $('converter-settings').addEventListener('change',()=>{userAdjustedSettings=true;});
  let controller=null,result=null,downloadUrl=null,selected=null,selectSerial=0,userAdjustedSettings=false;
- const compatibleCheckpoint=job=>job?.config?.['video-style']!=='outline'||job.engineVersion===3;
+ const compatibleCheckpoint=job=>job?.config?.['video-style']!=='outline'&&(job?.config?.['video-style']!=='quality'||job.engineVersion===5);
  function show(which){
   if(isExporting())return;
   stopPlayback();
@@ -39,7 +39,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   if(downloadUrl)URL.revokeObjectURL(downloadUrl);downloadUrl=null;
  }
  function converterConfig(){
-  return Object.fromEntries(['video-mode','video-style','video-font-px','video-size','video-fps','video-fit','crop-x','crop-y','video-brightness','video-contrast','video-gamma','video-edge','video-outline-threshold'].map(id=>[id,$(id).value]));
+  return Object.fromEntries(['video-mode','video-style','video-font-px','video-size','video-fps','video-fit','crop-x','crop-y','video-brightness','video-contrast','video-gamma','video-edge'].map(id=>[id,$(id).value]));
  }
  function restoreConfig(config){
   for(const [id,value] of Object.entries(config||{}))if($(id)&&typeof value==='string')$(id).value=value;
@@ -88,7 +88,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
    result=await convertVideo(file,{signal:controller.signal,width,height,fps:Number($('video-fps').value),
     brightness:Number($('video-brightness').value),contrast:Number($('video-contrast').value),
     gamma:Number($('video-gamma').value),edge:Number($('video-edge').value),
-    conversionMode:$('video-style').value,outlineThreshold:Number($('video-outline-threshold').value),
+    conversionMode:$('video-style').value,
     fit:$('video-fit').value,positionX:Number($('crop-x').value)/100,positionY:Number($('crop-y').value)/100,
     checkpointConfig,
     onCheckpointIssue:()=>{$('converter-detail').textContent='端末に途中保存できません。変換は続行しますが、閉じると再開できない場合があります。';},
@@ -129,14 +129,13 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  };
  function layoutHint(){
   const mode=$('video-mode').value,pc=mode==='pc98';
-  const contour=$('video-style').value==='outline';
-  for(const id of ['tone-brightness','tone-contrast','tone-gamma','tone-edge'])$(id).hidden=contour;
-  $('outline-threshold-setting').hidden=!contour;
+  const quality=$('video-style').value==='quality';
+  $('tone-edge').hidden=quality;
   $('pc-grid').hidden=!pc;$('video-font-setting').hidden=pc;
   if(pc){$('layout-hint').textContent='PC-98向けの文字数は固定です。TASL Ver.1.08実機での再生は未検証です。';return;}
   try{
    const pixels=Number($('video-font-px').value),grid=selectedGrid();
-   const note=(mode==='landscape'?'横16:9・文字は回転しません。':'縦画面の文字アニメです。')+(contour?'モード2：半角＋全角の線・角・曲線・点で輪郭を表示し、塗りは空白。':'モード1：従来の濃淡変換。');
+   const note=(mode==='landscape'?'横16:9・文字は回転しません。':'縦画面の文字アニメです。')+(quality?'モード3：XDoG・線追跡・字形照合と時間方向の安定化で映像を文字化。':'モード1：従来の濃淡変換。');
    $('layout-hint').textContent=`文字サイズ約${pixels}px → ${grid.width}列 × ${grid.height}行で生成（フルHD換算）。${note}PC-98実機互換ではなく、Webプレーヤー向けです。`;
   }catch(e){$('layout-hint').textContent=e.message;}
  }
