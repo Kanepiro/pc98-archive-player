@@ -60,8 +60,8 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   // The video itself is deliberately NOT persisted.
   try{
    const identity=fileIdentity(file);
-   const signature=JSON.stringify([1,identity,await fingerprint(file),
-    [options.width,options.height,options.fps,options.brightness,options.contrast,options.gamma,options.edge,fit,positionX,positionY],
+   const signature=JSON.stringify([2,identity,await fingerprint(file),
+    [options.width,options.height,options.fps,options.brightness,options.contrast,options.gamma,options.edge,options.conversionMode,options.outlineThreshold,fit,positionX,positionY],
     [video.videoWidth,video.videoHeight,video.duration,plan.count]]);
    const previous=await readCheckpoint();
    if(previous?.job.signature===signature){

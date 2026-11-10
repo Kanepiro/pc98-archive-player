@@ -1,14 +1,16 @@
-// TASL 1.08: ASCII subset of Shift-JIS, CRLF, column-zero FF, 60 Hz ticks.
+// TASL 1.08: ASCII mode 1 / Shift-JIS outline mode 2, CRLF, FF, 60 Hz ticks.
+import {displayColumns,encodeOutlineFrame} from './tsl-outline.js';
 export const CANDIDATE_RAMP = ' .:|/(%YVO8D@0#$';
 export const MAX_FRAMES = 10000;
 export const MAX_OUTPUT_BYTES = 48 * 1024 * 1024;
-export const DEFAULTS = Object.freeze({width:79,height:27,fps:10,brightness:0,contrast:1,gamma:1,edge:.6});
+export const DEFAULTS = Object.freeze({width:79,height:27,fps:10,brightness:0,contrast:1,gamma:1,edge:.6,conversionMode:'legacy',outlineThreshold:40});
 export function optionsFor(input={}) {
  const o={...DEFAULTS,...input};
- for(const [k,min,max] of [['width',4,160],['height',4,100],['fps',1,30],['brightness',-100,100],['contrast',.25,3],['gamma',.4,2.5],['edge',0,1]]) {
+ for(const [k,min,max] of [['width',4,160],['height',4,100],['fps',1,30],['brightness',-100,100],['contrast',.25,3],['gamma',.4,2.5],['edge',0,1],['outlineThreshold',10,140]]) {
   if(!Number.isFinite(o[k])||o[k]<min||o[k]>max)throw Error('設定値が範囲外です: '+k);
  }
  if(!Number.isInteger(o.width)||!Number.isInteger(o.height))throw Error('文字数は整数で指定してください');
+ if(!['legacy','outline'].includes(o.conversionMode))throw Error('変換方式が不正です');
  return o;
 }
 export function makePlan(duration,input={}) {
@@ -111,18 +113,21 @@ export function rgbaToASCII(pixels,width,height,{brightness=0,contrast=1,gamma=1
  }
  return lines.join('\r\n')+'\r\n';
 }
-export function tslName(name) {
+export function tslName(name,conversionMode='legacy') {
  const stem=String(name||'video').replace(/\.[^.]+$/,'').replace(/[\x00-\x1f\\/]/g,'_');
- return (stem||'video')+'.TSL';
+ return (stem||'video')+(conversionMode==='outline'?'_Mode2':'')+'.TSL';
 }
 export class TSLWriter {
  constructor(plan) {this.plan=plan;this.parts=[];this.batch=[];this.size=0;this.frames=0;}
  append(frame) {
   const lines=frame.split('\r\n');lines.pop();
-  if(lines.length!==this.plan.height||lines.some(x=>x.length!==this.plan.width||[...x].some(c=>!CANDIDATE_RAMP.includes(c))))
+  const outline=this.plan.conversionMode==='outline';
+  if(lines.length!==this.plan.height||lines.some(x=>outline?
+    displayColumns(x,'outline')!==this.plan.width:
+    x.length!==this.plan.width||[...x].some(c=>!CANDIDATE_RAMP.includes(c))))
    throw Error('画面データが不正です');
   if(this.frames>=this.plan.count)throw Error('画面数が多すぎます');
-  const part=frame+'\f\r\n';this.size+=part.length;
+  const part=outline?encodeOutlineFrame(lines):frame+'\f\r\n';this.size+=part.length;
   if(this.size>MAX_OUTPUT_BYTES-4096-this.plan.count*24)throw Error('出力サイズ上限を超えました');
   this.batch.push(part);this.frames++;
   if(this.batch.length>=64){this.parts.push(new Blob(this.batch));this.batch=[];}
@@ -137,7 +142,7 @@ export class TSLWriter {
  }
  finish() {
   if(this.frames!==this.plan.count)throw Error('画面データが不足しています');
-  const p=this.plan,header=['1.08',p.count,p.width,p.height,1,-1,'Video conversion','\f'].join('\r\n')+'\r\n';
+  const p=this.plan,header=['1.08',p.count,p.width,p.height,1,-1,p.conversionMode==='outline'?'Video conversion - Outline':'Video conversion','\f'].join('\r\n')+'\r\n';
   const schedule=p.steps.map((s,i)=>(i+1)+' '+s.ticks+'\r\n').join('')+'0 0\r\n\f\r\n';
   return new Blob([header,schedule,...this.parts,...this.batch,'\x1a'],{type:'application/octet-stream'});
  }
