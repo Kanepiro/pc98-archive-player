@@ -8,7 +8,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  $('converter-settings').addEventListener('input',()=>{userAdjustedSettings=true;});
  $('converter-settings').addEventListener('change',()=>{userAdjustedSettings=true;});
  let controller=null,result=null,downloadUrl=null,selected=null,selectSerial=0,userAdjustedSettings=false;
- const compatibleCheckpoint=job=>job?.config?.['video-style']!=='outline'&&(job?.config?.['video-style']!=='quality'||job.engineVersion===5);
+ const compatibleCheckpoint=job=>job?.config?.['video-style']!=='outline'&&(job?.config?.['video-style']!=='quality'||job.engineVersion===6);
  function show(which){
   if(isExporting())return;
   stopPlayback();

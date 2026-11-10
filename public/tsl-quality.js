@@ -133,22 +133,6 @@ function traceEdges(gray,red,green,blue,w,h){
  }
  return connected;
 }
-const background=(r,g,b,w,h)=>{
- const br=[],bg=[],bb=[];
- // Sample the border: typically the scene's large empty area.
- for(let y=0;y<h;y+=Math.max(1,Math.floor(h/20))){
-  for(const x of [0,Math.floor(w*.06),w-1,Math.floor(w*.94)]){
-   const i=y*w+x;br.push(r[i]);bg.push(g[i]);bb.push(b[i]);
-  }
- }
- for(let x=0;x<w;x+=Math.max(1,Math.floor(w/20))){
-  for(const y of [0,Math.floor(h*.06),h-1,Math.floor(h*.94)]){
-   const i=y*w+x;br.push(r[i]);bg.push(g[i]);bb.push(b[i]);
-  }
- }
- const median=arr=>{arr.sort((a,b)=>a-b);return arr[arr.length>>1];};
- return [median(br),median(bg),median(bb)];
-};
 function targetImage(pixels,width,height,sample,brightness,contrast,gamma,previous){
  const w=width*sample,h=height*sample,n=w*h;
  const red=new Float32Array(n),green=new Float32Array(n),blue=new Float32Array(n),gray=new Float32Array(n);
@@ -158,39 +142,26 @@ function targetImage(pixels,width,height,sample,brightness,contrast,gamma,previo
   red[i]=v[0];green[i]=v[1];blue[i]=v[2];
   gray[i]=.2126*v[0]+.7152*v[1]+.0722*v[2];
  }
- let bg=background(red,green,blue,w,h);
  const prev=previous;
- const prevBg=prev?.bg,prevGray=prev?.gray;
+ const prevGray=prev?.gray;
  let sceneChange=0;
  if(prevGray?.length===n){
   for(let i=0;i<n;i+=Math.max(1,Math.floor(n/2000)))sceneChange+=Math.abs(gray[i]-prevGray[i]);
   sceneChange/=Math.ceil(n/Math.max(1,Math.floor(n/2000)));
  }
  const cut=sceneChange>.18;
- if(prevBg&&!cut)bg=bg.map((v,i)=>v*.22+prevBg[i]*.78);
- const medianLuma=.2126*bg[0]+.7152*bg[1]+.0722*bg[2];
  const blurA=gaussian(gray,w,h,.8),blurB=gaussian(gray,w,h,1.85);
- const broad=gaussian(gray,w,h,Math.max(3,sample*1.2));
  const connected=traceEdges(gray,red,green,blue,w,h);
  const target=new Float32Array(n);
  for(let i=0;i<n;i++){
-  const dLum=Math.abs(gray[i]-medianLuma);
-  const dRgb=(Math.abs(red[i]-bg[0])+Math.abs(green[i]-bg[1])+Math.abs(blue[i]-bg[2]))/3;
-  // XDoG response emphasizes contours while retaining filled regions.
+  // Contour-only target: no global brightness/colour fill. Even a solid
+  // saturated pink/yellow image MUST produce an entirely blank frame.
   const xdog=clamp((Math.abs(blurA[i]-blurB[i])-.014)*7);
-  // Flat colored backgrounds must not turn into solid walls of '@'.
-  // Preserve subtle surface shading using broad local contrast; prioritize
-  // traced/connected outlines so faces, lettering and silhouettes read first.
-  const globalInk=clamp((.64*dLum+.36*dRgb-.04)*1.5);
-  const localInk=clamp((Math.abs(gray[i]-broad[i])-.01)*3.4);
-  const area=globalInk*.28+localInk*.45;
-  const outline=Math.max(connected[i]?0.95:0,xdog*1.05);
-  let value=clamp(area+outline*.8);
-  if(prev?.target?.length===n&&!cut&&Math.abs(value-prev.target[i])<.19)
-   value=value*.78+prev.target[i]*.22;
-  target[i]=value;
+  const outline=Math.max(connected[i]?0.98:0,xdog*0.95);
+  // Only ink from the CURRENT frame: old pixels never trail moving objects.
+  target[i]=outline<.17?0:outline;
  }
- return {target,gray,bg,cut};
+ return {target,gray,cut};
 }
 export class QualityConverter{
  constructor(atlas,sample=6){
@@ -207,7 +178,7 @@ export class QualityConverter{
   if(!this.previous)return null;
   return {
    sample:this.sample,
-   target:this.previous.target,gray:this.previous.gray,bg:this.previous.bg,
+   target:this.previous.target,gray:this.previous.gray,
    prevGlyphs:this.prevGlyphs
   };
  }
@@ -215,9 +186,9 @@ export class QualityConverter{
   if(!state)return;
   if(state.sample!==this.sample||!(state.target instanceof Float32Array)||
      !(state.gray instanceof Float32Array)||state.target.length!==state.gray.length||
-     !Array.isArray(state.bg)||!Array.isArray(state.prevGlyphs))
+     !Array.isArray(state.prevGlyphs))
    throw Error('途中保存の文字状態が不正です');
-  this.previous={target:state.target,gray:state.gray,bg:state.bg,cut:false};
+  this.previous={target:state.target,gray:state.gray,cut:false};
   this.prevGlyphs=state.prevGlyphs;
  }
  convert(pixels,width,height,{brightness=0,contrast=1,gamma=1}={}){
@@ -233,13 +204,20 @@ export class QualityConverter{
    // These values depend on the source frame only, not on which glyph we try.
    // Calculate them once per cell instead of repeating them for every candidate.
    const cellSquared=new Float32Array(width),cellChange=new Float32Array(width);
+   const edgeCurrent=new Uint16Array(width),edgePrevious=new Uint16Array(width),edgeShared=new Uint16Array(width);
    for(let x=0;x<width;x++){
     for(let py=0;py<S;py++){
      const start=(y*S+py)*w+x*S;
      for(let px=0;px<S;px++){
       const idx=start+px,v=target[idx];
       cellSquared[x]+=v*v;
-      if(prev&&!cut)cellChange[x]+=Math.abs(v-prev[idx]);
+      if(prev&&!cut){
+       const old=prev[idx],a=v>.22,b=old>.22;
+       cellChange[x]+=Math.abs(v-old);
+       if(a)edgeCurrent[x]++;
+       if(b)edgePrevious[x]++;
+       if(a&&b)edgeShared[x]++;
+      }
      }
     }
     cellChange[x]/=S*S;
@@ -260,11 +238,22 @@ export class QualityConverter{
      const patchSquared=cellSquared[x]+(cols===2?cellSquared[x+1]:0);
      let loss=Math.max(0,(patchSquared+glyph.squares-2*dot)/total);
      if(glyph.char!==' ')loss+=.006;
+     // When no edge energy exists, clear the cell regardless of its old
+     // character. This prevents sparse punctuation from sticking to a blank.
+     const empty=cellSquared[x]/(S*S)<.014 &&
+      (cols===1||cellSquared[x+1]/(S*S)<.014);
+     if(empty&&glyph.char!==' ')continue;
      const old=this.prevGlyphs?.[y*width+x],same=old===glyph.char;
-     if(prev&&!cut&&old&&!same){
+     if(!empty&&prev&&!cut&&old&&!same){
+      // Reuse an old glyph only if the current edge remains at the same
+      // pixels. Moving outlines do not drag previous glyphs behind them.
+      const cur=edgeCurrent[x]+(cols===2?edgeCurrent[x+1]:0);
+      const prior=edgePrevious[x]+(cols===2?edgePrevious[x+1]:0);
+      const both=edgeShared[x]+(cols===2?edgeShared[x+1]:0);
+      const overlap=both/Math.max(1,cur+prior-both);
       const change=(cellChange[x]+(cols===2?cellChange[x+1]:0))/cols;
-      const still=clamp((.24-change)/.24);
-      loss+=.085*still;
+      if(overlap>.72&&change<.1)
+       loss+=.055*clamp((overlap-.72)/.28)*clamp((.1-change)/.1);
      }
      const score=dp[x]+loss*cols;
      if(score<dp[x+cols]){dp[x+cols]=score;back[x+cols]={start:x,j};}

@@ -61,3 +61,36 @@ test('Flat fields and changing foregrounds are handled by the stable converter',
  const b=q.convert(solid,w,h);
  assert.equal(a,b,'identical frames must not flicker');
 });
+
+test('Solid coloured backgrounds never generate glyphs, even after a detailed moving frame',()=>{
+ const sample=4,w=24,h=16,q=new QualityConverter(tinyAtlas(sample),sample);
+ const scene=frame(w,h,sample,(x,y)=>x>6&&x<18&&y>4&&y<13?[255,240,0]:[28,61,234]);
+ q.convert(scene,w,h);
+ for(const color of [[240,0,150],[255,215,0],[0,225,155],[235,235,235],[0,0,0]]){
+  const f=frame(w,h,sample,()=>color);
+  const result=q.convert(f,w,h);
+  const lines=result.split('\r\n').slice(0,h);
+  assert.ok(lines.every(line=>line===' '.repeat(w)), 'flat fill emitted character for '+color);
+ }
+});
+test('A hard colour boundary remains while the flat interior stays blank',()=>{
+ const sample=4,w=20,h=14,q=new QualityConverter(tinyAtlas(sample),sample);
+ const scene=frame(w,h,sample,(x,y)=>x>=5&&x<15&&y>=3&&y<11?[240,200,40]:[30,80,220]);
+ const lines=q.convert(scene,w,h).split('\r\n').slice(0,h);
+ assert.equal(lines[7][10],' ','centre of a solid coloured rectangle should be blank');
+ assert.equal(lines[1][10],' ','solid background away from the rectangle should be blank');
+ assert.ok(lines.some(row=>row.trim().length>0),'the shape outline disappeared');
+});
+
+test('Moving object leaves no ghost glyphs in vacated pixels',()=>{
+ const S=4,w=28,h=16,q=new QualityConverter(tinyAtlas(S),S);
+ const coloredRect=left=>frame(w,h,S,(x,y)=>
+  x>=left&&x<left+6&&y>=4&&y<12?[242,211,18]:[36,42,231]);
+ const before=q.convert(coloredRect(2),w,h);
+ assert.ok(before.replace(/[\s\r\n]/g,'').length>0,'original shape vanished');
+ const after=q.convert(coloredRect(17),w,h).split('\r\n').slice(0,h);
+ for(let y=3;y<13;y++)for(let x=0;x<10;x++)
+  assert.equal(after[y][x],' ', 'vacated region retained glyph at '+x+','+y);
+ const stationary=q.convert(coloredRect(17),w,h);
+ assert.equal(stationary,after.join('\r\n')+'\r\n');
+});
