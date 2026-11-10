@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {rgbaToOutline,displayColumns,encodeOutlineFrame,OUTLINE_GLYPH_SET} from '../public/tsl-outline.js';
+import {rgbaToOutline,displayColumns,encodeOutlineFrame,OUTLINE_GLYPH_SET,OUTLINE_GLYPHS,OUTLINE_GLYPH_COUNT} from '../public/tsl-outline.js';
 import {makePlan,optionsFor,rgbaToASCII,TSLWriter,tslName} from '../public/tsl-converter-core.js';
 import {parseTSL} from '../public/tsl.js';
 
@@ -72,8 +72,33 @@ test('invalid outline options and glyphs cannot corrupt output',()=>{
  assert.throws(()=>optionsFor({conversionMode:'unknown'}));
  for(const outlineThreshold of [0,9,141,Infinity,NaN])assert.throws(()=>optionsFor({outlineThreshold}));
  const plan=makePlan(.1,{width:16,height:8,conversionMode:'outline'});
- assert.throws(()=>new TSLWriter(plan).append(('○'.repeat(8)+'\r\n').repeat(8)),/未対応/);
+ assert.throws(()=>new TSLWriter(plan).append(('雪'.repeat(8)+'\r\n').repeat(8)),/未対応/);
  assert.throws(()=>new TSLWriter(plan).append(('│'.repeat(7)+'\r\n').repeat(8)),/画面データ/);
  const legacyPlan=makePlan(.1,{width:16,height:8});
  assert.throws(()=>new TSLWriter(legacyPlan).append(('│'.repeat(8)+'\r\n').repeat(8)),/画面データ/);
+});
+
+test('expanded contour palette includes full-width corners, curves, dots, and half-width accents',()=>{
+ assert.ok(OUTLINE_GLYPH_COUNT>=50);
+ for(const c of ['┌','┐','└','┘','┼','╋','（','）','〈','〉','・','。','○','＿','￣','|','-','/','\\','.']){
+  assert.ok(OUTLINE_GLYPH_SET.has(c),'missing glyph: '+c);
+  assert.equal(new TextDecoder('shift_jis').decode(Uint8Array.from(OUTLINE_GLYPHS[c])),c,'CP932 error '+c);
+ }
+ const row='┌|○.┘ /';
+ assert.equal(displayColumns(row,'outline'),10);
+ const encoded=encodeOutlineFrame([row]);
+ assert.equal(encoded.length,10+2+3);
+ assert.equal(new TextDecoder('shift_jis').decode(encoded),row+'\r\n\f\r\n');
+});
+test('composite scenes use more than the old six glyphs',()=>{
+ const w=128,h=36, pixels=image(w,h,(x,y)=>{
+  const box=x>=12&&x<45&&y>=6&&y<29;
+  const ring=Math.abs(Math.hypot(x-78,y-17)-13)<2;
+  const slant=Math.abs(y-.5*x+46)<1.4;
+  return box||ring||slant?[12,26,42]:[245,245,240];
+ });
+ const frame=rgbaToOutline(pixels,w,h,{outlineThreshold:20});
+ const used=new Set(glyphs(frame));
+ assert.ok(used.size>6,'outlines unexpectedly collapsed to '+[...used].join(''));
+ for(const line of frame.split('\r\n').slice(0,h))assert.equal(displayColumns(line,'outline'),w);
 });

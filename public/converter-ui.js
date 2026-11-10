@@ -3,7 +3,11 @@ import {tslName,portraitGridForPixels,landscapeGridForPixels} from './tsl-conver
 import {fileIdentity,readCheckpointSummary} from './tsl-checkpoint.js';
 export function setupConverter({openPreview,stopPlayback,isExporting,enterImmersive}) {
  const $=id=>document.getElementById(id);
- let controller=null,result=null,downloadUrl=null,selected=null,selectSerial=0;
+ // A deliberate setting change takes precedence over a saved checkpoint.
+ // Automatic restores do not emit input/change events.
+ $('converter-settings').addEventListener('input',()=>{userAdjustedSettings=true;});
+ $('converter-settings').addEventListener('change',()=>{userAdjustedSettings=true;});
+ let controller=null,result=null,downloadUrl=null,selected=null,selectSerial=0,userAdjustedSettings=false;
  function show(which){
   if(isExporting())return;
   stopPlayback();
@@ -62,6 +66,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   busy(false);
   readCheckpointSummary().then(job=>{
    if(serial!==selectSerial||selected!==file||controller||!job||job.identity!==fileIdentity(file)||!job.done)return;
+   if(userAdjustedSettings)return; // Never overwrite the mode chosen by the user.
    restoreConfig(job.config);
    $('convert-tsl').textContent=job.done===job.total?'結果を復元':'続きから再開';
    $('converter-status').textContent='動画を選択しました。保存済み '+job.done.toLocaleString()+' / '+job.total.toLocaleString()+'画面から再開できます。';
@@ -130,7 +135,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   if(pc){$('layout-hint').textContent='PC-98向けの文字数は固定です。TASL Ver.1.08実機での再生は未検証です。';return;}
   try{
    const pixels=Number($('video-font-px').value),grid=selectedGrid();
-   const note=(mode==='landscape'?'横16:9・文字は回転しません。':'縦画面の文字アニメです。')+(contour?'モード2：全角記号の輪郭だけ表示し、ベタ塗りは空白。':'モード1：従来の濃淡変換。');
+   const note=(mode==='landscape'?'横16:9・文字は回転しません。':'縦画面の文字アニメです。')+(contour?'モード2：半角＋全角の線・角・曲線・点で輪郭を表示し、塗りは空白。':'モード1：従来の濃淡変換。');
    $('layout-hint').textContent=`文字サイズ約${pixels}px → ${grid.width}列 × ${grid.height}行で生成（フルHD換算）。${note}PC-98実機互換ではなく、Webプレーヤー向けです。`;
   }catch(e){$('layout-hint').textContent=e.message;}
  }
