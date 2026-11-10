@@ -2,10 +2,10 @@
 export const CANDIDATE_RAMP = ' .:|/(%YVO8D@0#$';
 export const MAX_FRAMES = 10000;
 export const MAX_OUTPUT_BYTES = 48 * 1024 * 1024;
-export const DEFAULTS = Object.freeze({width:79,height:27,fps:10,brightness:0,contrast:1});
+export const DEFAULTS = Object.freeze({width:79,height:27,fps:10,brightness:0,contrast:1,gamma:1,edge:.6});
 export function optionsFor(input={}) {
  const o={...DEFAULTS,...input};
- for(const [k,min,max] of [['width',4,160],['height',4,100],['fps',1,30],['brightness',-100,100],['contrast',.25,3]]) {
+ for(const [k,min,max] of [['width',4,160],['height',4,100],['fps',1,30],['brightness',-100,100],['contrast',.25,3],['gamma',.4,2.5],['edge',0,1]]) {
   if(!Number.isFinite(o[k])||o[k]<min||o[k]>max)throw Error('設定値が範囲外です: '+k);
  }
  if(!Number.isInteger(o.width)||!Number.isInteger(o.height))throw Error('文字数は整数で指定してください');
@@ -70,20 +70,42 @@ export function densityRamp(measure) {
  return [...CANDIDATE_RAMP].map((char,i)=>({char,density:measure(char),i}))
   .sort((a,b)=>a.density-b.density||a.i-b.i).map(x=>x.char).join('');
 }
-export function rgbaToASCII(pixels,width,height,{brightness=0,contrast=1,ramp=CANDIDATE_RAMP,sample=4}={}) {
+export function rgbaToASCII(pixels,width,height,{brightness=0,contrast=1,gamma=1,edge=0,ramp=CANDIDATE_RAMP,sample=4}={}) {
  if(pixels.length!==width*height*sample*sample*4)throw Error('画素数が一致しません');
  if(ramp.length!==16||new Set(ramp).size!==16||[...ramp].some(c=>!CANDIDATE_RAMP.includes(c)))throw Error('文字パレットが不正です');
- const lines=[],stride=width*sample*4;
+ if(!Number.isFinite(gamma)||gamma<.4||gamma>2.5||!Number.isFinite(edge)||edge<0||edge>1)throw Error('ガンマ・輪郭補助が範囲外です');
+ const cells=width*height,colors=new Float32Array(cells*3),levels=new Float32Array(cells),stride=width*sample*4;
+ for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+  let r=0,g=0,b=0;
+  for(let dy=0;dy<sample;dy++)for(let dx=0;dx<sample;dx++){
+   const p=(y*sample+dy)*stride+(x*sample+dx)*4,a=pixels[p+3]/255;
+   r+=pixels[p]*a;g+=pixels[p+1]*a;b+=pixels[p+2]*a;
+  }
+  const i=y*width+x,c=i*3,denom=sample*sample;
+  colors[c]=r/denom;colors[c+1]=g/denom;colors[c+2]=b/denom;
+  levels[i]=.2126*colors[c]+.7152*colors[c+1]+.0722*colors[c+2];
+ }
+ const lines=[];
  for(let y=0;y<height;y++){
   let line='';
   for(let x=0;x<width;x++){
-   let sum=0;
-   for(let dy=0;dy<sample;dy++)for(let dx=0;dx<sample;dx++){
-    const p=(y*sample+dy)*stride+(x*sample+dx)*4;
-    sum+=(.2126*pixels[p]+.7152*pixels[p+1]+.0722*pixels[p+2])*(pixels[p+3]/255);
+   const i=y*width+x,c=i*3;
+   let value=Math.min(255,Math.max(0,(levels[i]-127.5)*contrast+127.5+brightness*2.55));
+   if(edge>0){
+    // One-sided contour from differences in RGB, even if luminance is equal.
+    // Darken contours on bright scenes; lighten them on dark scenes.
+    let diff=0;
+    for(const neighbor of [x>0?i-1:-1,y>0?i-width:-1]){
+     if(neighbor<0)continue;
+     const n=neighbor*3;
+     diff=Math.max(diff,Math.abs(colors[c]-colors[n]),Math.abs(colors[c+1]-colors[n+1]),Math.abs(colors[c+2]-colors[n+2]));
+    }
+    const contour=36*edge*Math.min(1,Math.max(0,(diff-24)/112));
+    value=Math.min(255,Math.max(0,value+(value<128?contour:-contour)));
    }
-   const value=Math.min(255,Math.max(0,(sum/(sample*sample)-127.5)*contrast+127.5+brightness*2.55));
-   line+=ramp[Math.round(value*15/255)];
+   // Gamma below 1 lifts shadows; gamma above 1 helps bright backgrounds.
+   const corrected=255*Math.pow(value/255,gamma);
+   line+=ramp[Math.round(corrected*15/255)];
   }
   lines.push(line);
  }

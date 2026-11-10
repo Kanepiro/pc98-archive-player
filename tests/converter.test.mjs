@@ -124,3 +124,47 @@ test('landscape 16:9 font grids keep characters upright at approximately Full-HD
  assert.ok(Math.abs(rect.width-512)<1e-9);
  assert.ok(Math.abs(rect.height-144)<1e-9);
 });
+
+test('gamma lifts dark details without clipping endpoints',()=>{
+ const width=4,height=4,sample=4,pixels=new Uint8ClampedArray(width*height*sample*sample*4);
+ for(let y=0;y<height*sample;y++)for(let x=0;x<width*sample;x++){
+  const i=(y*width*sample+x)*4,v=[0,20,45,255][Math.floor(x/sample)];
+  pixels[i]=pixels[i+1]=pixels[i+2]=v;pixels[i+3]=255;
+ }
+ const base=rgbaToASCII(pixels,width,height,{gamma:1,edge:0}).split('\r\n')[0];
+ const lifted=rgbaToASCII(pixels,width,height,{gamma:.7,edge:0}).split('\r\n')[0];
+ assert.equal(lifted[0],' ');assert.equal(lifted[3],'$');
+ assert.ok(CANDIDATE_RAMP.indexOf(lifted[1])>CANDIDATE_RAMP.indexOf(base[1]));
+ assert.ok(CANDIDATE_RAMP.indexOf(lifted[2])>CANDIDATE_RAMP.indexOf(base[2]));
+});
+test('color edge aid separates red and green with nearly identical luminance',()=>{
+ const width=4,height=4,sample=4,pixels=new Uint8ClampedArray(width*height*sample*sample*4);
+ for(let y=0;y<height*sample;y++)for(let x=0;x<width*sample;x++){
+  const i=(y*width*sample+x)*4,green=Math.floor(x/sample)%2===1;
+  pixels[i]=green?0:255;pixels[i+1]=green?76:0;pixels[i+2]=0;pixels[i+3]=255;
+ }
+ const base=rgbaToASCII(pixels,width,height,{gamma:1,edge:0}).split('\r\n')[0];
+ const outlined=rgbaToASCII(pixels,width,height,{gamma:1,edge:1}).split('\r\n')[0];
+ assert.equal(base[0],base[1],'the two colors have the same perceptual luminance');
+ assert.notEqual(outlined[0],outlined[1],'a color boundary becomes visibly distinguishable');
+});
+test('gamma and edge inputs validate their limits',()=>{
+ for(const v of [-1,0,.39,2.51,NaN,Infinity])assert.throws(()=>optionsFor({gamma:v}));
+ for(const v of [-.1,1.1,NaN,Infinity])assert.throws(()=>optionsFor({edge:v}));
+ const pixels=new Uint8ClampedArray(4*4*4*4);
+ assert.throws(()=>rgbaToASCII(pixels,4,4,{gamma:0}));
+});
+
+test('color edges are darkened instead of lost in a bright background',()=>{
+ const width=4,height=4,sample=4,pixels=new Uint8ClampedArray(width*height*sample*sample*4);
+ for(let y=0;y<height*sample;y++)for(let x=0;x<width*sample;x++){
+  const i=(y*width*sample+x)*4,alternate=Math.floor(x/sample)%2===1;
+  const color=alternate?[150,255,180]:[255,230,120];
+  pixels[i]=color[0];pixels[i+1]=color[1];pixels[i+2]=color[2];pixels[i+3]=255;
+ }
+ const base=rgbaToASCII(pixels,width,height,{gamma:1,edge:0}).split('\r\n')[0];
+ const outlined=rgbaToASCII(pixels,width,height,{gamma:1,edge:1}).split('\r\n')[0];
+ assert.equal(base[0],base[1],'bright colors with near-equal luminance must match without contour');
+ assert.notEqual(outlined[0],outlined[1],'the colored shape must remain visible on bright background');
+ assert.ok(CANDIDATE_RAMP.indexOf(outlined[1])<CANDIDATE_RAMP.indexOf(base[1]),'edge is darkened, not whitened');
+});

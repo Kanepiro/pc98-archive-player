@@ -61,7 +61,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   try{
    const identity=fileIdentity(file);
    const signature=JSON.stringify([1,identity,await fingerprint(file),
-    [options.width,options.height,options.fps,options.brightness,options.contrast,fit,positionX,positionY],
+    [options.width,options.height,options.fps,options.brightness,options.contrast,options.gamma,options.edge,fit,positionX,positionY],
     [video.videoWidth,video.videoHeight,video.duration,plan.count]]);
    const previous=await readCheckpoint();
    if(previous?.job.signature===signature){

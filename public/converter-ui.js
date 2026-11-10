@@ -34,7 +34,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   if(downloadUrl)URL.revokeObjectURL(downloadUrl);downloadUrl=null;
  }
  function converterConfig(){
-  return Object.fromEntries(['video-mode','video-font-px','video-size','video-fps','video-fit','crop-x','crop-y','video-brightness','video-contrast'].map(id=>[id,$(id).value]));
+  return Object.fromEntries(['video-mode','video-font-px','video-size','video-fps','video-fit','crop-x','crop-y','video-brightness','video-contrast','video-gamma','video-edge'].map(id=>[id,$(id).value]));
  }
  function restoreConfig(config){
   for(const [id,value] of Object.entries(config||{}))if($(id)&&typeof value==='string')$(id).value=value;
@@ -81,6 +81,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
    const {width,height}=grid;
    result=await convertVideo(file,{signal:controller.signal,width,height,fps:Number($('video-fps').value),
     brightness:Number($('video-brightness').value),contrast:Number($('video-contrast').value),
+    gamma:Number($('video-gamma').value),edge:Number($('video-edge').value),
     fit:$('video-fit').value,positionX:Number($('crop-x').value)/100,positionY:Number($('crop-y').value)/100,
     checkpointConfig,
     onCheckpointIssue:()=>{$('converter-detail').textContent='端末に途中保存できません。変換は続行しますが、閉じると再開できない場合があります。';},
