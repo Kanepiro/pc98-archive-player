@@ -8,6 +8,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  $('converter-settings').addEventListener('input',()=>{userAdjustedSettings=true;});
  $('converter-settings').addEventListener('change',()=>{userAdjustedSettings=true;});
  let controller=null,result=null,downloadUrl=null,selected=null,selectSerial=0,userAdjustedSettings=false;
+ const compatibleCheckpoint=job=>job?.config?.['video-style']!=='outline'||job.engineVersion===3;
  function show(which){
   if(isExporting())return;
   stopPlayback();
@@ -65,7 +66,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   $('converter-detail').textContent='';
   busy(false);
   readCheckpointSummary().then(job=>{
-   if(serial!==selectSerial||selected!==file||controller||!job||job.identity!==fileIdentity(file)||!job.done)return;
+   if(serial!==selectSerial||selected!==file||controller||!job||job.identity!==fileIdentity(file)||!job.done||!compatibleCheckpoint(job))return;
    if(userAdjustedSettings)return; // Never overwrite the mode chosen by the user.
    restoreConfig(job.config);
    $('convert-tsl').textContent=job.done===job.total?'結果を復元':'続きから再開';
@@ -151,7 +152,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   selectFile(e.dataTransfer.files[0]);
  });
  readCheckpointSummary().then(job=>{
-  if(!selected&&!controller&&job?.done>0){
+  if(!selected&&!controller&&job?.done>0&&compatibleCheckpoint(job)){
    $('converter-status').textContent='途中保存あり：'+job.done.toLocaleString()+' / '+job.total.toLocaleString()+'画面。同じ動画を選ぶと続きから再開できます。';
   }
  }).catch(()=>{});

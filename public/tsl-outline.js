@@ -52,28 +52,37 @@ export function encodeOutlineFrame(lines){
 }
 
 // RGB edges on double-column glyph cells. Flat fills are always spaces.
-export function rgbaToOutline(pixels,width,height,{sample=4,outlineThreshold=40}={}){
+export function rgbaToOutline(pixels,width,height,{sample=4,outlineThreshold=20}={}){
  if(!Number.isInteger(width)||width<4||!Number.isInteger(height)||height<4||
     !Number.isInteger(sample)||sample<1||
     pixels.length!==width*height*sample*sample*4)throw Error('画素数が一致しません');
- if(!Number.isFinite(outlineThreshold)||outlineThreshold<10||outlineThreshold>140)
+ if(!Number.isFinite(outlineThreshold)||outlineThreshold<5||outlineThreshold>140)
   throw Error('輪郭感度が範囲外です');
 
  const gw=Math.ceil(width/2),n=gw*height,sourceWidth=width*sample;
  const colors=new Float32Array(n*3),strength=new Float32Array(n);
  const gradX=new Float32Array(n),gradY=new Float32Array(n),edge=new Uint8Array(n);
+ // Preserve the two half-width samples separately. Averaging both first
+ // used to erase fine contours that were narrower than a full-width glyph.
+ const fineColors=new Float32Array(width*height*3);
+ for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+  const f=(y*width+x)*3;
+  for(let sy=0;sy<sample;sy++)for(let sx=0;sx<sample;sx++){
+   const p=((y*sample+sy)*sourceWidth+x*sample+sx)*4,a=pixels[p+3]/255;
+   fineColors[f]+=pixels[p]*a;fineColors[f+1]+=pixels[p+1]*a;fineColors[f+2]+=pixels[p+2]*a;
+  }
+  const denom=sample*sample;
+  fineColors[f]/=denom;fineColors[f+1]/=denom;fineColors[f+2]/=denom;
+ }
+ for(let y=0;y<height;y++)for(let x=0;x<gw;x++){
+  const i=(y*gw+x)*3,first=(y*width+x*2)*3;
+  const count=x*2+1<width?2:1;
+  for(let c=0;c<3;c++){
+   colors[i+c]=(fineColors[first+c]+(count===2?fineColors[first+3+c]:0))/count;
+  }
+ }
  const at=(x,y,c)=>colors[(clamp(y,0,height-1)*gw+clamp(x,0,gw-1))*3+c];
  const peak=(x,y)=>strength[clamp(y,0,height-1)*gw+clamp(x,0,gw-1)];
- for(let y=0;y<height;y++)for(let x=0;x<gw;x++){
-  const span=Math.min(sourceWidth-x*2*sample,2*sample);
-  const i=(y*gw+x)*3;
-  for(let sy=0;sy<sample;sy++)for(let sx=0;sx<span;sx++){
-   const p=((y*sample+sy)*sourceWidth+x*2*sample+sx)*4,a=pixels[p+3]/255;
-   colors[i]+=pixels[p]*a;colors[i+1]+=pixels[p+1]*a;colors[i+2]+=pixels[p+2]*a;
-  }
-  const denom=sample*span;
-  colors[i]/=denom;colors[i+1]/=denom;colors[i+2]/=denom;
- }
  for(let y=0;y<height;y++)for(let x=0;x<gw;x++){
   const i=y*gw+x;
   let total=0,dominant=0;
@@ -85,7 +94,9 @@ export function rgbaToOutline(pixels,width,height,{sample=4,outlineThreshold=40}
   strength[i]=Math.sqrt(total/3);
  }
  const sorted=Array.from(strength).sort((a,b)=>a-b);
- const cutoff=Math.max(outlineThreshold,sorted[Math.floor(n*.72)]||0);
+ // The former 72nd-percentile hard cutoff missed weak facial and hair lines.
+ // Keep the adaptive noise filter, but allow moderately faint edges through.
+ const cutoff=Math.max(outlineThreshold,(sorted[Math.floor(n*.6)]||0)*.7);
  for(let y=0;y<height;y++)for(let x=0;x<gw;x++){
   const i=y*gw+x,m=strength[i];
   if(m<cutoff||m<=0)continue;
@@ -97,6 +108,46 @@ export function rgbaToOutline(pixels,width,height,{sample=4,outlineThreshold=40}
   else{a=peak(x-sx,y-sy);b=peak(x+sx,y+sy);}
   if(m>=a&&m>b)edge[i]=1;
  }
+ // Second, half-width detail pass. Small eyes, hair strands and thin
+ // silhouettes can exist between two samples of a full-width symbol.
+ // ASCII strokes fill those gaps without painting flat color regions.
+ const nf=width*height;
+ const fineStrength=new Float32Array(nf),fineX=new Float32Array(nf),fineY=new Float32Array(nf);
+ const fineEdge=new Uint8Array(nf);
+ const fAt=(x,y,c)=>fineColors[(clamp(y,0,height-1)*width+clamp(x,0,width-1))*3+c];
+ const fPeak=(x,y)=>fineStrength[clamp(y,0,height-1)*width+clamp(x,0,width-1)];
+ for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+  const i=y*width+x;
+  let sum=0,dominant=0;
+  for(let c=0;c<3;c++){
+   const dx=(fAt(x+1,y,c)-fAt(x-1,y,c))*.5;
+   const dy=(fAt(x,y+1,c)-fAt(x,y-1,c))*.5;
+   const power=dx*dx+dy*dy;sum+=power;
+   if(power>dominant){dominant=power;fineX[i]=dx;fineY[i]=dy;}
+  }
+  fineStrength[i]=Math.sqrt(sum/3);
+ }
+ const detailCutoff=Math.max(6,outlineThreshold*.62);
+ for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+  const i=y*width+x,m=fineStrength[i];
+  if(m<detailCutoff)continue;
+  const dx=fineX[i],dy=fineY[i],ax=Math.abs(dx),ay=Math.abs(dy);
+  const sx=Math.sign(dx)||1,sy=Math.sign(dy)||1;
+  let a,b;
+  if(ax>ay*2.4){a=fPeak(x-1,y);b=fPeak(x+1,y);}
+  else if(ay>ax*2.4){a=fPeak(x,y-1);b=fPeak(x,y+1);}
+  else{a=fPeak(x-sx,y-sy);b=fPeak(x+sx,y+sy);}
+  if(m>=a&&m>b)fineEdge[i]=1;
+ }
+ const fineChar=(x,y)=>{
+  const i=y*width+x;
+  if(!fineEdge[i])return ' ';
+  const dx=fineX[i],dy=fineY[i],ax=Math.abs(dx),ay=Math.abs(dy),m=fineStrength[i];
+  if(m<detailCutoff*1.35)return '.';
+  if(ax>ay*2.1)return '|';
+  if(ay>ax*2.1)return '-';
+  return dx*dy>=0?'\\':'/';
+ };
  const active=(x,y)=>x>=0&&x<gw&&y>=0&&y<height&&edge[y*gw+x]!==0;
  const lines=[];
  for(let y=0;y<height;y++){
@@ -104,7 +155,10 @@ export function rgbaToOutline(pixels,width,height,{sample=4,outlineThreshold=40}
   for(let x=0;x<gw;x++){
    if(x*2+1>=width){row+=' ';continue;}
    const i=y*gw+x,m=strength[i];
-   if(!edge[i]){row+='  ';continue;}
+   if(!edge[i]){
+    row+=fineChar(x*2,y)+fineChar(x*2+1,y);
+    continue;
+   }
    const N=active(x,y-1),E=active(x+1,y),S=active(x,y+1),W=active(x-1,y);
    const NE=active(x+1,y-1),NW=active(x-1,y-1);
    const SE=active(x+1,y+1),SW=active(x-1,y+1);

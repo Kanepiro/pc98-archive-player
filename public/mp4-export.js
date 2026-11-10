@@ -106,14 +106,16 @@ async function exportMag(current, signal, onProgress) {
   onProgress?.(MAG_SECONDS, MAG_SECONDS);
   return result(output);
 }
-async function exportTsl(current, signal, onProgress, onResolution, tslAppearance={}) {
+async function exportTsl(current, signal, onProgress, onResolution, tslAppearance={}, maxPixels=Infinity) {
   const data=current.data;
   if (data.duration > MAX_SECONDS) throw Error('この作品は5分を超えるためMP4書き出しの対象外です');
   const nativeWidth=data.width*12,nativeHeight=data.height*24;
   let canvas,output,video,lastError;
-  for (const size of tslExportCandidates(nativeWidth,nativeHeight)) {
+  for (const size of tslExportCandidates(nativeWidth,nativeHeight).filter(s=>s.width*s.height<=maxPixels)) {
     aborted(signal);
-    const candidate=document.createElement('canvas');
+    // In a Web Worker, OffscreenCanvas keeps drawing/encoding off the UI thread.
+    const candidate=typeof document==='undefined'
+      ?new OffscreenCanvas(size.width,size.height):document.createElement('canvas');
     Object.assign(candidate,size);
     try {
       ({output,video}=await newOutput(candidate,false));
@@ -259,11 +261,11 @@ async function exportMms(current, signal, onProgress) {
   return result(output);
 }
 
-export async function exportMP4(current,{signal,onProgress,onResolution,tslAppearance}={}) {
+export async function exportMP4(current,{signal,onProgress,onResolution,tslAppearance,tslMaxPixels=Infinity}={}) {
   if (!current) throw Error('作品を選択してください');
   aborted(signal);
   if(current.kind==='MAG') return exportMag(current,signal,onProgress);
-  if(current.kind==='TSL') return exportTsl(current,signal,onProgress,onResolution,tslAppearance);
+  if(current.kind==='TSL') return exportTsl(current,signal,onProgress,onResolution,tslAppearance,tslMaxPixels);
   if(current.kind==='MMS') return exportMms(current,signal,onProgress);
   throw Error('この形式のMP4書き出しは未対応です');
 }

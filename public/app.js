@@ -3,10 +3,11 @@ import {setupConverter} from './converter-ui.js';
 import {decodeMAG} from './mag.js';
 import {parseTSL,tslFrameAt,drawTSL} from './tsl.js';
 import {exportMP4,mp4Name} from './mp4-export.js';
+import {exportTslInWorker} from './tsl-export-controller.js';
 const $=id=>document.getElementById(id),canvas=$('screen'),ctx=canvas.getContext('2d',{alpha:false});
 let current=null,session=null,serial=0,loadSerial=0,frameRequest=0,installPrompt=null,swRegistration=null;
 let exportController=null, exportDownloadUrl=null;
-const events=[],metrics={version:'0.3.4',kind:null,frames:0,seconds:0,underruns:0,gapSamples:0};
+const events=[],metrics={version:'0.3.11',kind:null,frames:0,seconds:0,underruns:0,gapSamples:0};
 function log(type,detail={}){events.push({time:new Date().toISOString(),type,...detail});if(events.length>120)events.shift();}
 function status(s){$('status').textContent=s;}
 function clock(t){metrics.seconds=t;$('clock').textContent=Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0');}
@@ -166,7 +167,11 @@ $('export-mp4').onclick=async()=>{
  let lastShown=-1,exportResolution='';
  status('MP4書き出し準備中…');
  try {
-  const blob=await exportMP4(selected,{signal:exportController.signal,tslAppearance:appearance,onResolution:(w,h)=>{exportResolution=`${w}×${h} / `;},onProgress:(seconds,total)=>{
+  const exporter=selected.kind==='TSL'?exportTslInWorker:exportMP4;
+  const blob=await exporter(selected,{signal:exportController.signal,tslAppearance:appearance,
+    onRetry:()=>status('高解像度の書き出しが停止したため、HDで再試行しています…'),
+    onStage:stage=>status(stage==='reading'?'TSLをMP4用に準備中…':'MP4エンコードを開始しています…'),
+    onResolution:(w,h)=>{exportResolution=`${w}×${h} / `;},onProgress:(seconds,total)=>{
    const count=Math.floor(seconds);
    if(count!==lastShown){lastShown=count;status('MP4変換中 '+Math.floor(seconds/60)+':'+String(count%60).padStart(2,'0')+(total?' / '+Math.ceil(total)+'秒':''));}
   }});

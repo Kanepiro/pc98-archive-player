@@ -60,7 +60,8 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   // The video itself is deliberately NOT persisted.
   try{
    const identity=fileIdentity(file);
-   const signature=JSON.stringify([2,identity,await fingerprint(file),
+   const engineVersion=options.conversionMode==='outline'?3:2;
+   const signature=JSON.stringify([engineVersion,identity,await fingerprint(file),
     [options.width,options.height,options.fps,options.brightness,options.contrast,options.gamma,options.edge,options.conversionMode,options.outlineThreshold,fit,positionX,positionY],
     [video.videoWidth,video.videoHeight,video.duration,plan.count]]);
    const previous=await readCheckpoint();
@@ -76,7 +77,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
     }
    }
    if(!checkpoint){
-    checkpoint={id:crypto.randomUUID(),signature,identity,config:checkpointConfig,
+    checkpoint={id:crypto.randomUUID(),signature,identity,engineVersion,config:checkpointConfig,
      total:plan.count,width:plan.width,height:plan.height,createdAt:Date.now()};
     await beginCheckpoint(checkpoint);
    }

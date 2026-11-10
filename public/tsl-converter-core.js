@@ -3,10 +3,10 @@ import {displayColumns,encodeOutlineFrame} from './tsl-outline.js';
 export const CANDIDATE_RAMP = ' .:|/(%YVO8D@0#$';
 export const MAX_FRAMES = 10000;
 export const MAX_OUTPUT_BYTES = 48 * 1024 * 1024;
-export const DEFAULTS = Object.freeze({width:79,height:27,fps:10,brightness:0,contrast:1,gamma:1,edge:.6,conversionMode:'legacy',outlineThreshold:40});
+export const DEFAULTS = Object.freeze({width:79,height:27,fps:10,brightness:0,contrast:1,gamma:1,edge:.6,conversionMode:'legacy',outlineThreshold:20});
 export function optionsFor(input={}) {
  const o={...DEFAULTS,...input};
- for(const [k,min,max] of [['width',4,160],['height',4,100],['fps',1,30],['brightness',-100,100],['contrast',.25,3],['gamma',.4,2.5],['edge',0,1],['outlineThreshold',10,140]]) {
+ for(const [k,min,max] of [['width',4,160],['height',4,100],['fps',1,30],['brightness',-100,100],['contrast',.25,3],['gamma',.4,2.5],['edge',0,1],['outlineThreshold',5,140]]) {
   if(!Number.isFinite(o[k])||o[k]<min||o[k]>max)throw Error('設定値が範囲外です: '+k);
  }
  if(!Number.isInteger(o.width)||!Number.isInteger(o.height))throw Error('文字数は整数で指定してください');

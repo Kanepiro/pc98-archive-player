@@ -70,7 +70,7 @@ test('mode 2 Shift-JIS TSL round trip through the existing player parser',async(
 });
 test('invalid outline options and glyphs cannot corrupt output',()=>{
  assert.throws(()=>optionsFor({conversionMode:'unknown'}));
- for(const outlineThreshold of [0,9,141,Infinity,NaN])assert.throws(()=>optionsFor({outlineThreshold}));
+ for(const outlineThreshold of [0,4,141,Infinity,NaN])assert.throws(()=>optionsFor({outlineThreshold}));
  const plan=makePlan(.1,{width:16,height:8,conversionMode:'outline'});
  assert.throws(()=>new TSLWriter(plan).append(('雪'.repeat(8)+'\r\n').repeat(8)),/未対応/);
  assert.throws(()=>new TSLWriter(plan).append(('│'.repeat(7)+'\r\n').repeat(8)),/画面データ/);
@@ -101,4 +101,16 @@ test('composite scenes use more than the old six glyphs',()=>{
  const used=new Set(glyphs(frame));
  assert.ok(used.size>6,'outlines unexpectedly collapsed to '+[...used].join(''));
  for(const line of frame.split('\r\n').slice(0,h))assert.equal(displayColumns(line,'outline'),w);
+});
+
+test('faint outlines and one-column details survive the expanded half-width pass',()=>{
+ const w=80,h=42;
+ // Difference of just 28 RGB levels was previously lost at threshold 40.
+ const faint=image(w,h,(x,y)=>x>=16&&x<52&&y>=12&&y<32?[105,110,115]:[133,138,143]);
+ const faintResult=rgbaToOutline(faint,w,h);
+ assert.ok(glyphs(faintResult).length>=15,'faint foreground contours disappeared');
+ const narrow=image(w,h,(x,y)=>Math.abs(x-34)<.5&&y>=5&&y<36?[15,15,15]:[235,235,235]);
+ const thinResult=rgbaToOutline(narrow,w,h);
+ assert.ok(glyphs(thinResult).length>=10,'one-column contour was erased');
+ assert.ok([...glyphs(thinResult)].some(c=>'|-/\\'.includes(c)),'expected halfwidth strokes for thin detail');
 });

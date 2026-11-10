@@ -44,9 +44,23 @@ try {
   const fallbackPage=await browser.newPage({viewport:{width:390,height:844},acceptDownloads:true});
   fallbackPage.on('pageerror',error=>errors.push(error.message));
   await fallbackPage.addInitScript(()=>{
-    const native=VideoEncoder.isConfigSupported.bind(VideoEncoder);
-    VideoEncoder.isConfigSupported=config=>config.width===1080&&config.height===1920
-      ? Promise.resolve({supported:false,config}) : native(config);
+    // Simulate the first worker failing to initialize its Full-HD encoder.
+    // The controller must terminate it, retry in HD, and finish the file.
+    let firstAttempt=true;
+    const NativeWorker=Worker;
+    globalThis.Worker=class extends NativeWorker {
+      constructor(url,options){
+        super(url,options);
+        if(firstAttempt&&String(url).includes('tsl-export-worker.js')){
+          firstAttempt=false;
+          this.postMessage=()=>{
+            queueMicrotask(()=>this.onmessage?.({
+              data:{type:'error',message:'Simulated Full-HD codec unavailable'}
+            }));
+          };
+        }
+      }
+    };
   });
   await fallbackPage.goto(base);
   await fallbackPage.setInputFiles('#file',{name:'forced-fallback.tsl',mimeType:'application/octet-stream',buffer:fixture(90,80)});
