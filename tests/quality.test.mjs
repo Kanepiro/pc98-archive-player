@@ -28,11 +28,17 @@ test('Only mode 1 and mode 3 are available; mode 1 remains unchanged',()=>{
  assert.equal(tslName('猫.MP4','quality'),'猫_Mode3.TSL');
  assert.equal(rgbaToASCII(frame(8,8,4,()=>[255,255,255]),8,8).split('\r\n')[0],'$'.repeat(8));
 });
-test('CP932 glyph bank includes thin, dense and fullwidth shapes',()=>{
- assert.ok(QUALITY_CHARS.length>=40);
- for(const char of [' ','#','o','O','/','\\','|','─','│','／','＼','┌','┘','■','○']){
+test('Mode 3 glyph palette bans large circle, square and diamond symbols',()=>{
+ assert.equal(QUALITY_CHARS.length,50);
+ for(const char of [' ','#','o','O','/','\\','|','─','│','／','＼','┌','┘']){
   assert.ok(QUALITY_GLYPHS[char],'Missing '+char);
   assert.equal(new TextDecoder('shift_jis').decode(Uint8Array.from(QUALITY_GLYPHS[char])),char);
+ }
+ for(const char of ['○','●','□','■','◇','◆']){
+  assert.equal(QUALITY_GLYPHS[char],undefined);
+  assert.ok(!QUALITY_CHARS.includes(char));
+  assert.throws(()=>qualityColumns(char),/利用できない/);
+  assert.throws(()=>encodeQualityFrame([char]),/利用できない/);
  }
  assert.equal(qualityColumns('／.｜'),5);
  assert.throws(()=>qualityColumns('＠'),/利用できない/);
