@@ -30,7 +30,7 @@ function convertFrame(worker,pixels,width,height,options,signal) {
   const finish=(error,frame)=>{clearTimeout(timer);worker.onmessage=null;worker.onerror=null;signal?.removeEventListener('abort',cancel);error?reject(error):resolve(frame);};
   const cancel=()=>finish(aborted()),timer=setTimeout(()=>finish(Error('文字変換がタイムアウトしました')),30000);
   signal?.addEventListener('abort',cancel,{once:true});
-  worker.onmessage=({data:d})=>finish(d.error?Error(d.error):null,d.frame);
+  worker.onmessage=({data:d})=>finish(d.error?Error(d.error):null,d);
   worker.onerror=e=>finish(Error(e.message||'文字変換ワーカーの起動に失敗しました'));
   worker.postMessage({pixels:pixels.buffer,width,height,options},[pixels.buffer]);
  });
@@ -106,7 +106,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   check(signal);
   if(resumeStart>0)onProgress({phase:'resumed',done:resumeStart,total:plan.count,plan,saved});
   const started=performance.now();
-  let pending=[],startIndex=resumeStart;
+  let pending=[],startIndex=resumeStart,acceleration='CPU';
   if(resumeStart<plan.count){
    worker=new Worker(new URL('./tsl-converter-worker.js',import.meta.url),{type:'module'});
    if(options.conversionMode==='quality'){
@@ -123,7 +123,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
      signal?.addEventListener('abort',cancel,{once:true});
      worker.onerror=e=>finish(Error(e.message||'変換ワーカーを開始できませんでした'));
      worker.onmessage=({data:d})=>finish(d.error?Error(d.error):null);
-     worker.postMessage({type:'init',atlas,sample,state:resumeState});
+     worker.postMessage({type:'init',atlas,sample,state:resumeState,width:plan.width,height:plan.height});
     });
    }
   }
@@ -135,7 +135,9 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
    ctx.fillStyle='#000';ctx.fillRect(0,0,canvas.width,canvas.height);
    ctx.drawImage(video,rect.x,rect.y,rect.width,rect.height);
    const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data;
-   pending.push(writer.append(await convertFrame(worker,pixels,plan.width,plan.height,{...options,ramp,sample},signal)));
+   const converted=await convertFrame(worker,pixels,plan.width,plan.height,{...options,ramp,sample},signal);
+   acceleration=converted.acceleration||'CPU';
+   pending.push(writer.append(converted.frame));
    // Commit small batches atomically; at most 15 latest frames are lost on an abrupt close.
    if(pending.length>=16||i===plan.count-1){
     if(checkpointEnabled){
@@ -152,7 +154,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
    }
    const elapsed=(performance.now()-started)/1000,processed=i+1-resumeStart;
    onProgress({phase:'converting',done:i+1,total:plan.count,seconds:time,elapsed,
-    remaining:elapsed/processed*(plan.count-i-1),plan,saved});
+    remaining:elapsed/processed*(plan.count-i-1),plan,saved,acceleration});
   }
   check(signal);
   const blob=writer.finish();

@@ -1,4 +1,5 @@
 // Mode 3: contextual, temporally stable glyph matching.
+import {Mode3GpuMatcher} from './tsl-webgpu.js';
 // XDoG (extended difference of Gaussians) + Canny/Edge-Drawing-style
 // connected edge tracing + actual renderer glyph-mask matching.
 // Full-width CP932 glyphs occupy 2 columns; half-width ASCII occupies 1.
@@ -163,6 +164,24 @@ function targetImage(pixels,width,height,sample,brightness,contrast,gamma,previo
  }
  return {target,gray,cut};
 }
+// CPU correlation is used only for the one-time automatic GPU speed and
+// output-accuracy comparison; normal CPU rendering keeps its original path.
+export function qualityCpuDots(target,width,height,S,atlas){
+ const out=new Float64Array(width*height*atlas.length);
+ for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+  const a=x*S,b=y*S*width*S;
+  for(let j=0;j<atlas.length;j++){
+   const glyph=atlas[j],cols=glyph.columns;if(x+cols>width)continue;
+   let dot=0;
+   for(let py=0;py<S;py++){
+    const start=b+py*width*S+a,mi=py*S*cols;
+    for(let px=0;px<S*cols;px++)dot+=target[start+px]*glyph.mask[mi+px];
+   }
+   out[(y*width+x)*atlas.length+j]=dot;
+  }
+ }
+ return out;
+}
 export class QualityConverter{
  constructor(atlas,sample=6){
   if(!Array.isArray(atlas)||!atlas.length)throw Error('文字マスクがありません');
@@ -173,6 +192,7 @@ export class QualityConverter{
   const available=new Set(this.atlas.map(a=>a.char));
   if(!available.has(' ')||!available.has('#')||!available.has('／'))throw Error('文字マスクが不足しています');
   this.previous=null;this.prevGlyphs=null;
+  this.gpuMatcher=null;this.gpuBenchmarked=false;this.acceleration='CPU';
  }
  snapshot(){
   if(!this.previous)return null;
@@ -191,10 +211,57 @@ export class QualityConverter{
   this.previous={target:state.target,gray:state.gray,cut:false};
   this.prevGlyphs=state.prevGlyphs;
  }
+ async enableWebGPU(width,height){
+  try{
+   this.gpuMatcher=await Mode3GpuMatcher.create(this.atlas,this.sample,width,height);
+   if(this.gpuMatcher){
+    // Shader warmup is intentionally excluded from the performance comparison.
+    await this.gpuMatcher.compute(new Float32Array(width*height*this.sample*this.sample));
+   }
+  }catch{
+   this.gpuMatcher?.dispose();this.gpuMatcher=null;this.acceleration='CPU';
+  }
+ }
+ async convertAccelerated(pixels,width,height,options={}){
+  if(!this.gpuMatcher)return this.convert(pixels,width,height,options);
+  const {brightness=0,contrast=1,gamma=1}=options,S=this.sample;
+  if(pixels.length!==width*height*S*S*4)throw Error('画素数が一致しません');
+  const state=targetImage(pixels,width,height,S,brightness,contrast,gamma,this.previous);
+  let dots=null;
+  try{
+   const at=performance.now(),gpuDots=await this.gpuMatcher.compute(state.target);
+   const gpuMs=performance.now()-at;
+   if(!this.gpuBenchmarked){
+    this.gpuBenchmarked=true;
+    const start=performance.now();
+    const cpuDots=qualityCpuDots(state.target,width,height,S,this.atlas);
+    const cpuMs=performance.now()-start;
+    let maxError=0;
+    for(let k=0;k<gpuDots.length;k+=37){
+     const diff=Math.abs(gpuDots[k]-cpuDots[k]);
+     if(!Number.isFinite(diff)){maxError=Infinity;break;}
+     maxError=Math.max(maxError,diff);
+    }
+    if(gpuMs<cpuMs*.90 && maxError<.001){
+     this.acceleration='WebGPU';dots=gpuDots;
+    }else{
+     this.acceleration='CPU';dots=cpuDots;
+     this.gpuMatcher.dispose();this.gpuMatcher=null;
+    }
+   }else dots=gpuDots;
+  }catch{
+   this.gpuMatcher?.dispose();this.gpuMatcher=null;this.acceleration='CPU';
+  }
+  return this._render(state,width,height,dots);
+ }
  convert(pixels,width,height,{brightness=0,contrast=1,gamma=1}={}){
   const S=this.sample;
   if(pixels.length!==width*height*S*S*4)throw Error('画像の標本数が不正です');
   const state=targetImage(pixels,width,height,S,brightness,contrast,gamma,this.previous);
+  return this._render(state,width,height,null);
+ }
+ _render(state,width,height,precomputedDots=null){
+  const S=this.sample;
   const {target,cut}=state,w=width*S,rows=[],prev=this.previous?.target;
   const newGlyphs=new Array(width*height).fill(null);
   const atlas=this.atlas;
@@ -230,8 +297,8 @@ export class QualityConverter{
      const mask=glyph.mask,total=cols*S*S;
      // Exact squared-template loss, using ||image-glyph||² =
      // ||image||² + ||glyph||² - 2*dot(image,glyph).
-     let dot=0;
-     for(let py=0;py<S;py++){
+     let dot=precomputedDots?precomputedDots[(y*width+x)*atlas.length+j]:0;
+     if(!precomputedDots)for(let py=0;py<S;py++){
       const start=b+py*w+a,mi=py*S*cols;
       for(let px=0;px<S*cols;px++)dot+=target[start+px]*mask[mi+px];
      }
