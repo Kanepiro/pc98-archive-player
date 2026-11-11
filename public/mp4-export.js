@@ -1,6 +1,6 @@
 // Direct, deterministic MP4 export from decoded MAG/TSL/MMS data.
 // Export is independent of screen capture and of live AudioWorklet playback.
-import {Output, BufferTarget, Mp4OutputFormat, CanvasSource, AudioBufferSource, Quality, canEncodeAudio} from 'mediabunny';
+import {Output, BufferTarget, Mp4OutputFormat, CanvasSource, AudioBufferSource, AudioSampleSink, AudioSampleSource, EncodedAudioPacketSource, EncodedPacketSink, Input, ALL_FORMATS, BlobSource, Quality, canEncodeAudio} from 'mediabunny';
 import {registerAacEncoder} from '@mediabunny/aac-encoder';
 import {drawTSL, tslFrameAt} from './tsl.js';
 
@@ -57,14 +57,16 @@ async function checkCodec(canvas, withAudio) {
     if (!(await canEncodeAudio('aac'))) throw Error('この端末ではAAC音声を書き出せません');
   }
 }
-async function newOutput(canvas, withAudio) {
-  await checkCodec(canvas, withAudio);
+async function newOutput(canvas, withAudio, audioMode='buffer') {
+  await checkCodec(canvas, withAudio && audioMode!=='copy');
   const output = new Output({format:new Mp4OutputFormat(), target:new BufferTarget()});
   const video = new CanvasSource(canvas, {codec:'avc',quality:new Quality('very-high'),keyFrameInterval:2});
   output.addVideoTrack(video);
   let audio = null;
   if (withAudio) {
-    audio = new AudioBufferSource({codec:'aac',quality:new Quality('medium')});
+    audio = audioMode==='copy'?new EncodedAudioPacketSource('aac'):
+      audioMode==='sample'?new AudioSampleSource({codec:'aac',quality:new Quality('medium')}):
+      new AudioBufferSource({codec:'aac',quality:new Quality('medium')});
     output.addAudioTrack(audio);
   }
   await output.start();
@@ -106,47 +108,91 @@ async function exportMag(current, signal, onProgress) {
   onProgress?.(MAG_SECONDS, MAG_SECONDS);
   return result(output);
 }
-async function exportTsl(current, signal, onProgress, onResolution, tslAppearance={}, maxPixels=Infinity) {
+async function exportTsl(current, signal, onProgress, onResolution, tslAppearance={}, maxPixels=Infinity, sourceAudioFile=null, onStage=()=>{}) {
   const data=current.data;
-  if (data.duration > MAX_SECONDS) throw Error('この作品は5分を超えるためMP4書き出しの対象外です');
-  const nativeWidth=data.width*12,nativeHeight=data.height*24;
-  let canvas,output,video,lastError;
-  for (const size of tslExportCandidates(nativeWidth,nativeHeight).filter(s=>s.width*s.height<=maxPixels)) {
+  if(data.duration>MAX_SECONDS)throw Error('この作品は5分を超えるためMP4書き出しの対象外です');
+  let audioInput=null,audioTrack=null,audioMode=null;
+  try {
+    if(sourceAudioFile){
+      onStage('audio-reading');
+      audioInput=new Input({source:new BlobSource(sourceAudioFile),formats:ALL_FORMATS});
+      if(!(await audioInput.canRead()))throw Error('元動画の音声を読み取れません');
+      audioTrack=await audioInput.getPrimaryAudioTrack();
+      if(!audioTrack)throw Error('元動画に音声トラックがありません');
+      const codec=await audioTrack.getCodec();
+      audioMode=codec==='aac'?'copy':'sample';
+      if(audioMode==='sample'&&!(await audioTrack.canDecode()))
+        throw Error('元動画の音声コーデックをデコードできません');
+    }
+    const nativeWidth=data.width*12,nativeHeight=data.height*24;
+    let canvas,output,video,audio,lastError;
+    for(const size of tslExportCandidates(nativeWidth,nativeHeight).filter(s=>s.width*s.height<=maxPixels)){
+      aborted(signal);
+      const candidate=typeof document==='undefined'
+        ?new OffscreenCanvas(size.width,size.height):document.createElement('canvas');
+      Object.assign(candidate,size);
+      try{
+        ({output,video,audio}=await newOutput(candidate,!!audioTrack,audioMode));
+        canvas=candidate;break;
+      }catch(e){lastError=e;}
+    }
+    if(!canvas)throw lastError||Error('TSLのMP4書き出しに対応する解像度がありません');
+    onResolution?.(canvas.width,canvas.height);
+    const render={cellWidth:canvas.width/data.width,cellHeight:canvas.height/data.height,
+      fontSize:canvas.height/data.height*20/24,...tslAppearance};
+    async function videoPass(){
+      let frames=0;
+      for(let i=0;i<data.schedule.length;i++){
+        aborted(signal);
+        const currentFrame=data.schedule[i],next=data.schedule[i+1];
+        const start=currentFrame.start,end=next?next.start:data.duration;
+        if(end<=start)continue;
+        drawTSL(canvas,data,currentFrame.frame,render);
+        await video.add(start,end-start,{keyFrame:frames%60===0});
+        frames++;onProgress?.(end,data.duration);
+      }
+      if(!frames)throw Error('TSLに書き出せる映像がありません');
+      video.close();
+    }
+    async function audioPass(){
+      if(!audioTrack)return;
+      onStage('audio-encoding');
+      let added=0;
+      if(audioMode==='copy'){
+        const sink=new EncodedPacketSink(audioTrack),config=await audioTrack.getDecoderConfig();
+        const meta={decoderConfig:config??undefined};
+        for await(const packet of sink.packets()){
+          aborted(signal);
+          if(packet.timestamp>=data.duration)break;
+          // MP4 cannot represent negative sample timestamps. Skip an AAC encoder pre-roll packet.
+          if(packet.timestamp<0 || packet.timestamp+packet.duration<=0)continue;
+          await audio.add(packet,meta);
+          added++;
+        }
+      }else{
+        const sink=new AudioSampleSink(audioTrack);
+        for await(const sample of sink.samples()){
+          aborted(signal);
+          try{
+            if(sample.timestamp>=data.duration)break;
+            const start=Math.max(0,Math.ceil(-sample.timestamp*sample.sampleRate));
+            const end=Math.min(sample.numberOfFrames,Math.floor((data.duration-sample.timestamp)*sample.sampleRate));
+            if(end<=start)continue;
+            const clipped=(start||end!==sample.numberOfFrames)?sample.trim(start,end):sample;
+            try{await audio.add(clipped);added++;}finally{if(clipped!==sample)clipped.close();}
+          }finally{sample.close();}
+        }
+      }
+      if(!added)throw Error('元動画の音声データが見つかりません');
+      audio.close();
+    }
     aborted(signal);
-    // In a Web Worker, OffscreenCanvas keeps drawing/encoding off the UI thread.
-    const candidate=typeof document==='undefined'
-      ?new OffscreenCanvas(size.width,size.height):document.createElement('canvas');
-    Object.assign(candidate,size);
-    try {
-      ({output,video}=await newOutput(candidate,false));
-      canvas=candidate;
-      break;
-    } catch(e) {lastError=e;}
-  }
-  if(!canvas)throw lastError||Error('TSLのMP4書き出しに対応する解像度がありません');
-  onResolution?.(canvas.width,canvas.height);
-  // Draw glyphs at the final video resolution, rather than enlarging small
-  // rasterized text. This is especially important for larger font-px grids.
-  const render={cellWidth:canvas.width/data.width,cellHeight:canvas.height/data.height,
-   fontSize:canvas.height/data.height*20/24,...tslAppearance};
-  let frames=0;
-  for (let i=0;i<data.schedule.length;i++) {
+    // Feed both tracks concurrently so a muxer cannot deadlock on backpressure.
+    await Promise.all([videoPass(),audioPass()]);
     aborted(signal);
-    const currentFrame=data.schedule[i];
-    const next=data.schedule[i+1];
-    const start=currentFrame.start;
-    const end=next ? next.start : data.duration;
-    if (end<=start) continue;
-    drawTSL(canvas,data,currentFrame.frame,render);
-    await video.add(start,end-start,{keyFrame:frames%60===0});
-    frames++;
-    onProgress?.(end,data.duration);
-  }
-  if (!frames) throw Error('TSLに書き出せる映像がありません');
-  video.close();
-  aborted(signal);
-  await output.finalize();
-  return result(output);
+    await output.finalize();
+    return result(output);
+  }finally{audioInput?.dispose();}
 }
 function mmsWorker(bytes) {
   const worker=new Worker('/mms-export-worker.js',{type:'module'});
@@ -261,11 +307,11 @@ async function exportMms(current, signal, onProgress) {
   return result(output);
 }
 
-export async function exportMP4(current,{signal,onProgress,onResolution,tslAppearance,tslMaxPixels=Infinity}={}) {
+export async function exportMP4(current,{signal,onProgress,onResolution,tslAppearance,tslMaxPixels=Infinity,sourceAudioFile,onStage}={}) {
   if (!current) throw Error('作品を選択してください');
   aborted(signal);
   if(current.kind==='MAG') return exportMag(current,signal,onProgress);
-  if(current.kind==='TSL') return exportTsl(current,signal,onProgress,onResolution,tslAppearance,tslMaxPixels);
+  if(current.kind==='TSL') return exportTsl(current,signal,onProgress,onResolution,tslAppearance,tslMaxPixels,sourceAudioFile,onStage);
   if(current.kind==='MMS') return exportMms(current,signal,onProgress);
   throw Error('この形式のMP4書き出しは未対応です');
 }

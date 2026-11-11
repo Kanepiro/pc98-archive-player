@@ -17,7 +17,8 @@ self.onmessage=async({data:d})=>{
   let lastSent=-1;
   const blob=await exportMP4({kind:'TSL',data},{
    tslMaxPixels:d.maxPixels,
-   tslAppearance:d.appearance,
+   tslAppearance:d.appearance,sourceAudioFile:d.sourceAudioFile,
+   onStage:stage=>self.postMessage({type:'stage',stage}),
    onResolution:(width,height)=>self.postMessage({type:'resolution',width,height}),
    onProgress:(seconds,total)=>{
     const step=Math.floor(seconds*2);

@@ -27,3 +27,9 @@ body.immersive-active{overflow:hidden}
 .converter-options input[type=range]{width:100%}
 
 body.immersive-active header,body.immersive-active .tabs,body.immersive-active footer,body.immersive-active .controls,body.immersive-active .caption,body.immersive-active #keys{visibility:hidden}
+
+/* Optional one-click audio-preserving MP4 export. */
+.direct-mp4-choice{display:flex;align-items:center;gap:12px;margin:14px 0 8px;padding:14px;border:1px solid #35545b;border-radius:9px;color:#e6f0f5;font-size:14px;cursor:pointer}
+.direct-mp4-choice input{width:20px;height:20px;flex:0 0 20px}
+.download-button[hidden]{display:none}
+#direct-mp4-download{margin-left:8px}

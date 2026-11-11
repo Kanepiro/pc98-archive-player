@@ -3,7 +3,7 @@
 const IDLE_LIMIT_MS=35000;
 const HD_PIXELS=1280*720;
 
-function onceInWorker(current,{signal,onProgress,onResolution,onStage,maxPixels,tslAppearance}){
+function onceInWorker(current,{signal,onProgress,onResolution,onStage,maxPixels,tslAppearance,sourceAudioFile}){
  return new Promise((resolve,reject)=>{
   if(signal?.aborted){reject(new DOMException('MP4書き出しを中止しました','AbortError'));return;}
   let worker,watchdog,settled=false;
@@ -38,12 +38,12 @@ function onceInWorker(current,{signal,onProgress,onResolution,onStage,maxPixels,
    pulse();
    // Source bytes are retained for playback, but the worker owns its copy.
    const bytes=current.bytes.slice(0);
-   worker.postMessage({type:'start',bytes,appearance:tslAppearance,maxPixels},[bytes]);
+   worker.postMessage({type:'start',bytes,appearance:tslAppearance,maxPixels,sourceAudioFile},[bytes]);
   }catch(e){finish(e);}
  });
 }
 
-export async function exportTslInWorker(current,{signal,onProgress,onResolution,onRetry,onStage,tslAppearance}={}){
+export async function exportTslInWorker(current,{signal,onProgress,onResolution,onRetry,onStage,tslAppearance,sourceAudioFile}={}){
  if(!current||current.kind!=='TSL')throw Error('TSLファイルを選択してください');
  if(typeof Worker==='undefined'||typeof OffscreenCanvas==='undefined'||typeof VideoEncoder==='undefined')
   throw Error('このブラウザーはMP4のバックグラウンド書き出しに対応していません。Chrome最新版で開いてください');
@@ -52,12 +52,12 @@ export async function exportTslInWorker(current,{signal,onProgress,onResolution,
   if(signal?.aborted)throw new DOMException('MP4書き出しを中止しました','AbortError');
   if(attempt)onRetry?.();
   try{
-   return await onceInWorker(current,{signal,onProgress,onResolution,onStage,maxPixels,tslAppearance});
+   return await onceInWorker(current,{signal,onProgress,onResolution,onStage,maxPixels,tslAppearance,sourceAudioFile});
   }catch(e){
    if(e.name==='AbortError')throw e;
    lastError=e;
    // Fail fast on malformed files rather than unnecessarily retrying them.
-   if(/5分を超える|画面データが不足|TSLの/.test(e.message))throw e;
+   if(/5分を超える|画面データが不足|TSLの|元動画|音声トラック|音声データ|音声コーデック/.test(e.message))throw e;
   }
  }
  throw Error('MP4の書き出しに失敗しました（高画質・HDとも）：'+lastError.message);
