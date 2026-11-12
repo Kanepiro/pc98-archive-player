@@ -199,7 +199,10 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   const quality=$('video-style').value==='quality',halftone=$('video-style').value==='halftone';
   $('tone-edge').hidden=quality||halftone;
   const native16=$('video-font-render').value==='native16';
-  $('pc-grid').hidden=!pc;$('video-font-setting').hidden=pc||native16;
+  // Keep the second grid column occupied for both font rendering choices.
+  // Hiding this label made every subsequent converter setting jump up a row.
+  $('pc-grid').hidden=!pc;$('video-font-setting').hidden=pc;
+  $('video-font-px').disabled=native16;
   if(pc){$('layout-hint').textContent=(native16?'PC-98実寸：全角16×16／半角8×16ドット。':'既存表示：半角12×24／全角24×24ドット。')+'文字数は選択したグリッドを使用。TASL Ver.1.08実機での再生は未検証です。';return;}
   try{
    const pixels=Number($('video-font-px').value),grid=selectedGrid();

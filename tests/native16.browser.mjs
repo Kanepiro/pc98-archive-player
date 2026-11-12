@@ -20,6 +20,27 @@ try{
  await page.goto(url);await page.click('#tab-converter');
  assert.equal(await page.locator('#video-font-render').inputValue(),'legacy');
  assert.equal(await page.locator('#video-font-px').inputValue(),'24');
+ // On mobile, switching draw mode must NOT move any other form controls.
+ const layoutPositions=()=>page.evaluate(()=>{
+  const labels=['video-font-render','video-font-setting','video-mode','video-fps',
+    'video-fit','crop-x','crop-y','video-brightness','video-contrast','video-gamma','video-edge'];
+  return Object.fromEntries(labels.map(id=>{
+   const element=document.getElementById(id);
+   const rect=(element.closest('label')||element).getBoundingClientRect();
+   return [id,{left:Math.round(rect.left),top:Math.round(rect.top),
+     width:Math.round(rect.width),height:Math.round(rect.height)}];
+  }));
+ });
+ const layoutBefore=await layoutPositions();
+ await page.selectOption('#video-font-render','native16');
+ const layoutAfter=await layoutPositions();
+ assert.deepEqual(layoutAfter,layoutBefore,'Switching to native16 must not reflow the converter grid');
+ assert.equal(await page.locator('#video-font-px').isDisabled(),true);
+ assert.equal(await page.locator('#video-font-px').inputValue(),'24','User-entered pixel size is retained');
+ await page.selectOption('#video-font-render','legacy');
+ assert.deepEqual(await layoutPositions(),layoutBefore,'Switching back must keep layout fixed');
+ assert.equal(await page.locator('#video-font-px').isEnabled(),true);
+ 
  assert.match(await page.locator('#video-font-render option').allTextContents().then(x=>x.join(' ')),/16×16ドット（PC-98実寸）/);
  await page.selectOption('#video-mode','landscape');
  await page.locator('#video-font-px').fill('16');
@@ -27,7 +48,8 @@ try{
  assert.equal(await page.locator('#video-font-setting').isVisible(),true,'existing px font size input stays visible');
  await page.selectOption('#video-font-render','native16');
  assert.match(await page.locator('#layout-hint').textContent(),/240列 × 67行/);
- assert.equal(await page.locator('#video-font-setting').isVisible(),false,'px text field hides when native mode chosen');
+ assert.equal(await page.locator('#video-font-setting').isVisible(),true,'font-size grid slot stays visible in native mode');
+ assert.equal(await page.locator('#video-font-px').isDisabled(),true,'unused px value is disabled');
  await page.selectOption('#video-mode','portrait');
  assert.match(await page.locator('#layout-hint').textContent(),/135列 × 120行/);
  await page.selectOption('#video-mode','landscape');
