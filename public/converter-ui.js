@@ -1,4 +1,5 @@
 import {convertVideo} from './video-to-tsl.js';
+import {analyzeVideoTone} from './tsl-auto-settings.js';
 import {tslName,portraitGridForPixels,landscapeGridForPixels} from './tsl-converter-core.js';
 import {fileIdentity,readCheckpointSummary} from './tsl-checkpoint.js';
 import {exportTslInWorker} from './tsl-export-controller.js';
@@ -8,7 +9,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  // Automatic restores do not emit input/change events.
  $('converter-settings').addEventListener('input',()=>{userAdjustedSettings=true;});
  $('converter-settings').addEventListener('change',()=>{userAdjustedSettings=true;});
- let controller=null,result=null,downloadUrl=null,directMp4Url=null,selected=null,selectSerial=0,userAdjustedSettings=false;
+ let controller=null,tuningController=null,result=null,downloadUrl=null,directMp4Url=null,selected=null,selectSerial=0,userAdjustedSettings=false;
  const compatibleCheckpoint=job=>job?.config?.['video-style']!=='outline'&&
   (job?.config?.['video-style']!=='quality'||job.engineVersion===7)&&
   (job?.config?.['video-style']!=='halftone'||job.engineVersion===9);
@@ -33,7 +34,9 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  function busy(value){
   for(const id of ['video-file','video-choose','converter-settings','video-direct-mp4'])$(id).disabled=value;
   $('convert-tsl').disabled=value||!selected;
-  $('cancel-tsl').hidden=!value;
+  $('cancel-tsl').hidden=!controller;
+  $('auto-tune').disabled=!!controller||(!tuningController&&!selected);
+  $('auto-tune').textContent=tuningController?'解析を中止':'おまかせ設定（無料・端末内）';
   $('preview-tsl').disabled=value||!result;
   $('preview-tsl-full').disabled=value||!result;
  }
@@ -61,17 +64,18 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   return portraitGridForPixels(aspect,pixels);
  }
  function selectFile(file){
-  if(!file||controller||isExporting())return;
+  if(!file||controller||tuningController||isExporting())return;
   selected=file;clearResult();const serial=++selectSerial;
   $('video-name').textContent='選択した動画：'+file.name;
   $('convert-tsl').textContent='変換';
   $('tsl-progress').hidden=true;
   $('converter-status').textContent='動画を選択しました。設定を確認して「変換」を押してください。';
   $('converter-detail').textContent='';
+  $('auto-tune-status').textContent='動画の数場面から明るさ・コントラスト・ガンマを簡易推定します。精度は保証されません。';
   busy(false);
   readCheckpointSummary().then(job=>{
    if(serial!==selectSerial||selected!==file||controller||!job||job.identity!==fileIdentity(file)||!job.done||!compatibleCheckpoint(job))return;
-   if(userAdjustedSettings)return; // Never overwrite the mode chosen by the user.
+   if(userAdjustedSettings||tuningController)return; // Never overwrite a user choice or an in-progress analysis.
    restoreConfig(job.config);
    $('convert-tsl').textContent=job.done===job.total?'結果を復元':'続きから再開';
    $('converter-status').textContent='動画を選択しました。保存済み '+job.done.toLocaleString()+' / '+job.total.toLocaleString()+'画面から再開できます。';
@@ -79,7 +83,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   }).catch(()=>{});
  }
  async function start(){
-  if(controller||isExporting()||!selected)return;
+  if(controller||tuningController||isExporting()||!selected)return;
   const file=selected,checkpointConfig=converterConfig(),directMP4=$('video-direct-mp4').checked;
   clearResult();controller=new AbortController();busy(true);
   $('tsl-progress').removeAttribute('value');$('tsl-progress').hidden=false;
@@ -143,6 +147,36 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
    if(!hasTSL)$('converter-detail').textContent='';$('tsl-progress').hidden=true;
   }finally{controller=null;busy(false);$('convert-tsl').textContent='変換';}
  }
+ async function runAutoTune(){
+  if(tuningController){tuningController.abort();return;}
+  if(controller||isExporting()||!selected)return;
+  const file=selected,serial=selectSerial,tune=new AbortController();
+  tuningController=tune;busy(true);
+  $('auto-tune-status').textContent='動画を端末内で読み込んでいます…';
+  try{
+   const {width,height}=selectedGrid();
+   const recommended=await analyzeVideoTone(file,{
+    mode:$('video-style').value,width,height,fit:$('video-fit').value,
+    positionX:Number($('crop-x').value)/100,positionY:Number($('crop-y').value)/100,
+    signal:tune.signal,
+    onProgress:(done,total)=>{$('auto-tune-status').textContent='無料の簡易解析中 '+done+' / '+total+' 場面（端末内のみ）';}
+   });
+   if(tune.signal.aborted||file!==selected||serial!==selectSerial)return;
+   if(recommended.limited){
+    $('auto-tune-status').textContent='映像の濃淡が少なく、適切な提案を計算できませんでした。設定は変更していません。';
+    return;
+   }
+   $('video-brightness').value=String(recommended.brightness);
+   $('video-contrast').value=String(recommended.contrast);
+   $('video-gamma').value=String(recommended.gamma);
+   userAdjustedSettings=true;
+   $('auto-tune-status').textContent=recommended.scenes+'場面を解析 · 明るさ '+(recommended.brightness>=0?'+':'')+recommended.brightness+' / コントラスト '+recommended.contrast.toFixed(2)+' / ガンマ '+recommended.gamma.toFixed(2)+'。お好みで微調整できます。';
+   $('converter-status').textContent='おすすめの画質設定を入力しました。「変換」を押すと開始します。';
+  }catch(e){
+   $('auto-tune-status').textContent=e.name==='AbortError'?'解析を中止しました。設定は変更していません。':'自動解析できませんでした：'+e.message;
+  }finally{tuningController=null;busy(false);}
+ }
+ $('auto-tune').onclick=runAutoTune;
  $('video-choose').onclick=()=>$('video-file').click();
  $('video-file').onchange=()=>{const file=$('video-file').files[0];$('video-file').value='';selectFile(file);};
  $('convert-tsl').onclick=start;
