@@ -31,8 +31,33 @@ try{
      width:Math.round(rect.width),height:Math.round(rect.height)}];
   }));
  });
+ // The two columns must form matching pairs, including native rendering.
+ const assertPairedRows=async()=>{
+  const pairs=[
+   ['video-style','video-mode'],
+   ['video-font-render','video-font-px'],
+   ['video-fps','video-fit'],
+   ['crop-x','crop-y'],
+   ['video-brightness','video-contrast'],
+   ['video-gamma','video-edge']
+  ];
+  const positions=await page.evaluate(pairs=>Object.fromEntries(
+   pairs.flat().map(id=>{
+    const element=document.getElementById(id);
+    const box=(element.closest('label')||element).getBoundingClientRect();
+    return[id,{top:Math.round(box.top),left:Math.round(box.left)}];
+   })),pairs);
+  for(const [left,right] of pairs){
+   assert.equal(positions[left].top,positions[right].top,
+    left+' and '+right+' must start on same row');
+   assert.ok(positions[left].left<positions[right].left,
+    left+' and '+right+' must remain in left and right columns');
+  }
+ };
+ await assertPairedRows();
  const layoutBefore=await layoutPositions();
  await page.selectOption('#video-font-render','native16');
+ await assertPairedRows();
  const layoutAfter=await layoutPositions();
  assert.deepEqual(layoutAfter,layoutBefore,'Switching to native16 must not reflow the converter grid');
  assert.equal(await page.locator('#video-font-px').isDisabled(),true);
