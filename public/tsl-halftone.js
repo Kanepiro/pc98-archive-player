@@ -1,17 +1,18 @@
-// Mode 2: nine-tone newspaper halftone, encoded as CP932 / Shift-JIS TSL.
-// User-selected ordered palette: full-width blank, ・, ：, ‥, ∴, ＊, ○, ◎, ●.
+// Mode 2: ten-tone, CIRCLE-ONLY newspaper halftone using CP932 / Shift-JIS TSL.
+// The order follows on-screen glyph extent first, then stroke weight where extents tie.
 // Each visible glyph consumes two terminal columns, preserving 24x24 dot cells.
-export const HALFTONE_TONES=Object.freeze(['　','・','：','‥','∴','＊','○','◎','●']);
-export const HALFTONE_DITHER_STRENGTH=.10;
+export const HALFTONE_TONES=Object.freeze(['　','・','ｏ','０','Ｏ','○','◯','◎','〇','●']);
+export const HALFTONE_DITHER_STRENGTH=.08;
 export const HALFTONE_GLYPHS=Object.freeze({
  '　':[0x81,0x40], // Full-width blank: 2 columns, black background.
- '・':[0x81,0x45], // Small centered dot.
- '：':[0x81,0x46], // Two vertically stacked dots.
- '‥':[0x81,0x64], // Two horizontally spaced dots.
- '∴':[0x81,0x88], // Three dots in a triangle.
- '＊':[0x81,0x96], // Full-width asterisk.
- '○':[0x81,0x9b], // Open circle.
- '◎':[0x81,0x9d], // Double circle.
+ '・':[0x81,0x45], // Centered tiny filled dot.
+ 'ｏ':[0x82,0x8f], // Fullwidth lowercase o (small ring).
+ '０':[0x82,0x4f], // Fullwidth digit zero (narrow ring).
+ 'Ｏ':[0x82,0x6e], // Fullwidth uppercase O (medium ring).
+ '○':[0x81,0x9b], // White circle (large ring).
+ '◯':[0x81,0xfc], // Large circle (larger ring, thin stroke).
+ '◎':[0x81,0x9d], // Bullseye (large ring with inner ring).
+ '〇':[0x81,0x5a], // Ideographic zero (thicker large ring).
  '●':[0x81,0x9c], // Large filled circle.
  ' ':[0x20]       // Trailing blank for odd-width legacy PC-98 grids.
 });
@@ -48,7 +49,7 @@ export function encodeHalftoneFrame(lines){
 
 // Render a video frame to *visible* dots, not edge extraction.
 // Dark source = large white circle on black, bright source = blank black.
-// Ordered spatial dithering softens the boundaries between nine glyph tones
+// Ordered spatial dithering softens the boundaries between ten glyph tones
 // and is anchored to the grid, so identical frames never flicker.
 export function rgbaToHalftone(pixels,width,height,{brightness=0,contrast=1,gamma=1,sample=4}={}){
  if(!Number.isInteger(width)||width<1||!Number.isInteger(height)||height<1||

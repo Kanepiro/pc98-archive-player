@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#101b22"><meta name="description" content="MAG画像、TSLテキストアニメ、M-MASLを一つのプレーヤーで。"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css"><title>PC-98 Archive Player</title></head>
 <body><main>
-<header><div class="brand"><span class="brandmark">98</span><div><h1>Archive Player</h1><p>MAG · TSL · M-MASL · v0.3.19</p></div></div><button id="install" hidden>アプリを追加</button></header>
+<header><div class="brand"><span class="brandmark">98</span><div><h1>Archive Player</h1><p>MAG · TSL · M-MASL · v0.3.20</p></div></div><button id="install" hidden>アプリを追加</button></header>
 <nav class="tabs" role="tablist" aria-label="機能"><button id="tab-player" role="tab" aria-controls="panel-player" aria-selected="true">プレーヤー</button><button id="tab-converter" role="tab" aria-controls="panel-converter" aria-selected="false" tabindex="-1">動画 → TSL</button></nav>
 <div id="panel-player" role="tabpanel" aria-labelledby="tab-player">
 <section class="viewer" aria-label="再生画面"><div id="stage"><canvas id="screen" width="640" height="400" aria-label="作品の表示"></canvas><div id="empty"><span class="format">PC-98 ARCHIVE</span><h2>あの頃の作品を、<br>もう一度。</h2><p>スマホに保存したファイルを開いてください</p><button class="primary" id="open-empty">ファイルを開く</button></div></div><div class="caption"><strong id="filename">ファイル未選択</strong><span id="kind">MAG / TSL / MMS</span></div></section>
@@ -26,7 +26,7 @@
 </div>
 <details id="converter-options" open><summary>変換設定（任意）</summary>
 <fieldset id="converter-settings"><div class="converter-options">
-<label>変換方式<select id="video-style"><option value="legacy" selected>モード1：従来の濃淡変換</option><option value="halftone">モード2：新聞網点（・：‥∴＊○◎●）</option><option value="quality">モード3：高画質・ちらつき抑制</option></select></label>
+<label>変換方式<select id="video-style"><option value="legacy" selected>モード1：従来の濃淡変換</option><option value="halftone">モード2：丸だけの新聞網点（・ｏ０Ｏ○◯◎〇●）</option><option value="quality">モード3：高画質・ちらつき抑制</option></select></label>
 <div class="converter-grid-offset" aria-hidden="true"></div>
 <label id="video-font-setting">文字の大きさ（px）<input id="video-font-px" type="number" min="16" max="256" step="1" value="24" inputmode="numeric"><small class="muted">標準24px · 16〜256px · 大きいほど文字が読みやすく、文字数が減ります（フルHD基準）</small></label>
 <label id="pc-grid" hidden>文字数<select id="video-size"><option value="79x27">79 × 27（標準）</option><option value="80x25">80 × 25</option><option value="120x40">120 × 40</option><option value="160x50">160 × 50</option></select></label>
@@ -48,7 +48,7 @@
 <p id="converter-status" role="status" aria-live="polite">MP4（H.264）に対応。動画は端末内で処理します。</p><p id="converter-detail" class="muted"></p>
 <button id="cancel-tsl" hidden>変換中止</button></div>
 <div id="tsl-result" hidden><p class="muted">文字色と背景色は「プレーヤー」タブで変更できます。</p><a id="tsl-download" class="download-button">TSLをダウンロード</a><a id="direct-mp4-download" class="download-button" hidden>音声付きMP4をダウンロード</a><button id="preview-tsl-full">全画面で再生</button><button id="preview-tsl">プレーヤーで再生</button></div>
-<p class="converter-note">モード1は従来の濃淡変換を維持。モード2は全角「・：‥∴＊○◎●」と空白の9階調で新聞網点を表現し、暗部ほど大きな白丸になります。モード3はXDoGによる線画抽出、輪郭のつながりの解析、実際の文字の形との比較、輪郭上だけのちらつき抑制を組み合わせます。色付きの平坦な背景は文字にせず空白にします。半角と全角を組み合わせます。文字サイズは16〜256px。TSLファイル自体にフォントのpx値は保存されません。元映像は端末内で処理します。TSLは音声なしで生成されます。「MP4へ直接変換」にチェックを入れると、元動画の音声を使いTSL変換から音声付きMP4保存まで続けて実行します。横16:9も無回転で変換します。最大2GB・2時間・4K、出力は10,000画面・48MB以内に自動調整。途中保存は16画面ごとです。音声付きMP4書き出しは5分以内の作品に対応します。モード3は比較的高負荷なので、端末によって処理に時間がかかる場合があります。</p>
+<p class="converter-note">モード1は従来の濃淡変換を維持。モード2は丸い全角文字「・ｏ０Ｏ○◯◎〇●」と空白の10階調で新聞網点を表現し、暗部ほど大きな白丸になります。モード3はXDoGによる線画抽出、輪郭のつながりの解析、実際の文字の形との比較、輪郭上だけのちらつき抑制を組み合わせます。色付きの平坦な背景は文字にせず空白にします。半角と全角を組み合わせます。文字サイズは16〜256px。TSLファイル自体にフォントのpx値は保存されません。元映像は端末内で処理します。TSLは音声なしで生成されます。「MP4へ直接変換」にチェックを入れると、元動画の音声を使いTSL変換から音声付きMP4保存まで続けて実行します。横16:9も無回転で変換します。最大2GB・2時間・4K、出力は10,000画面・48MB以内に自動調整。途中保存は16画面ごとです。音声付きMP4書き出しは5分以内の作品に対応します。モード3は比較的高負荷なので、端末によって処理に時間がかかる場合があります。</p>
 </section>
-<footer><p>選んだ作品は端末内で処理します。</p><div class="footer-actions"><button id="demo">動作確認データ</button><span id="offline"></span><button id="update" hidden>更新を適用</button></div><details><summary>使い方・確認状況</summary><p>AndroidのChromeで開き、メニューの「ホーム画面に追加」から起動できます。初回読み込み後、アプリ本体を保存できた場合はオフラインでも使えます。</p><p>MAGは画像表示、TSLとMMSは再生・停止に対応。MMSの操作ボタンは押している間だけキー入力します。バックグラウンドに移ると再生を停止します。</p><p>検証版 0.3.19。Android実機での互換性・音声遅延は未確認です。MAGの特殊機種モード、MMSの外部シナリオ呼び出しは未対応です。</p><button id="diagnostics">診断ログを保存</button></details></footer>
-</main><script type="module" src="/app.js?v=0.3.19"></script></body></html>
+<footer><p>選んだ作品は端末内で処理します。</p><div class="footer-actions"><button id="demo">動作確認データ</button><span id="offline"></span><button id="update" hidden>更新を適用</button></div><details><summary>使い方・確認状況</summary><p>AndroidのChromeで開き、メニューの「ホーム画面に追加」から起動できます。初回読み込み後、アプリ本体を保存できた場合はオフラインでも使えます。</p><p>MAGは画像表示、TSLとMMSは再生・停止に対応。MMSの操作ボタンは押している間だけキー入力します。バックグラウンドに移ると再生を停止します。</p><p>検証版 0.3.20。Android実機での互換性・音声遅延は未確認です。MAGの特殊機種モード、MMSの外部シナリオ呼び出しは未対応です。</p><button id="diagnostics">診断ログを保存</button></details></footer>
+</main><script type="module" src="/app.js?v=0.3.20"></script></body></html>

@@ -47,7 +47,7 @@ try{
  const download=await downloadEvent;
  const data=parseTSL(new TextDecoder('shift_jis').decode(await readFile(await download.path())));
  const chars=new Set([...data.frames.join('').replaceAll('\n','')]);
- assert.ok([...chars].every(x=>['　','・','：','‥','∴','＊','○','◎','●'].includes(x)));
+ assert.ok([...chars].every(x=>['　','・','ｏ','０','Ｏ','○','◯','◎','〇','●'].includes(x)));
  // One more analysis using the existing Mode 1 and Mode 3 options.
  for(const mode of ['legacy','quality']){
   await page.selectOption('#video-style',mode);

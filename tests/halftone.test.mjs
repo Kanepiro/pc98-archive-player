@@ -13,31 +13,31 @@ function solid(width,height,value,sample=4){
 }
 const rows=s=>s.split('\r\n').slice(0,-1);
 
-test('Mode 2 offers the nine user-ordered CP932 tones and invisible halfwidth padding',()=>{
+test('Mode 2 offers only the 10 circle-only CP932 tones plus optional halfwidth padding',()=>{
  assert.equal(optionsFor({conversionMode:'halftone'}).conversionMode,'halftone');
  assert.equal(optionsFor({}).conversionMode,'legacy');
  assert.equal(optionsFor({conversionMode:'quality'}).conversionMode,'quality');
  assert.equal(tslName('test.mp4','halftone'),'test_Mode2.TSL');
- assert.deepEqual(HALFTONE_TONES,['　','・','：','‥','∴','＊','○','◎','●']);
- assert.equal(HALFTONE_DITHER_STRENGTH,.10);
+ assert.deepEqual(HALFTONE_TONES,['　','・','ｏ','０','Ｏ','○','◯','◎','〇','●']);
+ assert.equal(HALFTONE_DITHER_STRENGTH,.08);
  for(const char of HALFTONE_TONES){
   assert.equal(halftoneColumns(char),2);
   assert.equal(new TextDecoder('shift_jis').decode(new Uint8Array(HALFTONE_GLYPHS[char])),char);
  }
- assert.equal(halftoneColumns('●◎○＊∴‥：・　 '),19);
- for(const char of ['…','■','☆','a'])assert.throws(()=>halftoneColumns(char),/使用できない/);
+ assert.equal(halftoneColumns('●〇◎◯○Ｏ０ｏ・　 '),21);
+ for(const char of ['＊','：','‥','∴','…','■','☆','a'])assert.throws(()=>halftoneColumns(char),/使用できない/);
 });
 
-test('Mode 2 maps all nine gray levels in the requested order, from blank to large dot',()=>{
+test('Mode 2 maps all ten gray levels, from blank to filled circle',()=>{
  const w=8,h=4;
- for(const [gray,glyph] of [[255,'　'],[213,'・'],[184,'：'],[156,'‥'],[127,'∴'],[99,'＊'],[71,'○'],[43,'◎'],[0,'●']]){
+ for(const [gray,glyph] of [[255,'　'],[217,'・'],[191,'ｏ'],[166,'０'],[140,'Ｏ'],[115,'○'],[89,'◯'],[64,'◎'],[38,'〇'],[0,'●']]){
   const result=rgbaToHalftone(solid(w,h,gray),w,h);
   assert.deepEqual(result.split('\r\n').slice(0,h),Array(h).fill(glyph.repeat(w/2)));
  }
 });
 
-test('Mode 2 is deterministic and spatial dithering stays inside nine-tone palette',()=>{
- const w=24,h=12,pixels=new Uint8ClampedArray(w*h*4*4*4);
+test('Mode 2 is deterministic and spatial dithering stays inside 10-tone circle-only palette',()=>{
+ const w=160,h=12,pixels=new Uint8ClampedArray(w*h*4*4*4);
  for(let y=0;y<h*4;y++)for(let x=0;x<w*4;x++){
   const i=(y*w*4+x)*4,v=Math.round(255*x/(w*4-1));
   pixels[i]=pixels[i+1]=pixels[i+2]=v;pixels[i+3]=255;
@@ -45,15 +45,15 @@ test('Mode 2 is deterministic and spatial dithering stays inside nine-tone palet
  const a=rgbaToHalftone(pixels,w,h,{brightness:0,contrast:1,gamma:1});
  const b=rgbaToHalftone(pixels,w,h,{brightness:0,contrast:1,gamma:1});
  assert.equal(a,b);
- assert.ok([...a].every(c=>['　','・','：','‥','∴','＊','○','◎','●','\r','\n'].includes(c)));
+ assert.ok([...a].every(c=>['　','・','ｏ','０','Ｏ','○','◯','◎','〇','●','\r','\n'].includes(c)));
  for(const glyph of HALFTONE_TONES)assert.ok(a.includes(glyph),'missing '+glyph);
  assert.ok(rows(a).every(line=>halftoneColumns(line)===w));
  assert.notEqual(a,rgbaToHalftone(pixels,w,h,{brightness:15,contrast:1.6,gamma:.8}));
 });
 
 test('Mode 2 round trips TSL with standard CP932 and exact column count',async()=>{
- const width=18,height=6,p=makePlan(1.2,{width,height,fps:10,conversionMode:'halftone'});
- const writer=new TSLWriter(p),row='　・：‥∴＊○◎●';
+ const width=20,height=6,p=makePlan(1.2,{width,height,fps:10,conversionMode:'halftone'});
+ const writer=new TSLWriter(p),row='　・ｏ０Ｏ○◯◎〇●';
  for(let i=0;i<p.count;i++)writer.append((row+'\r\n').repeat(height));
  const binary=new Uint8Array(await writer.finish().arrayBuffer());
  const decoded=new TextDecoder('shift_jis').decode(binary);

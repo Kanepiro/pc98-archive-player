@@ -12,7 +12,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  let controller=null,tuningController=null,result=null,downloadUrl=null,directMp4Url=null,selected=null,selectSerial=0,userAdjustedSettings=false;
  const compatibleCheckpoint=job=>job?.config?.['video-style']!=='outline'&&
   (job?.config?.['video-style']!=='quality'||job.engineVersion===7)&&
-  (job?.config?.['video-style']!=='halftone'||job.engineVersion===10);
+  (job?.config?.['video-style']!=='halftone'||job.engineVersion===11);
  function show(which){
   if(isExporting())return;
   stopPlayback();
@@ -199,7 +199,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   if(pc){$('layout-hint').textContent='PC-98向けの文字数は固定です。TASL Ver.1.08実機での再生は未検証です。';return;}
   try{
    const pixels=Number($('video-font-px').value),grid=selectedGrid();
-   const note=(mode==='landscape'?'横16:9・文字は回転しません。':'縦画面の文字アニメです。')+(quality?'モード3：XDoG・線追跡・字形照合と時間方向の安定化で映像を文字化。':halftone?'モード2：空白・全角「・：‥∴＊○◎●」の9階調で新聞の網点風に変換。':'モード1：従来の濃淡変換。');
+   const note=(mode==='landscape'?'横16:9・文字は回転しません。':'縦画面の文字アニメです。')+(quality?'モード3：XDoG・線追跡・字形照合と時間方向の安定化で映像を文字化。':halftone?'モード2：空白と丸い文字「・ｏ０Ｏ○◯◎〇●」の10階調で新聞の網点風に変換。':'モード1：従来の濃淡変換。');
    $('layout-hint').textContent=`文字サイズ約${pixels}px → ${grid.width}列 × ${grid.height}行で生成（フルHD換算）。${note}PC-98実機互換ではなく、Webプレーヤー向けです。`;
   }catch(e){$('layout-hint').textContent=e.message;}
  }
