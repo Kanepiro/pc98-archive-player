@@ -2,6 +2,7 @@
 // No API calls, no AI model, no upload and no saved video frames.
 // It is a histogram proxy, not an image-quality guarantee.
 import {fitRect} from './tsl-converter-core.js';
+import {HALFTONE_TONES,HALFTONE_DITHER_STRENGTH} from './tsl-halftone.js';
 const clamp=x=>Math.max(0,Math.min(1,x));
 const BAYER4=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5];
 const MODE_SET=new Set(['legacy','halftone','quality']);
@@ -76,7 +77,7 @@ export function suggestToneSettings(frames,{mode='halftone'}={}) {
  for(const frame of snapshots)for(let i=0;i<HIST_BINS;i++)global[i]+=frame[i];
  const spread=quantile(global,.9)-quantile(global,.1);
  if(spread<.055)return {brightness:0,contrast:1,gamma:1,scenes:frames.length,limited:true};
- const isHalftone=mode==='halftone',classes=isHalftone?5:16;
+ const isHalftone=mode==='halftone',classes=isHalftone?HALFTONE_TONES.length:16;
  let best=null;
  // Modest range avoids extreme changes for short/noisy samples.
  const brightnessValues=arrRange(-25,40,5),contrastValues=arrRange(.7,1.8,.1),gammaValues=arrRange(.6,1.3,.05);
@@ -94,8 +95,8 @@ export function suggestToneSettings(frames,{mode='halftone'}={}) {
     if(isHalftone){
      // Approximate the fixed 4x4 Bayer ordered dither across a scene.
      for(let j=0;j<16;j++){
-      const value=clamp(v+(BAYER4[j]-7.5)/16*.18);
-      const index=value<.2?0:value<.4?1:value<.6?2:value<.8?3:4;
+      const value=clamp(v+(BAYER4[j]-7.5)/16*HALFTONE_DITHER_STRENGTH);
+      const index=Math.min(classes-1,Math.floor(value*classes));
       counts[index]+=count/16;
      }
     }else{
@@ -110,7 +111,7 @@ export function suggestToneSettings(frames,{mode='halftone'}={}) {
   let score=.48*avg+.52*worst;
   if(isHalftone){
    // Large, filled dots dominate and flatten dark scenes in Mode 2.
-   score-=1*Math.max(0,globalCounts[4]/total-.3);
+   score-=1*Math.max(0,globalCounts[classes-1]/total-.3);
    score-=.45*Math.max(0,globalCounts[0]/total-.45);
   }else{
    // Avoid clipping highlights/shadows in the 16-character / contour modes.

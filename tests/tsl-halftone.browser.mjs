@@ -12,10 +12,8 @@ await mkdir(out,{recursive:true});
 const src=join(out,'mode2-test.mp4');
 execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-y','-nostdin',
  '-f','lavfi','-i','color=c=0x777777:s=640x360:r=10',
- '-vf','drawbox=x=0:y=0:w=190:h=360:color=0x000000:t=fill,'+
-       'drawbox=x=450:y=0:w=190:h=360:color=0xffffff:t=fill,'+
-       'drawbox=x=260:y=80:w=100:h=200:color=0x333333:t=fill,'+
-       'drawbox=x=190:y=0:w=70:h=360:color=0xb2b2b2:t=fill',
+ '-vf',['00','20','40','60','80','a0','c0','e0','ff'].map((v,i)=>
+   'drawbox=x='+Math.floor(640*i/9)+':y=0:w=72:h=360:color=0x'+v.repeat(3)+':t=fill').join(','),
  '-t','1.8','-an','-c:v','libx264','-preset','ultrafast','-pix_fmt','yuv420p',src]);
 const browser=await chromium.launch({headless:true,executablePath:'/usr/bin/google-chrome',args:['--no-sandbox']});
 const page=await browser.newPage({viewport:{width:390,height:844},acceptDownloads:true});
@@ -37,8 +35,8 @@ try{
  const bytes=await readFile(await file.path()),tsl=parseTSL(new TextDecoder('shift_jis').decode(bytes));
  assert.equal(tsl.width,128);assert.equal(tsl.height,36);assert.ok(tsl.frames.length>=17);
  const all=new Set([...tsl.frames.join('').replaceAll('\n','')]);
- assert.ok([...all].every(x=>['　','・','○','＊','●'].includes(x)),`unexpected symbols: ${[...all].join(' ')}`);
- for(const char of ['●','＊','○','・','　']) assert.ok(all.has(char),`expected five-tone ${char}`);
+ assert.ok([...all].every(x=>['　','・','：','‥','∴','＊','○','◎','●'].includes(x)),`unexpected symbols: ${[...all].join(' ')}`);
+ for(const char of ['　','・','：','‥','∴','＊','○','◎','●']) assert.ok(all.has(char),`expected nine-tone ${char}`);
  await page.click('#preview-tsl');
  await page.waitForFunction(()=>document.querySelector('#filename').textContent.endsWith('_Mode2.TSL'),null,{timeout:10000});
  const mp4Event=page.waitForEvent('download',{timeout:120000});await page.click('#export-mp4');const mp4=await mp4Event;
