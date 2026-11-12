@@ -3,13 +3,14 @@ export function parseTSL(text){
  text=text.replace(/\r\n?/g,'\n').replace(/\x1a+$/,'');
  const chunks=text.split(/^\x0c[^\n]*\n/gm);
  if(chunks.length<4)throw Error('TSLの改ページ区切りがありません');
+ const native16=chunks[0].split('\n').some(line=>line.trim()==='# PC98_FONT_16X16');
  const hdr=[],names=[];
  for(const line of chunks[0].split('\n')){
   const val=line.trim();if(!val||val.startsWith('#'))continue;
   if(hdr.length<6)hdr.push(val.split('#')[0].trim().split(/\s+/)[0]);else names.push(val);
  }
  const count=Number(hdr[1]),width=Number(hdr[2]),height=Number(hdr[3]);
- if(!Number.isInteger(count)||count<1||count>10000||!Number.isInteger(width)||width<1||width>200||!Number.isInteger(height)||height<1||height>100)throw Error('TSLの画面数またはサイズが不正です');
+ if(!Number.isInteger(count)||count<1||count>10000||!Number.isInteger(width)||width<1||width>(native16?240:200)||!Number.isInteger(height)||height<1||height>(native16?120:100))throw Error('TSLの画面数またはサイズが不正です');
  if(chunks.length<count+3)throw Error('TSLの画面データが不足しています');
  const frames=chunks.slice(2,2+count).map(s=>s.replace(/\n+$/,''));
  const schedule=[];let duration=0;
@@ -20,14 +21,14 @@ export function parseTSL(text){
   schedule.push({frame:frame-1,start:duration});duration+=Math.max(1,ticks)/60;
  }
  if(!schedule.length)for(let i=0;i<count;i++){schedule.push({frame:i,start:duration});duration+=.1;}
- return {frames,schedule,duration,width,height,title:names.join(' / '),version:hdr[0]};
+ return {frames,schedule,duration,width,height,title:names.join(' / '),version:hdr[0],native16};
 }
 export function tslFrameAt(data,seconds){
  let low=0,high=data.schedule.length;
  while(low+1<high){const mid=(low+high)>>1;if(data.schedule[mid].start<=seconds)low=mid;else high=mid;}
  return data.schedule[low].frame;
 }
-export function drawTSL(canvas,data,index,{cellWidth=12,cellHeight=24,fontSize=20,foreground='#e3f4e8',background='#080d12'}={}){
+export function drawTSL(canvas,data,index,{cellWidth=data.native16?8:12,cellHeight=data.native16?16:24,fontSize=data.native16?16:20,foreground='#e3f4e8',background='#080d12'}={}){
  const cw=cellWidth,ch=cellHeight,w=Math.round(data.width*cw),h=Math.round(data.height*ch);
  if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
  const c=canvas.getContext('2d');c.fillStyle=background;c.fillRect(0,0,w,h);

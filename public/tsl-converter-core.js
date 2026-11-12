@@ -4,10 +4,11 @@ import {halftoneColumns,encodeHalftoneFrame} from './tsl-halftone.js';
 export const CANDIDATE_RAMP = ' .:|/(%YVO8D@0#$';
 export const MAX_FRAMES = 10000;
 export const MAX_OUTPUT_BYTES = 48 * 1024 * 1024;
-export const DEFAULTS = Object.freeze({width:79,height:27,fps:10,brightness:0,contrast:1,gamma:1,edge:.6,conversionMode:'legacy'});
+export const DEFAULTS = Object.freeze({width:79,height:27,fps:10,brightness:0,contrast:1,gamma:1,edge:.6,conversionMode:'legacy',native16:false});
 export function optionsFor(input={}) {
  const o={...DEFAULTS,...input};
- for(const [k,min,max] of [['width',4,160],['height',4,100],['fps',1,30],['brightness',-100,100],['contrast',.25,3],['gamma',.4,2.5],['edge',0,1]]) {
+ if(typeof o.native16!=='boolean')throw Error('16ドット表示の設定が不正です');
+ for(const [k,min,max] of [['width',4,o.native16?240:160],['height',4,o.native16?120:100],['fps',1,30],['brightness',-100,100],['contrast',.25,3],['gamma',.4,2.5],['edge',0,1]]) {
   if(!Number.isFinite(o[k])||o[k]<min||o[k]>max)throw Error('設定値が範囲外です: '+k);
  }
  if(!Number.isInteger(o.width)||!Number.isInteger(o.height))throw Error('文字数は整数で指定してください');
@@ -34,9 +35,8 @@ export function portraitGrid(aspect=9/16,columns=90) {
  if(height>100){height=100;width=Math.round(height*aspect/.5);}
  return {width,height,targetAspect:aspect};
 }
-// Font pixels are a Full-HD-equivalent *target* for new portrait TSLs.
-// TSL itself stores a character grid, not font metrics. The player uses a
-// 12x24 cell with a 20px font, so requested pixels set the grid density.
+// The separate 16x16 menu choice uses a native-style grid; all 16-256px choices
+// keep their original Full-HD-equivalent density and legacy rendering.
 export const DEFAULT_FONT_PIXELS = 24;
 export function portraitGridForPixels(aspect=9/16,fontPixels=DEFAULT_FONT_PIXELS) {
  if(!Number.isInteger(fontPixels)||fontPixels<16||fontPixels>256)throw Error('文字サイズは16〜256pxの整数で指定してください');
@@ -45,6 +45,14 @@ export function portraitGridForPixels(aspect=9/16,fontPixels=DEFAULT_FONT_PIXELS
  const columns=Math.max(4,Math.min(160,Math.round(referenceWidth/(fontPixels*.6))));
  return portraitGrid(aspect,columns);
 }
+// A separate explicit menu entry renders native-style PC-98 8x16 / 16x16 cells.
+// For 16:9 at Full HD: 240 halfwidth columns x 67 rows = 1920x1072.
+export function native16LandscapeGrid(){return {width:240,height:67,targetAspect:16/9};}
+export function native16PortraitGrid(aspect=9/16){
+ if(!Number.isFinite(aspect)||aspect<.25||aspect>1)throw Error('縦画面の比率が不正です');
+ return {width:Math.max(4,Math.min(240,Math.round(240*aspect))),height:120,targetAspect:aspect};
+}
+
 // A landscape Full-HD image must remain horizontal throughout video -> TSL -> MP4.
 // Text cells are 12 x 24 (aspect .5), so choose integer columns/rows closest to
 // 16:9 without rotating any glyphs. Prefer the correct aspect over an exact px hint.
@@ -144,7 +152,7 @@ export class TSLWriter {
  }
  finish() {
   if(this.frames!==this.plan.count)throw Error('画面データが不足しています');
-  const p=this.plan,header=['1.08',p.count,p.width,p.height,1,-1,p.conversionMode==='quality'?'Video conversion - Quality':p.conversionMode==='halftone'?'Video conversion - Halftone':'Video conversion','\f'].join('\r\n')+'\r\n';
+  const p=this.plan,header=['1.08',p.count,p.width,p.height,1,-1,p.conversionMode==='quality'?'Video conversion - Quality':p.conversionMode==='halftone'?'Video conversion - Halftone':'Video conversion',...(p.native16?['# PC98_FONT_16X16']:[]),'\f'].join('\r\n')+'\r\n';
   const schedule=p.steps.map((s,i)=>(i+1)+' '+s.ticks+'\r\n').join('')+'0 0\r\n\f\r\n';
   return new Blob([header,schedule,...this.parts,...this.batch,'\x1a'],{type:'application/octet-stream'});
  }

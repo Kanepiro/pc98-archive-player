@@ -124,9 +124,15 @@ async function exportTsl(current, signal, onProgress, onResolution, tslAppearanc
       if(audioMode==='sample'&&!(await audioTrack.canDecode()))
         throw Error('元動画の音声コーデックをデコードできません');
     }
-    const nativeWidth=data.width*12,nativeHeight=data.height*24;
+    const nativeWidth=data.width*(data.native16?8:12),nativeHeight=data.height*(data.native16?16:24);
+    const near16x9=data.native16&&Math.abs(nativeWidth/nativeHeight/(16/9)-1)<.02;
+    // 240x67 native PC-98 columns/rows yield 1920x1072. Preserve every
+    // 16x16 pixel and center it with 4 black rows above/below in 1080p.
+    const sizes=near16x9
+      ?[{width:1920,height:1080},{width:1280,height:720},...tslExportCandidates(nativeWidth,nativeHeight)]
+      :tslExportCandidates(nativeWidth,nativeHeight);
     let canvas,output,video,audio,lastError;
-    for(const size of tslExportCandidates(nativeWidth,nativeHeight).filter(s=>s.width*s.height<=maxPixels)){
+    for(const size of sizes.filter(s=>s.width*s.height<=maxPixels)){
       aborted(signal);
       const candidate=typeof document==='undefined'
         ?new OffscreenCanvas(size.width,size.height):document.createElement('canvas');
@@ -140,6 +146,12 @@ async function exportTsl(current, signal, onProgress, onResolution, tslAppearanc
     onResolution?.(canvas.width,canvas.height);
     const render={cellWidth:canvas.width/data.width,cellHeight:canvas.height/data.height,
       fontSize:canvas.height/data.height*20/24,...tslAppearance};
+    // For 16-dot material, rasterize glyphs once at native 8x16 / 16x16.
+    // Then copy pixels with nearest-neighbor sampling (no vector reflow / smoothing).
+    const dotCanvas=data.native16?new OffscreenCanvas(nativeWidth,nativeHeight):null;
+    const dotContext=data.native16?canvas.getContext('2d',{alpha:false}):null;
+    const scale=data.native16?Math.min(canvas.width/nativeWidth,canvas.height/nativeHeight):1;
+    const dotWidth=Math.round(nativeWidth*scale),dotHeight=Math.round(nativeHeight*scale);
     async function videoPass(){
       let frames=0;
       for(let i=0;i<data.schedule.length;i++){
@@ -147,7 +159,13 @@ async function exportTsl(current, signal, onProgress, onResolution, tslAppearanc
         const currentFrame=data.schedule[i],next=data.schedule[i+1];
         const start=currentFrame.start,end=next?next.start:data.duration;
         if(end<=start)continue;
-        drawTSL(canvas,data,currentFrame.frame,render);
+        if(dotCanvas){
+          drawTSL(dotCanvas,data,currentFrame.frame,tslAppearance);
+          dotContext.imageSmoothingEnabled=false;
+          dotContext.fillStyle=tslAppearance.background||'#080d12';
+          dotContext.fillRect(0,0,canvas.width,canvas.height);
+          dotContext.drawImage(dotCanvas,Math.floor((canvas.width-dotWidth)/2),Math.floor((canvas.height-dotHeight)/2),dotWidth,dotHeight);
+        }else drawTSL(canvas,data,currentFrame.frame,render);
         await video.add(start,end-start,{keyFrame:frames%60===0});
         frames++;onProgress?.(end,data.duration);
       }

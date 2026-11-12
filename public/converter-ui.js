@@ -1,6 +1,6 @@
 import {convertVideo} from './video-to-tsl.js';
 import {analyzeVideoTone} from './tsl-auto-settings.js';
-import {tslName,portraitGridForPixels,landscapeGridForPixels} from './tsl-converter-core.js';
+import {tslName,portraitGridForPixels,landscapeGridForPixels,native16PortraitGrid,native16LandscapeGrid} from './tsl-converter-core.js';
 import {fileIdentity,readCheckpointSummary} from './tsl-checkpoint.js';
 import {exportTslInWorker} from './tsl-export-controller.js';
 export function setupConverter({openPreview,stopPlayback,isExporting,enterImmersive}) {
@@ -10,9 +10,11 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  $('converter-settings').addEventListener('input',()=>{userAdjustedSettings=true;});
  $('converter-settings').addEventListener('change',()=>{userAdjustedSettings=true;});
  let controller=null,tuningController=null,result=null,downloadUrl=null,directMp4Url=null,selected=null,selectSerial=0,userAdjustedSettings=false;
- const compatibleCheckpoint=job=>job?.config?.['video-style']!=='outline'&&
-  (job?.config?.['video-style']!=='quality'||job.engineVersion===7)&&
-  (job?.config?.['video-style']!=='halftone'||job.engineVersion===12);
+ const compatibleCheckpoint=job=>{
+  const native16=job?.config?.['video-font-render']==='native16';
+  const mode=job?.config?.['video-style'];
+  return mode!=='outline'&&job?.engineVersion===(mode==='quality'?(native16?8:7):mode==='halftone'?(native16?13:12):(native16?3:2));
+ };
  function show(which){
   if(isExporting())return;
   stopPlayback();
@@ -46,7 +48,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   if(directMp4Url)URL.revokeObjectURL(directMp4Url);directMp4Url=null;$('direct-mp4-download').hidden=true;
  }
  function converterConfig(){
-  return Object.fromEntries(['video-mode','video-style','video-font-px','video-size','video-fps','video-fit','crop-x','crop-y','video-brightness','video-contrast','video-gamma','video-edge'].map(id=>[id,$(id).value]));
+  return Object.fromEntries(['video-mode','video-style','video-font-render','video-font-px','video-size','video-fps','video-fit','crop-x','crop-y','video-brightness','video-contrast','video-gamma','video-edge'].map(id=>[id,$(id).value]));
  }
  function restoreConfig(config){
   for(const [id,value] of Object.entries(config||{}))if($(id)&&typeof value==='string')$(id).value=value;
@@ -58,10 +60,11 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
    const [width,height]=$('video-size').value.split('x').map(Number);
    return {width,height};
   }
+  const native16=$('video-font-render').value==='native16';
   const pixels=Number($('video-font-px').value);
-  if(mode==='landscape')return landscapeGridForPixels(pixels);
+  if(mode==='landscape')return native16?native16LandscapeGrid():landscapeGridForPixels(pixels);
   const aspect=mode==='screen'?Math.min(screen.width,screen.height)/Math.max(screen.width,screen.height):9/16;
-  return portraitGridForPixels(aspect,pixels);
+  return native16?native16PortraitGrid(aspect):portraitGridForPixels(aspect,pixels);
  }
  function selectFile(file){
   if(!file||controller||tuningController||isExporting())return;
@@ -96,7 +99,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
    result=await convertVideo(file,{signal:controller.signal,width,height,fps:Number($('video-fps').value),
     brightness:Number($('video-brightness').value),contrast:Number($('video-contrast').value),
     gamma:Number($('video-gamma').value),edge:Number($('video-edge').value),
-    conversionMode:$('video-style').value,
+    conversionMode:$('video-style').value,native16:$('video-font-render').value==='native16',
     fit:$('video-fit').value,positionX:Number($('crop-x').value)/100,positionY:Number($('crop-y').value)/100,
     checkpointConfig,
     onCheckpointIssue:()=>{$('converter-detail').textContent='端末に途中保存できません。変換は続行しますが、閉じると再開できない場合があります。';},
@@ -115,7 +118,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
    const a=$('tsl-download');a.href=downloadUrl;a.download=tslName(file.name,result.plan.conversionMode);
    $('tsl-result').hidden=false;
    $('converter-status').textContent=directMP4?'TSL完成。元音声付きMP4を作成中…':'変換が完了しました';
-   $('converter-detail').textContent=result.plan.width+' × '+result.plan.height+'文字'+(mode==='pc98'?'':' · 約'+Number($('video-font-px').value)+'px')+' · '+result.plan.count.toLocaleString()+'画面 · '+result.plan.duration.toFixed(2)+'秒 · '+(result.blob.size/1024/1024).toFixed(2)+' MB'+(result.plan.reduced?' · 長尺のためフレームレートを自動調整':'');
+   $('converter-detail').textContent=result.plan.width+' × '+result.plan.height+'文字'+(result.plan.native16?' · 全角16×16ドット（半角8×16）':(mode==='pc98'?'':' · 約'+Number($('video-font-px').value)+'px'))+' · '+result.plan.count.toLocaleString()+'画面 · '+result.plan.duration.toFixed(2)+'秒 · '+(result.blob.size/1024/1024).toFixed(2)+' MB'+(result.plan.reduced?' · 長尺のためフレームレートを自動調整':'');
    if(directMP4){
     if(result.plan.duration>300)throw Error('音声付きMP4は5分以内の動画に対応しています（TSLは保存可能）');
     const bytes=await result.blob.arrayBuffer();
@@ -195,17 +198,21 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   const mode=$('video-mode').value,pc=mode==='pc98';
   const quality=$('video-style').value==='quality',halftone=$('video-style').value==='halftone';
   $('tone-edge').hidden=quality||halftone;
-  $('pc-grid').hidden=!pc;$('video-font-setting').hidden=pc;
-  if(pc){$('layout-hint').textContent='PC-98向けの文字数は固定です。TASL Ver.1.08実機での再生は未検証です。';return;}
+  const native16=$('video-font-render').value==='native16';
+  $('pc-grid').hidden=!pc;$('video-font-setting').hidden=pc||native16;
+  if(pc){$('layout-hint').textContent=(native16?'PC-98実寸：全角16×16／半角8×16ドット。':'既存表示：半角12×24／全角24×24ドット。')+'文字数は選択したグリッドを使用。TASL Ver.1.08実機での再生は未検証です。';return;}
   try{
    const pixels=Number($('video-font-px').value),grid=selectedGrid();
    const note=(mode==='landscape'?'横16:9・文字は回転しません。':'縦画面の文字アニメです。')+(quality?'モード3：XDoG・線追跡・字形照合と時間方向の安定化で映像を文字化。':halftone?'モード2：空白・句点「。」・「ｏ」「○」「◎」の5階調で網点風に変換。':'モード1：従来の濃淡変換。');
-   $('layout-hint').textContent=`文字サイズ約${pixels}px → ${grid.width}列 × ${grid.height}行で生成（フルHD換算）。${note}PC-98実機互換ではなく、Webプレーヤー向けです。`;
+   $('layout-hint').textContent=native16
+    ?`PC-98実寸：全角16×16ドット／半角8×16ドット → ${grid.width}列 × ${grid.height}行。フルHDで等倍描画または最近傍拡大。${note}実機のROM書体そのものではありません。`
+    :`文字サイズ約${pixels}px → ${grid.width}列 × ${grid.height}行で生成（フルHD換算）。${note}Webプレーヤー向けです。`;
   }catch(e){$('layout-hint').textContent=e.message;}
  }
  $('video-mode').onchange=()=>{$('video-fit').value=$('video-mode').value==='pc98'?'contain':'cover';layoutHint();};
  $('video-style').onchange=layoutHint;
- $('video-font-px').oninput=layoutHint;layoutHint();
+ $('video-font-px').oninput=layoutHint;
+ $('video-font-render').onchange=layoutHint;layoutHint();
  const drop=$('video-drop');
  drop.addEventListener('dragover',e=>{e.preventDefault();if(!controller)drop.classList.add('dragover');});
  drop.addEventListener('dragleave',()=>drop.classList.remove('dragover'));

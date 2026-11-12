@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parseTSL,tslFrameAt} from '../public/tsl.js';
-import {makePlan,optionsFor,portraitGrid,portraitGridForPixels,landscapeGridForPixels,fitRect,rgbaToASCII,densityRamp,TSLWriter,tslName,CANDIDATE_RAMP,MAX_OUTPUT_BYTES} from '../public/tsl-converter-core.js';
+import {makePlan,optionsFor,portraitGrid,portraitGridForPixels,landscapeGridForPixels,native16PortraitGrid,native16LandscapeGrid,fitRect,rgbaToASCII,densityRamp,TSLWriter,tslName,CANDIDATE_RAMP,MAX_OUTPUT_BYTES} from '../public/tsl-converter-core.js';
 
 test('60 Hz schedule preserves duration within half a tick and has no cumulative drift',()=>{
  for(const duration of [.001,.1,1,10.01,60.123,600,7200])for(const fps of [5,10,15,24,29.97,30]){
@@ -167,4 +167,31 @@ test('color edges are darkened instead of lost in a bright background',()=>{
  assert.equal(base[0],base[1],'bright colors with near-equal luminance must match without contour');
  assert.notEqual(outlined[0],outlined[1],'the colored shape must remain visible on bright background');
  assert.ok(CANDIDATE_RAMP.indexOf(outlined[1])<CANDIDATE_RAMP.indexOf(base[1]),'edge is darkened, not whitened');
+});
+
+
+test('Dedicated PC-98 16x16 menu adds native pixel cells without altering legacy 16px layout',async()=>{
+ assert.deepEqual(landscapeGridForPixels(16),{width:160,height:45,targetAspect:16/9});
+ assert.deepEqual(portraitGridForPixels(9/16,16),portraitGrid(9/16,113));
+ assert.deepEqual(native16LandscapeGrid(),{width:240,height:67,targetAspect:16/9});
+ assert.deepEqual(native16PortraitGrid(),{width:135,height:120,targetAspect:9/16});
+ assert.deepEqual(native16PortraitGrid(.5),{width:120,height:120,targetAspect:.5});
+ assert.throws(()=>native16PortraitGrid(3),/比率/);
+ assert.throws(()=>makePlan(1,{width:240,height:67,fps:24}),/範囲外/);
+ assert.throws(()=>makePlan(1,{width:135,height:120,fps:24}),/範囲外/);
+ const plan=makePlan(1,{width:240,height:67,fps:24,native16:true,conversionMode:'halftone'});
+ const wr=new TSLWriter(plan);
+ const row='◎'.repeat(120)+'\r\n';
+ for(let i=0;i<plan.count;i++)wr.append(row.repeat(plan.height));
+ const decoded=new TextDecoder('shift_jis').decode(await wr.finish().arrayBuffer());
+ assert.ok(decoded.includes('# PC98_FONT_16X16'));
+ const data=parseTSL(decoded);
+ assert.equal(data.native16,true);
+ assert.equal(data.width,240);
+ assert.equal(data.height,67);
+ const standard=makePlan(1,{width:160,height:45,fps:10,conversionMode:'halftone'}),classic=new TSLWriter(standard);
+ for(let i=0;i<standard.count;i++)classic.append(('◎'.repeat(80)+'\r\n').repeat(45));
+ const old=parseTSL(new TextDecoder('shift_jis').decode(await classic.finish().arrayBuffer()));
+ assert.equal(old.native16,false);
+ assert.equal(old.width,160);
 });
