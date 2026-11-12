@@ -1,11 +1,12 @@
-// Mode 2: three-tone newspaper halftone, encoded as CP932 / Shift-JIS TSL.
-// All visible marks use exactly two full-width, centered, filled circles:
-// middle dot (・) and black circle (●). The remaining tone is blank.
-// The output uses two terminal columns per dot, matching a square 24x24 cell.
+// Mode 2: five-tone newspaper halftone, encoded as CP932 / Shift-JIS TSL.
+// User-selected ordered palette: full-width blank, ・, ○, ＊, ●.
+// Each visible glyph consumes two terminal columns, preserving 24x24 dot cells.
 export const HALFTONE_GLYPHS=Object.freeze({
  '　':[0x81,0x40], // Full-width blank: 2 columns, black background.
- '・':[0x81,0x45], // Small filled dot: 2 columns.
- '●':[0x81,0x9c], // Large filled circle: 2 columns.
+ '・':[0x81,0x45], // Small centered dot.
+ '○':[0x81,0x9b], // Open circle.
+ '＊':[0x81,0x96], // Full-width asterisk.
+ '●':[0x81,0x9c], // Large filled circle.
  ' ':[0x20]       // Trailing blank for odd-width legacy PC-98 grids.
 });
 const BAYER4=Object.freeze([
@@ -40,9 +41,8 @@ export function encodeHalftoneFrame(lines){
 }
 
 // Render a video frame to *visible* dots, not edge extraction.
-// Dark source = large white circle on black; midtone = tiny white dot;
-// bright source = blank black, per the agreed three-tone palette.
-// Ordered spatial dithering adds subtle in-between tones without new glyphs
+// Dark source = large white circle on black, bright source = blank black.
+// Ordered spatial dithering softens the boundaries between five glyph tones
 // and is anchored to the grid, so identical frames never flicker.
 export function rgbaToHalftone(pixels,width,height,{brightness=0,contrast=1,gamma=1,sample=4}={}){
  if(!Number.isInteger(width)||width<1||!Number.isInteger(height)||height<1||
@@ -74,7 +74,7 @@ export function rgbaToHalftone(pixels,width,height,{brightness=0,contrast=1,gamm
    // Fixed 4x4 Bayer matrix: deterministic, modest dithering avoids noise.
    const dither=(BAYER4[(y%4)*4+(x%4)]-7.5)/16*.18;
    const v=clamp(tone+dither);
-   line+=v<1/3?'　':v<2/3?'・':'●';
+   line+=v<.2?'　':v<.4?'・':v<.6?'○':v<.8?'＊':'●';
   }
   // PC-98 79-column profiles need one non-rendering half-width column.
   if(width%2)line+=' ';

@@ -77,7 +77,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   // The video itself is deliberately NOT persisted.
   try{
    const identity=fileIdentity(file);
-   const engineVersion=options.conversionMode==='quality'?7:options.conversionMode==='halftone'?8:2;
+   const engineVersion=options.conversionMode==='quality'?7:options.conversionMode==='halftone'?9:2;
    const signature=JSON.stringify([engineVersion,identity,await fingerprint(file),
     [options.width,options.height,options.fps,options.brightness,options.contrast,options.gamma,options.edge,options.conversionMode,fit,positionX,positionY],
     [video.videoWidth,video.videoHeight,video.duration,plan.count]]);
