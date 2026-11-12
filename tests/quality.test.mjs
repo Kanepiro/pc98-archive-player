@@ -20,9 +20,10 @@ function tinyAtlas(sample){
   {char:'／',columns:2,mask:all(.35,2)}
  ];
 }
-test('Only mode 1 and mode 3 are available; mode 1 remains unchanged',()=>{
+test('Modes 1, 2, and 3 are available; mode 1 remains unchanged',()=>{
  assert.equal(optionsFor({}).conversionMode,'legacy');
  assert.deepEqual(optionsFor({conversionMode:'quality'}).conversionMode,'quality');
+ assert.deepEqual(optionsFor({conversionMode:'halftone'}).conversionMode,'halftone');
  assert.throws(()=>optionsFor({conversionMode:'outline'}),/変換方式/);
  assert.equal(tslName('猫.MP4'),'猫.TSL');
  assert.equal(tslName('猫.MP4','quality'),'猫_Mode3.TSL');

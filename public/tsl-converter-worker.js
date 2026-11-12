@@ -1,5 +1,6 @@
 import {rgbaToASCII} from './tsl-converter-core.js';
 import {QualityConverter} from './tsl-quality.js';
+import {rgbaToHalftone} from './tsl-halftone.js';
 let quality=null;
 self.onmessage=async({data:d})=>{
  try{
@@ -16,7 +17,9 @@ self.onmessage=async({data:d})=>{
   const pixels=new Uint8ClampedArray(d.pixels);
   const frame=d.options.conversionMode==='quality'
    ?await quality.convertAccelerated(pixels,d.width,d.height,d.options)
-   :rgbaToASCII(pixels,d.width,d.height,d.options);
+   :d.options.conversionMode==='halftone'
+    ?rgbaToHalftone(pixels,d.width,d.height,d.options)
+    :rgbaToASCII(pixels,d.width,d.height,d.options);
   self.postMessage({frame,acceleration:d.options.conversionMode==='quality'?quality.acceleration:'CPU'});
  }catch(e){self.postMessage({error:e.message});}
 };

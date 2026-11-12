@@ -9,7 +9,9 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  $('converter-settings').addEventListener('input',()=>{userAdjustedSettings=true;});
  $('converter-settings').addEventListener('change',()=>{userAdjustedSettings=true;});
  let controller=null,result=null,downloadUrl=null,directMp4Url=null,selected=null,selectSerial=0,userAdjustedSettings=false;
- const compatibleCheckpoint=job=>job?.config?.['video-style']!=='outline'&&(job?.config?.['video-style']!=='quality'||job.engineVersion===7);
+ const compatibleCheckpoint=job=>job?.config?.['video-style']!=='outline'&&
+  (job?.config?.['video-style']!=='quality'||job.engineVersion===7)&&
+  (job?.config?.['video-style']!=='halftone'||job.engineVersion===8);
  function show(which){
   if(isExporting())return;
   stopPlayback();
@@ -157,13 +159,13 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  };
  function layoutHint(){
   const mode=$('video-mode').value,pc=mode==='pc98';
-  const quality=$('video-style').value==='quality';
-  $('tone-edge').hidden=quality;
+  const quality=$('video-style').value==='quality',halftone=$('video-style').value==='halftone';
+  $('tone-edge').hidden=quality||halftone;
   $('pc-grid').hidden=!pc;$('video-font-setting').hidden=pc;
   if(pc){$('layout-hint').textContent='PC-98向けの文字数は固定です。TASL Ver.1.08実機での再生は未検証です。';return;}
   try{
    const pixels=Number($('video-font-px').value),grid=selectedGrid();
-   const note=(mode==='landscape'?'横16:9・文字は回転しません。':'縦画面の文字アニメです。')+(quality?'モード3：XDoG・線追跡・字形照合と時間方向の安定化で映像を文字化。':'モード1：従来の濃淡変換。');
+   const note=(mode==='landscape'?'横16:9・文字は回転しません。':'縦画面の文字アニメです。')+(quality?'モード3：XDoG・線追跡・字形照合と時間方向の安定化で映像を文字化。':halftone?'モード2：空白・全角の「・」「●」だけで新聞の網点風に変換。':'モード1：従来の濃淡変換。');
    $('layout-hint').textContent=`文字サイズ約${pixels}px → ${grid.width}列 × ${grid.height}行で生成（フルHD換算）。${note}PC-98実機互換ではなく、Webプレーヤー向けです。`;
   }catch(e){$('layout-hint').textContent=e.message;}
  }
