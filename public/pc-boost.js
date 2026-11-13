@@ -1,20 +1,23 @@
-// Optional PC-only C++ converter. Completely separate from browser workers.
-const HOST = 'http://127.0.0.1:39083';
-const cancelled = () => new DOMException('変換を中止しました', 'AbortError');
-const check = signal => { if (signal?.aborted) throw cancelled(); };
+// PC-only native converter: FFmpeg streaming + optimized C++ Shift-JIS engine.
+const HOST='http://127.0.0.1:39083';
+const STORAGE_KEY='tasl-pc-boost-active-v1';
+const cancelled=()=>new DOMException('変換を中止しました','AbortError');
+const check=signal=>{if(signal?.aborted)throw cancelled();};
+const readRecord=()=>{try{return JSON.parse(localStorage.getItem(STORAGE_KEY));}catch{return null;}};
+const clearRecord=()=>{try{localStorage.removeItem(STORAGE_KEY);}catch{}};
+const saveRecord=data=>{try{localStorage.setItem(STORAGE_KEY,JSON.stringify(data));}catch{}};
 
-async function jsonResponse(url, options) {
- const response = await fetch(url, options);
+async function jsonResponse(url,options){
+ const response=await fetch(url,options);
  let obj;
- try { obj = await response.json(); } catch { obj = {}; }
- if (!response.ok) throw Error(obj.error || obj.message || 'PCブーストとの通信に失敗しました');
+ try{obj=await response.json();}catch{obj={};}
+ if(!response.ok)throw Error(obj.error||obj.message||'PCブーストとの通信に失敗しました');
  return obj;
 }
-function normalizePlan(plan) {
+function normalizePlan(plan){
  const duration=plan.duration,count=plan.count;
  return {...plan,conversionMode:plan.mode,
-  effectiveFps:count/duration,
-  reduced:count<Math.ceil(duration*plan.fps)};
+  effectiveFps:count/duration,reduced:count<Math.ceil(duration*plan.fps)};
 }
 function sleep(ms,signal){
  return new Promise((resolve,reject)=>{
@@ -25,18 +28,29 @@ function sleep(ms,signal){
   signal?.addEventListener('abort',abort,{once:true});
  });
 }
-export async function convertVideoNative(file,{signal,onProgress=()=>{},...options}={}) {
+async function fingerprint(file){
+ // Cheap enough for multi-GB videos, but strongly identifies a selected video.
+ const first=new Uint8Array(await file.slice(0,65536).arrayBuffer());
+ const last=new Uint8Array(await file.slice(Math.max(0,file.size-65536)).arrayBuffer());
+ const bytes=new Uint8Array(first.length+last.length+16);
+ bytes.set(first,0);bytes.set(last,first.length);
+ new DataView(bytes.buffer).setFloat64(bytes.length-16,file.size,true);
+ new DataView(bytes.buffer).setFloat64(bytes.length-8,file.lastModified,true);
+ const digest=new Uint8Array(await crypto.subtle.digest('SHA-256',bytes));
+ return [...digest].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+
+export async function convertVideoNative(file,{signal,onProgress=()=>{},...options}={}){
  check(signal);
  let health;
- try { health=await jsonResponse(HOST+'/health',{signal,cache:'no-store'}); }
- catch(e) {
+ try{health=await jsonResponse(HOST+'/health',{signal,cache:'no-store'});}
+ catch(e){
   if(signal?.aborted)throw cancelled();
-  throw Error('PCブーストの補助プログラムが見つかりません。PCで起動してから再試行してください。ブラウザーのローカルネットワーク接続許可も確認してください。('+e.message+')');
+  throw Error('PCブーストが起動していません。Windows版EXEを起動し、同じPCのChrome/Edgeを利用してください。('+e.message+')');
  }
  if(!health.native||!health.ffmpeg||!health.ffprobe)
-  throw Error('PCブーストにネイティブ変換機またはFFmpegがありません。');
+  throw Error('PCブーストにC++エンジン、FFmpegまたはFFprobeがありません。');
  check(signal);
- onProgress({phase:'boost-upload'});
  const serialized=btoa(JSON.stringify({
   mode:options.conversionMode,
   width:options.width,height:options.height,
@@ -45,14 +59,35 @@ export async function convertVideoNative(file,{signal,onProgress=()=>{},...optio
   gamma:options.gamma,edge:options.edge,native16:options.native16,
   fit:options.fit,positionX:options.positionX,positionY:options.positionY
  }));
+ const identity=await fingerprint(file);
+ check(signal);
+ const cacheKey=identity+':'+serialized;
+ const record=readRecord();
  const start=performance.now();
- const job=await jsonResponse(HOST+'/jobs',{
-  method:'POST',body:file,signal,
-  headers:{'Content-Type':'application/octet-stream','X-TASL-Options':serialized}
- });
- let plan=null,complete=null,lastDone=0,conversionStart=performance.now();
+ let job=null;
+ if(record?.key===cacheKey&&record.id){
+  try{
+   const state=await jsonResponse(HOST+'/jobs/'+encodeURIComponent(record.id),
+    {signal,cache:'no-store'});
+   if(!['error','cancelled'].includes(state.state)){
+    job={id:record.id};
+    onProgress({phase:'boost-wait',message:'前回のPCブースト処理に再接続しました'});
+   }
+  }catch{}
+ }
+ if(!job){
+  onProgress({phase:'boost-upload'});
+  job=await jsonResponse(HOST+'/jobs',{
+   method:'POST',body:file,signal,
+   headers:{'Content-Type':'application/octet-stream','X-TASL-Options':serialized}
+  });
+ }
+ saveRecord({id:job.id,key:cacheKey,name:file.name});
+ let plan=null,lastDone=0,conversionStart=performance.now(),firstProgress=true;
  const onAbort=()=>{
-  fetch(HOST+'/jobs/'+encodeURIComponent(job.id)+'/cancel',{method:'POST',keepalive:true}).catch(()=>{});
+  clearRecord();
+  fetch(HOST+'/jobs/'+encodeURIComponent(job.id)+'/cancel',
+   {method:'POST',keepalive:true}).catch(()=>{});
  };
  signal?.addEventListener('abort',onAbort,{once:true});
  try{
@@ -61,17 +96,21 @@ export async function convertVideoNative(file,{signal,onProgress=()=>{},...optio
    const state=await jsonResponse(HOST+'/jobs/'+encodeURIComponent(job.id),
     {signal,cache:'no-store'});
    if(state.plan?.count)plan=normalizePlan(state.plan);
-   if(state.state==='error')throw Error(state.message||'PC変換が失敗しました');
-   if(state.state==='cancelled')throw cancelled();
-   if(state.state==='done'){complete=state;break;}
+   if(state.state==='error'){clearRecord();throw Error(state.message||'PC変換が失敗しました');}
+   if(state.state==='cancelled'){clearRecord();throw cancelled();}
+   if(state.state==='done')break;
    if(plan){
     const elapsed=(performance.now()-conversionStart)/1000;
     const done=state.done||0;
+    if(firstProgress&&done){
+     onProgress({phase:'resumed',done,total:plan.count,plan,saved:done});
+     firstProgress=false;
+    }
     if(done!==lastDone||state.state==='converting'){
      lastDone=done;
-     const remaining=done>0?elapsed/done*(plan.count-done):0;
+     const remaining=done>0?elapsed/Math.max(1,done)*(plan.count-done):0;
      onProgress({phase:'converting',done,total:plan.count,elapsed,remaining,
-      seconds:done/plan.effectiveFps,plan,saved:0,acceleration:'PC Native'});
+      seconds:done/plan.effectiveFps,plan,saved:done,acceleration:'PC Native'});
     }
    }else onProgress({phase:'boost-wait',message:state.message});
    await sleep(650,signal);
@@ -83,8 +122,9 @@ export async function convertVideoNative(file,{signal,onProgress=()=>{},...optio
    seconds:plan.duration,plan,saved:plan.count,acceleration:'PC Native'});
   onProgress({phase:'boost-download'});
   const response=await fetch(HOST+'/jobs/'+encodeURIComponent(job.id)+'/result',{signal});
-  if(!response.ok)throw Error('完成したTSLをPC補助プログラムから受信できませんでした');
+  if(!response.ok)throw Error('完成したTSLをPCブーストから受信できませんでした');
   const blob=await response.blob();
+  clearRecord();
   return {blob,plan,source:{width:plan.sourceWidth,height:plan.sourceHeight,
    duration:plan.duration},elapsed:(performance.now()-start)/1000};
  }finally{

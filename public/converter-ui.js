@@ -7,8 +7,9 @@ import {exportTslInWorker} from './tsl-export-controller.js';
 export function setupConverter({openPreview,stopPlayback,isExporting,enterImmersive}) {
  const $=id=>document.getElementById(id);
  const isPC=!/(Android|iPhone|iPad|iPod|Mobile)/i.test(navigator.userAgent)&&navigator.userAgentData?.mobile!==true;
+ const nativeLocal=location.hostname==='127.0.0.1'&&location.port==='39083';
  $('pc-boost-setting').hidden=!isPC;
- if(!isPC)$('video-pc-boost').checked=false;
+ $('video-pc-boost').checked=isPC&&nativeLocal;
  // A deliberate setting change takes precedence over a saved checkpoint.
  // Automatic restores do not emit input/change events.
  $('converter-settings').addEventListener('input',()=>{userAdjustedSettings=true;});

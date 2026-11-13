@@ -3,8 +3,10 @@
 No account, cloud upload, or remote access. The browser sends an MP4/WebM to
 127.0.0.1, FFmpeg decodes it sequentially, and C++ writes a compatible TSL.
 """
+import hashlib
 import json
 import math
+import mimetypes
 import os
 import re
 import secrets
@@ -13,17 +15,21 @@ import subprocess
 import sys
 import tempfile
 import threading
+import webbrowser
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, unquote
 from base64 import urlsafe_b64decode
 
 HOST = "127.0.0.1"
 PORT = 39083
 APP_ORIGIN = "https://pc98-archive-player-seven.vercel.app"
 ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
-WORK = Path(tempfile.mkdtemp(prefix="tasl_pc_boost_"))
+WEB_ROOT = ROOT / 'app' if (ROOT / 'app' / 'index.html').is_file() else ROOT.parent / 'dist'
+WORK = Path(os.getenv('TASL_BOOST_DATA_DIR') or (Path(os.getenv('LOCALAPPDATA') or Path.home() / '.cache') / 'TASL-PC-Boost'))
+WORK.mkdir(parents=True, exist_ok=True)
+ENGINE_VERSION = '1.0.2-272glyphs-silhouette'
 MAX_INPUT = 2 * 1024 ** 3
 LIMIT = 192 * 1024 ** 2
 JOBS = {}
@@ -73,6 +79,7 @@ class Job:
     procs: list = field(default_factory=list)
     plan: dict = field(default_factory=dict)
     lock: threading.RLock = field(default_factory=threading.RLock)
+    original_name: str = ''
 
 
 def probe(input_path):
@@ -149,6 +156,36 @@ def ffmpeg_filter(plan):
     return f"{fps},{vf}"
 
 
+def recover_partial(path, plan):
+    """Use only complete TSL frames; discard any half-written final frame."""
+    if not path.is_file():
+        return 0
+    raw = path.read_bytes()
+    expected = ("1.08\r\n" + str(plan["count"]) + "\r\n" +
+                str(plan["width"]) + "\r\n" +
+                str(plan["height"]) + "\r\n").encode("ascii")
+    if not raw.startswith(expected):
+        raise ValueError("保存済みの途中データが現在の動画設定と一致しません")
+    marker = b"\x0c\r\n"
+    end_positions = []
+    position = 0
+    while True:
+        found = raw.find(marker, position)
+        if found < 0:
+            break
+        position = found + len(marker)
+        end_positions.append(position)
+    if len(end_positions) < 2:
+        raise ValueError("途中データのヘッダーが破損しています")
+    completed = len(end_positions) - 2
+    if completed > plan["count"]:
+        raise ValueError("途中データの画面数が不正です")
+    # The native process can die mid-frame, but every 16th frame is flushed.
+    with path.open("r+b") as f:
+        f.truncate(end_positions[-1])
+    return completed
+
+
 def run_job(job):
     decoder = native = None
     try:
@@ -156,21 +193,44 @@ def run_job(job):
             job.state, job.message = "probing", "動画情報を調査中"
         sw, sh, duration = probe(job.source)
         plan = make_plan(job.options, sw, sh, duration)
+        partial = job.output.with_suffix(".partial")
+        if job.output.is_file():
+            with job.lock:
+                job.state, job.total = "done", plan["count"]
+                job.plan, job.done = plan, plan["count"]
+                job.message = "保存済みの完成TSLを復元しました"
+            return
+        resumed = recover_partial(partial, plan)
+        if resumed >= plan["count"]:
+            with partial.open("ab") as f:
+                f.write(b"\x1a")
+            partial.replace(job.output)
+            with job.lock:
+                job.state, job.total = "done", plan["count"]
+                job.plan, job.done = plan, plan["count"]
+                job.message = "中断地点から完成TSLを復元しました"
+            return
         with job.lock:
             job.state, job.total = "converting", plan["count"]
-            job.plan = plan
-            job.message = "FFmpeg連続デコード＋C++文字変換"
-        cmd = [executable("tsl_boost"), "--output", str(job.output),
+            job.plan, job.done = plan, resumed
+            job.message = ("途中保存済み %d 画面から再開" % resumed
+                           if resumed else "FFmpeg連続デコード＋C++文字変換")
+        cmd = [executable("tsl_boost"), "--output", str(partial),
+               "--start-frame", str(resumed),
                "--width", str(plan["width"]), "--height", str(plan["height"]),
                "--count", str(plan["count"]), "--ticks", str(plan["ticks"]),
                "--mode", plan["mode"], "--native16", "1" if plan["native16"] else "0",
                "--brightness", str(plan["brightness"]), "--contrast", str(plan["contrast"]),
                "--gamma", str(plan["gamma"]), "--edge", str(plan["edge"])]
         with (WORK / f"{job.id}.ffmpeg.log").open("wb") as log:
+            vf = ffmpeg_filter(plan)
+            if resumed:
+                # Decode sequentially, discarding previously converted frames.
+                vf += f",select=gte(n\\,{resumed}),setpts=PTS-STARTPTS"
             decoder = subprocess.Popen(
                 [executable("ffmpeg"), "-nostdin", "-hide_banner", "-loglevel", "error",
-                 "-i", str(job.source), "-an", "-vf", ffmpeg_filter(plan),
-                 "-frames:v", str(plan["count"]), "-pix_fmt", "rgb24",
+                 "-i", str(job.source), "-an", "-vf", vf,
+                 "-frames:v", str(plan["count"] - resumed), "-pix_fmt", "rgb24",
                  "-f", "rawvideo", "pipe:1"], stdout=subprocess.PIPE, stderr=log,
                 stdin=subprocess.DEVNULL, bufsize=1024*1024)
             native = subprocess.Popen(cmd, stdin=decoder.stdout,
@@ -197,7 +257,12 @@ def run_job(job):
         with job.lock:
             if job.cancel:
                 job.state, job.message = "cancelled", "キャンセル済み"
-            elif c_return == 0 and d_return == 0 and job.output.is_file():
+            elif c_return == 0 and d_return == 0 and partial.is_file():
+                with partial.open("rb") as check:
+                    check.seek(-1, os.SEEK_END)
+                    if check.read(1) != b"\x1a":
+                        raise ValueError("TSLの終端データが不足しています")
+                partial.replace(job.output)
                 job.state, job.message = "done", "TSL完成"
                 job.done = job.total
             else:
@@ -217,10 +282,18 @@ def run_job(job):
                     p.kill()
         with job.lock:
             job.procs = []
+            finished = job.state == "done"
+        if finished and (job.source.parent.resolve() == WORK.resolve()
+                         and job.source.suffix == ".video"
+                         and re.fullmatch(r"[0-9a-f]{64}", job.source.stem)):
+            try:
+                job.source.unlink(missing_ok=True)  # Strictly the app's hashed upload copy.
+            except OSError:
+                pass
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TASL-PC-Boost/0.1"
+    server_version = "TASL-PC-Boost/1.0"
 
     def _ok_origin(self):
         return (self.headers.get("Host") in
@@ -247,6 +320,43 @@ class Handler(BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError):
             pass
 
+    def serve_app(self):
+        """Serve the whole bundled web player from the same loopback origin."""
+        if not WEB_ROOT.is_dir():
+            return self.send(404, {"error": "The web player was not bundled."})
+        request_path = unquote(urlsplit(self.path).path)
+        rel = request_path.lstrip("/") or "index.html"
+        try:
+            target = (WEB_ROOT / rel).resolve()
+            target.relative_to(WEB_ROOT.resolve())
+            if not target.is_file():
+                return self.send(404, {"error": "Not found"})
+            kind = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
+            if target.suffix in (".js", ".mjs"):
+                kind = "text/javascript; charset=utf-8"
+            if target.suffix == ".wasm":
+                kind = "application/wasm"
+            if target.suffix == ".html":
+                kind = "text/html; charset=utf-8"
+            self.send_response(200)
+            self.send_header("Content-Type", kind)
+            self.send_header("Content-Length", str(target.stat().st_size))
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("Content-Security-Policy",
+                "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval'; "
+                "worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; "
+                "img-src 'self' data:; connect-src 'self' blob: https://cdn.jsdelivr.net https://storage.googleapis.com; "
+                "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; media-src 'self' blob:")
+            self.end_headers()
+            with target.open("rb") as stream:
+                shutil.copyfileobj(stream, self.wfile)
+        except ValueError:
+            return self.send(403, {"error": "Access denied"})
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
     def do_OPTIONS(self):
         if not self._ok_origin():
             return self.send(403, {"error": "Origin not allowed"})
@@ -264,10 +374,12 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(403, {"error": "Origin not allowed"})
         parts = urlsplit(self.path).path.strip("/").split("/")
         if parts == ["health"]:
-            return self.send(200, {"name": "TASL PC Native Boost", "version": "0.1",
+            return self.send(200, {"name": "TASL PC Native Boost", "version": "1.0.2",
                                    "native": bool(executable("tsl_boost")),
                                    "ffmpeg": bool(executable("ffmpeg")),
                                    "ffprobe": bool(executable("ffprobe"))})
+        if parts[0] not in ('jobs', 'health'):
+            return self.serve_app()
         if len(parts) < 2 or parts[0] != "jobs":
             return self.send(404, {"error": "Not found"})
         with LOCK:
@@ -332,17 +444,27 @@ class Handler(BaseHTTPRequestHandler):
                 if any(j.state not in ("done", "error", "cancelled") for j in JOBS.values()):
                     return self.send(409, {"error": "PCブーストの処理が実行中です"})
                 jid = secrets.token_hex(12)
-                source = WORK / f"{jid}.video"
+                source = WORK / f"{jid}.upload"
                 job = Job(jid, source, WORK / f"{jid}.TSL", options)
                 JOBS[jid] = job
+            digest = hashlib.sha256()
+            digest.update(ENGINE_VERSION.encode("ascii"))
+            digest.update(json.dumps(options, sort_keys=True, separators=(",", ":")).encode("utf-8"))
             with source.open("wb") as f:
                 remaining = length
                 while remaining:
                     buf = self.rfile.read(min(1024*1024, remaining))
                     if not buf:
                         raise ValueError("Video upload ended early")
+                    digest.update(buf)
                     f.write(buf)
                     remaining -= len(buf)
+            cache_key = digest.hexdigest()
+            cached_source = WORK / f"{cache_key}.video"
+            source.replace(cached_source)
+            with job.lock:
+                job.source = cached_source
+                job.output = WORK / f"{cache_key}.TSL"
             thread = threading.Thread(target=run_job, args=(job,), daemon=True)
             thread.start()
             return self.send(202, {"id": jid, "state": "queued"})
@@ -361,9 +483,19 @@ def main():
     if not all(executable(x) for x in ("tsl_boost", "ffmpeg", "ffprobe")):
         raise SystemExit("Missing tsl_boost / FFmpeg / FFprobe executable")
     ThreadingHTTPServer.allow_reuse_address = True
-    server = ThreadingHTTPServer((HOST, PORT), Handler)
-    print("TASL PC Boost running locally at http://127.0.0.1:39083", flush=True)
-    print("Open " + APP_ORIGIN + " on this PC, select 'PCブースト' and choose a video.")
+    try:
+        server = ThreadingHTTPServer((HOST, PORT), Handler)
+    except OSError as exc:
+        raise SystemExit(
+            "PCブーストのポート39083が使用中です。すでに起動済みならChromeで"
+            " http://127.0.0.1:39083/ を開いてください。"
+        ) from exc
+    address = "http://127.0.0.1:39083/"
+    print("TASL PC Boost running at " + address, flush=True)
+    if WEB_ROOT.joinpath("index.html").is_file() and os.getenv("TASL_NO_BROWSER") != "1":
+        threading.Timer(0.6, lambda: webbrowser.open(address)).start()
+    else:
+        print("Open " + address + " in Chrome/Edge.", flush=True)
     try:
         server.serve_forever(poll_interval=.25)
     except KeyboardInterrupt:
