@@ -2,6 +2,7 @@ import {makePlan,fitRect,densityRamp,TSLWriter,optionsFor} from './tsl-converter
 import {drawTSL} from './tsl.js';
 import {makeGlyphAtlas} from './tsl-quality.js';
 import {makeArtisanGlyphAtlas} from './tsl-artisan.js';
+import {artisanFocusRect,remapArtisanRegions} from './tsl-artisan-focus.js';
 import {fileIdentity,fingerprint,readCheckpoint,beginCheckpoint,appendCheckpoint} from './tsl-checkpoint.js';
 
 const aborted=()=>new DOMException('変換を中止しました','AbortError');
@@ -61,7 +62,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
  if(!/\.(mp4|m4v|webm)$/i.test(file.name))throw Error('MP4を選んでください。WebMはこのブラウザーで読み取れる場合に利用できます。');
  const video=document.createElement('video'),url=URL.createObjectURL(file);
  video.muted=true;video.playsInline=true;video.preload='auto';
- let worker;
+ let worker,vision;
  try {
   onProgress({phase:'loading'});
   await mediaEvent(video,'loadeddata',signal,()=>{video.src=url;video.load();});
@@ -79,7 +80,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   // The video itself is deliberately NOT persisted.
   try{
    const identity=fileIdentity(file);
-   const engineVersion=options.conversionMode==='artisan'?17:options.conversionMode==='quality'?(options.native16?8:7):options.conversionMode==='halftone'?(options.native16?13:12):(options.native16?3:2);
+   const engineVersion=options.conversionMode==='artisan'?18:options.conversionMode==='quality'?(options.native16?8:7):options.conversionMode==='halftone'?(options.native16?13:12):(options.native16?3:2);
    const signature=JSON.stringify([engineVersion,identity,await fingerprint(file),
     [options.width,options.height,options.fps,options.brightness,options.contrast,options.gamma,options.edge,options.conversionMode,options.native16,fit,positionX,positionY],
     [video.videoWidth,video.videoHeight,video.duration,plan.count]]);
@@ -108,7 +109,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   check(signal);
   if(resumeStart>0)onProgress({phase:'resumed',done:resumeStart,total:plan.count,plan,saved});
   const started=performance.now();
-  let pending=[],startIndex=resumeStart,acceleration='CPU';
+  let pending=[],startIndex=resumeStart,acceleration='CPU',focusRect=null;
   if(resumeStart<plan.count){
    worker=new Worker(new URL('./tsl-converter-worker.js',import.meta.url),{type:'module'});
    if(['quality','artisan'].includes(options.conversionMode)){
@@ -128,16 +129,30 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
      worker.postMessage({type:'init',atlas,sample,state:resumeState,width:plan.width,height:plan.height,mode:options.conversionMode});
     });
    }
+   if(options.conversionMode==='artisan'){
+    onProgress({phase:'vision',message:'顔・動物・物体の認識モデルを準備しています'});
+    try{
+     const module=await import('./tsl-artisan-vision.js');
+     vision=await module.createArtisanVision({onStatus:message=>onProgress({phase:'vision',message})});
+     onProgress({phase:'vision',message:'顔・動物・物体を識別しながらAAを構成します'});
+    }catch(e){
+     onProgress({phase:'vision',message:'画像認識が利用できないため輪郭構造のみで処理します：'+e.message});
+    }
+   }
   }
   for(let i=resumeStart;i<plan.count;i++){
    check(signal);
    const time=Math.min(plan.steps[i].time,Math.max(0,video.duration-.001));
    if(i>0||time!==video.currentTime)await mediaEvent(video,'seeked',signal,()=>{video.currentTime=time;});
    check(signal);
+   const detections=vision?.detect(video,rect,canvas.width,canvas.height,time)||[];
+   const frameRect=vision?artisanFocusRect(rect,detections,canvas.width,canvas.height,focusRect):rect;
+   if(vision)focusRect=frameRect;
+   const semantic=vision?remapArtisanRegions(detections,rect,frameRect,canvas.width,canvas.height):[];
    ctx.fillStyle='#000';ctx.fillRect(0,0,canvas.width,canvas.height);
-   ctx.drawImage(video,rect.x,rect.y,rect.width,rect.height);
+   ctx.drawImage(video,frameRect.x,frameRect.y,frameRect.width,frameRect.height);
    const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data;
-   const converted=await convertFrame(worker,pixels,plan.width,plan.height,{...options,ramp,sample},signal);
+   const converted=await convertFrame(worker,pixels,plan.width,plan.height,{...options,ramp,sample,semantic},signal);
    acceleration=converted.acceleration||'CPU';
    pending.push(writer.append(converted.frame));
    // Commit small batches atomically; at most 15 latest frames are lost on an abrupt close.
@@ -161,5 +176,5 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   check(signal);
   const blob=writer.finish();
   return {blob,plan,ramp,source:{width:video.videoWidth,height:video.videoHeight,duration:video.duration},elapsed:(performance.now()-started)/1000};
- } finally {worker?.terminate();video.pause();video.removeAttribute('src');video.load();URL.revokeObjectURL(url);}
+ } finally {worker?.terminate();vision?.close();video.pause();video.removeAttribute('src');video.load();URL.revokeObjectURL(url);}
 }

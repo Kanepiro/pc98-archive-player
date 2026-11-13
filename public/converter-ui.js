@@ -14,7 +14,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  const compatibleCheckpoint=job=>{
   const native16=job?.config?.['video-font-render']==='native16';
   const mode=job?.config?.['video-style'];
-  return mode!=='outline'&&job?.engineVersion===(mode==='artisan'?17:mode==='quality'?(native16?8:7):mode==='halftone'?(native16?13:12):(native16?3:2));
+  return mode!=='outline'&&job?.engineVersion===(mode==='artisan'?18:mode==='quality'?(native16?8:7):mode==='halftone'?(native16?13:12):(native16?3:2));
  };
  function show(which){
   if(isExporting())return;
@@ -106,6 +106,10 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
     onCheckpointIssue:()=>{$('converter-detail').textContent='端末に途中保存できません。変換は続行しますが、閉じると再開できない場合があります。';},
     onProgress:p=>{
      if(p.phase==='loading')return;
+     if(p.phase==='vision'){
+      $('converter-status').textContent='モード4：'+p.message;
+      return;
+     }
      if(p.phase==='atlas'){
       $('converter-status').textContent='モード4：272文字の字形を解析中… '+p.done.toLocaleString()+' / '+p.total.toLocaleString();
       $('converter-detail').textContent='指定された272文字と余白を描画しています。変換前に一度だけ実行します。';
@@ -212,7 +216,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   if(pc){$('layout-hint').textContent=(native16?'PC-98実寸：全角16×16／半角8×16ドット。':'既存表示：半角12×24／全角24×24ドット。')+'文字数は選択したグリッドを使用。TASL Ver.1.08実機での再生は未検証です。';return;}
   try{
    const pixels=Number($('video-font-px').value),grid=selectedGrid();
-   const note=(mode==='landscape'?'横16:9・文字は回転しません。':'縦画面の文字アニメです。')+(artisan?'モード4：指定272文字で輪郭を組み立て、上下左右の線のつながりまで反復最適化。空白は余白専用。':quality?'モード3：XDoG・線追跡・字形照合と時間方向の安定化で映像を文字化。':halftone?'モード2：空白・句点「。」・「ｏ」「○」「◎」の5階調で網点風に変換。':'モード1：従来の濃淡変換。');
+   const note=(mode==='landscape'?'横16:9・文字は回転しません。':'縦画面の文字アニメです。')+(artisan?'モード4：顔・人物・動物の認識と主輪郭抽出、全画面・複数行のAA組版。272文字＋余白のみ。初回はAI認識用データを読み込みます。':quality?'モード3：XDoG・線追跡・字形照合と時間方向の安定化で映像を文字化。':halftone?'モード2：空白・句点「。」・「ｏ」「○」「◎」の5階調で網点風に変換。':'モード1：従来の濃淡変換。');
    $('layout-hint').textContent=native16
     ?`PC-98実寸：全角16×16ドット／半角8×16ドット → ${grid.width}列 × ${grid.height}行。フルHDで等倍描画または最近傍拡大。${note}実機のROM書体そのものではありません。`
     :`文字サイズ約${pixels}px → ${grid.width}列 × ${grid.height}行で生成（フルHD換算）。${note}Webプレーヤー向けです。`;

@@ -79,3 +79,24 @@ test('Mode4 connected contour has nonzero skeleton and row reflow never worsens 
  const outputChars=new Set([...text].filter(x=>x!=='\r'&&x!=='\n'));
  for(const c of outputChars)assert.ok(atlas.some(a=>a.char===c));
 });
+
+test('Mode4 exact still frame is rendered once and reused without dropping subtle motion',()=>{
+ const S=6,w=8,h=6;
+ const glyphs=[blank(1,S),sprite('／',2,S,[[0,0],[1,1],[2,2],[3,3],[4,4],[5,5],[6,5],[7,5]])];
+ const pixels=fill(w,h,S,250);
+ const composer=new ArtisanComposer(glyphs,S);
+ const first=composer.convert(pixels,w,h);
+ const second=composer.convert(pixels,w,h);
+ assert.equal(first,second);
+ assert.equal(composer.lastDiagnostics.reused,true);
+ const changed=Uint8ClampedArray.from(pixels);
+ for(let y=10;y<25;y++)for(let x=7;x<15;x++){
+  const k=(y*w*S+x)*4;changed[k]=changed[k+1]=changed[k+2]=2;
+ }
+ composer.convert(changed,w,h);
+ assert.notEqual(composer.lastDiagnostics.reused,true);
+ const restored=new ArtisanComposer(glyphs,S);
+ restored.restore(structuredClone(composer.snapshot()));
+ assert.equal(restored.convert(changed,w,h),composer.lastFrame);
+ assert.equal(restored.lastDiagnostics.reused,true);
+});

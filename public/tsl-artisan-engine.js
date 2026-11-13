@@ -1,3 +1,5 @@
+import {parseArtisanStructure} from './tsl-artisan-structure.js';
+import {composeArtisanBand} from './tsl-artisan-blocks.js';
 // Mode 4 "AA artisan" composer. Independent of Mode 3's per-row template matcher.
 // Structural contour field + alignment-tolerant stroke fitting + 2D seam-aware
 // row reflow. Text remains a strict 272-character CP932 whitelist + blank.
@@ -231,11 +233,11 @@ function placementLoss(field,glyph,x,y,sample,targetHistogram,oldId,oldGray){
  for(let sy=0;sy<S;sy++){
   const row=top+sy*w,mi=sy*cols*S;
   for(let sx=0;sx<cols*S;sx++){
-   const k=row+sx,t=field.target[k],m=mask[mi+sx];
-   sum+=t;
-   missing+=t*(1-expanded[mi+sx]);
-   extra+=m*Math.min(1,field.dist[k]/2.4);
-   direct+=(t-m)*(t-m);
+   const k=row+sx,t=field.target[k],m=mask[mi+sx],priority=field.importance?.[k]||1;
+   sum+=t*priority;
+   missing+=priority*t*(1-expanded[mi+sx]);
+   extra+=Math.min(1.9,priority)*m*Math.min(1,field.dist[k]/2.4);
+   direct+=priority*(t-m)*(t-m);
   }
  }
  const density=sum/count;
@@ -401,15 +403,17 @@ export class ArtisanComposer {
    throw Error('モード4の必須字形が欠落しています');
   this.previousGray=null;this.previousChars=null;
   this.width=0;this.height=0;this.lastDiagnostics=null;
+  this.lastFrame=null;this.lastSemanticKey=null;
  }
  snapshot(){
   if(!this.previousGray)return null;
-  return {format:1,sample:this.sample,width:this.width,height:this.height,
-   gray:this.previousGray,chars:this.previousChars};
+  return {format:2,sample:this.sample,width:this.width,height:this.height,
+   gray:this.previousGray,chars:this.previousChars,
+   frame:this.lastFrame,semanticKey:this.lastSemanticKey};
  }
  restore(state){
   if(!state)return;
-  if(state.format!==1||state.sample!==this.sample||
+  if(state.format!==2||state.sample!==this.sample||
     !Number.isInteger(state.width)||state.width<4||
     !Number.isInteger(state.height)||state.height<4||
     !(state.gray instanceof Float32Array)||
@@ -418,6 +422,8 @@ export class ArtisanComposer {
    throw Error('モード4の途中保存データが不正です');
   this.width=state.width;this.height=state.height;
   this.previousGray=state.gray;this.previousChars=state.chars;
+  this.lastFrame=typeof state.frame==='string'?state.frame:null;
+  this.lastSemanticKey=typeof state.semanticKey==='string'?state.semanticKey:null;
  }
  convert(pixels,width,height,options={}){
   if(!Number.isInteger(width)||!Number.isInteger(height)||width<4||height<4)
@@ -425,6 +431,25 @@ export class ArtisanComposer {
   const S=this.sample,oldGray=this.previousGray?.length===width*height*S*S
    ?this.previousGray:null;
   const field=artisanContourField(pixels,width,height,S,options,oldGray);
+  const semanticKey=JSON.stringify((options.semantic||[]).map(r=>[
+   r.kind,Math.round(r.x*200),Math.round(r.y*200),
+   Math.round(r.w*200),Math.round(r.h*200)]));
+  // Still/motionless frames are common in manga and animation. Verify all
+  // source pixels before reusing the prior AA: never drop moving details.
+  if(oldGray&&!field.cut&&this.lastFrame&&semanticKey===this.lastSemanticKey){
+   let identical=true;
+   for(let i=0;i<field.gray.length;i++){
+    if(Math.abs(field.gray[i]-oldGray[i])>.0005){identical=false;break;}
+   }
+   if(identical){
+    this.lastDiagnostics={...this.lastDiagnostics,reused:true};
+    return this.lastFrame;
+   }
+  }
+  const structural=parseArtisanStructure(field,options.semantic);
+  field.target=structural.target;
+  field.importance=structural.importance;
+  field.dist=contourDistance(field.target,field.w,field.h);
   const oldChars=this.width===width&&this.height===height&&!field.cut
    ?this.previousChars:null;
   const {unary,candidates}=makeCandidates(field,this.atlas,width,height,S,oldChars,oldGray);
@@ -446,7 +471,31 @@ export class ArtisanComposer {
    }
    passes++;
   }
-  const final=measureArtisanLayout(rows,this.atlas,unary,width,S,seams);
+  // Jointly compose TWO complete adjacent rows at a time with a single
+  // coupled beam search. Unlike row reflow, this evaluates motif pairs while
+  // choosing them. Accept a block only if the FULL-FRAME objective improves.
+  let current=measureArtisanLayout(rows,this.atlas,unary,width,S,seams);
+  let blockAttempts=0,blockAccepted=0;
+  const big=width*height>3000;
+  const rounds=big?1:3;
+  for(let round=0;round<rounds;round++){
+   for(let parity=0;parity<2;parity++){
+    for(let y=parity;y+1<height;y+=2){
+     const previousTop=rows[y],previousBottom=rows[y+1];
+     const proposed=composeArtisanBand(rows,y,this.atlas,width,S,unary,candidates,seams,
+      {beamWidth:big?7:14,maxOptions:big?7:12});
+     blockAttempts++;
+     rows[y]=proposed[0];rows[y+1]=proposed[1];
+     const result=measureArtisanLayout(rows,this.atlas,unary,width,S,seams);
+     if(result.total+1e-5<current.total){
+      current=result;blockAccepted++;
+     }else{
+      rows[y]=previousTop;rows[y+1]=previousBottom;
+     }
+    }
+   }
+  }
+  const final=current;
   this.width=width;this.height=height;this.previousGray=field.gray;
   this.previousChars=new Array(width*height).fill(null);
   const lines=[];
@@ -460,8 +509,14 @@ export class ArtisanComposer {
    }
    lines.push(line);
   }
-  this.lastDiagnostics={initial,final,passes,cellCount:width*height,
-   used:new Set([...lines.join('')].filter(c=>c!==' ')).size};
-  return lines.join('\r\n')+'\r\n';
+  this.lastDiagnostics={initial,final,passes,blockAttempts,blockAccepted,
+   connectedComponents:structural.components.length,
+   skeletonStrokes:structural.strokes.length,
+   endpoints:structural.endpoints.length,junctions:structural.junctions.length,
+   semanticRegions:structural.regions.map(r=>r.kind),
+   cellCount:width*height,used:new Set([...lines.join('')].filter(c=>c!==' ')).size};
+  this.lastFrame=lines.join('\r\n')+'\r\n';
+  this.lastSemanticKey=semanticKey;
+  return this.lastFrame;
  }
 }
