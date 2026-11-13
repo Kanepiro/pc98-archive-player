@@ -39,6 +39,25 @@ export function parseArtisanStructure(field,semantic=[]){
  // Unimportant wallpaper, clothing texture and other backgrounds must not
  // compete with a detected subject for a tiny number of text cells.
  importance.fill(hasSubject?.24:.70);
+ // A portrait should not be drowned in the surrounding room's wallpaper.
+ // For close face views, keep only its expanded head-and-neck region.
+ const mainFace=regions.filter(r=>r.kind==='face'&&r.confidence>=.60)
+  .sort((a,b)=>b.confidence-a.confidence)[0];
+ if(mainFace){
+  const cx=(mainFace.x+mainFace.w*.5)*w,
+   cy=(mainFace.y+mainFace.h*.71)*h,
+   rx=Math.max(4,mainFace.w*w*1.02),ry=Math.max(4,mainFace.h*h*1.52);
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+   const d=((x-cx)/rx)**2+((y-cy)/ry)**2;
+   if(d>1.4){
+    source[y*w+x]*=.06;
+    importance[y*w+x]=Math.min(importance[y*w+x],.22);
+   }else if(d>1){
+    source[y*w+x]*=.30;
+    importance[y*w+x]*=.60;
+   }
+  }
+ }
  const mask=new Uint8Array(n),visited=new Uint8Array(n);
  for(let i=0;i<n;i++)if(source[i]>.22)mask[i]=1;
  // Foreground regions and facial feature landmarks are detected independently

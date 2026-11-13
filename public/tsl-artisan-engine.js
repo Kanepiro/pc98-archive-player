@@ -1,4 +1,6 @@
 import {parseArtisanStructure} from './tsl-artisan-structure.js';
+import {guideArtisanFaces} from './tsl-artisan-portrait.js';
+import {refineArtisanLayout} from './tsl-artisan-critic.js';
 import {composeArtisanBand} from './tsl-artisan-blocks.js';
 // Mode 4 "AA artisan" composer. Independent of Mode 3's per-row template matcher.
 // Structural contour field + alignment-tolerant stroke fitting + 2D seam-aware
@@ -183,6 +185,17 @@ function glyphPorts(mask,w,h){
  }
  return {left,right,top,bottom};
 }
+// Drawing shapes and lightweight radicals are more useful for line art than
+// readable text. Every one of the user's 272 characters remains permitted:
+// these are relative aesthetic weights, never a hidden character exclusion.
+const LINE_PARTS=new Set([...(
+ '／＼～⌒∩∪∧∨（）［］〈〉＋－×＝＜＞∟⊿' +
+ '─│┌┐└┘├┬┤┴┼￣＿ー―‐┘└' +
+ 'ＪＬＶＷＸＺｖｗｘｚ' +
+ '∴∵≫≪∈∋⊂⊃∇∠⊥・：' +
+ 'ノハヘメミリルレロヮンイエチトニ' +
+ '人川入八凵凹凸冂冖冫厂厶丿丶乂个彡彳廴廾'
+)]);
 // Array is indexed by its true CP932 half-column footprint, not string length.
 export function makeArtisanGeometry(atlas,sample){
  if(!Array.isArray(atlas)||atlas.length<2)throw Error('モード4の文字パレットがありません');
@@ -194,6 +207,7 @@ export function makeArtisanGeometry(atlas,sample){
    expanded:softExpand(mask,w,h),
    orientation:strokeHistogram(mask,w,h),
    detailPenalty:strokeComplexity(mask,w,h),
+   shapeSymbol:LINE_PARTS.has(g.char),
    ports:glyphPorts(mask,w,h)};
  });
 }
@@ -251,7 +265,21 @@ function placementLoss(field,glyph,x,y,sample,targetHistogram,oldId,oldGray){
   for(let i=0;i<4;i++)orientationError+=Math.abs(gh[i]-targetHistogram[i]);
   score+=.038*Math.min(1,density*13)*orientationError;
  }
- if(glyph.char!==' ')score+=.0025+glyph.detailPenalty;
+ if(glyph.char!==' '){
+  score+=.0025+glyph.detailPenalty;
+  if(!glyph.shapeSymbol && Array.isArray(field.faces) && field.faces.length){
+   // Text-like glyphs still remain possible when their geometry is genuinely
+   // needed, but simple lines dominate a face's eyes, mouth and contour.
+   const cx=(x+cols*.5)/field.columnCount,cy=(y+.5)/field.rowCount;
+   for(const face of field.faces){
+    if(cx>=face.x-face.w*.15&&cx<=face.x+face.w*1.15&&
+       cy>=face.y-face.h*.2&&cy<=face.y+face.h*1.25){
+      score+=.07;
+      break;
+    }
+   }
+  }
+ }
  // Preserve a stationary glyph only if the image is not a hard scene cut.
  // Source-derived blank decisions always take precedence over history.
  if(!field.cut&&oldGray&&oldId===glyph.char){
@@ -446,10 +474,13 @@ export class ArtisanComposer {
     return this.lastFrame;
    }
   }
-  const structural=parseArtisanStructure(field,options.semantic);
+  const rawStructure=parseArtisanStructure(field,options.semantic);
+  const structural=guideArtisanFaces(field,rawStructure,options.semantic);
   field.target=structural.target;
   field.importance=structural.importance;
   field.dist=contourDistance(field.target,field.w,field.h);
+  field.faces=(options.semantic||[]).filter(x=>x.kind==='face'&&x.confidence>=.6);
+  field.columnCount=width;field.rowCount=height;
   const oldChars=this.width===width&&this.height===height&&!field.cut
    ?this.previousChars:null;
   const {unary,candidates}=makeCandidates(field,this.atlas,width,height,S,oldChars,oldGray);
@@ -495,7 +526,16 @@ export class ArtisanComposer {
     }
    }
   }
-  const final=current;
+  // Render candidate AA to a single composited bitmap. This independent
+  // all-frame critic evaluates glyph ink outside the subject, lost important
+  // contours, and drawing continuity. 2x2-block changes are accepted ONLY
+  // when this actual rendered global score gets better.
+  const critique=refineArtisanLayout(rows,this.atlas,width,S,unary,candidates,seams,
+   field,measureArtisanLayout,{
+    maxTiles:width*height>3000?16:width*height>1000?28:36,
+    limit:width*height>3000?7:10
+   });
+  const final=measureArtisanLayout(rows,this.atlas,unary,width,S,seams);
   this.width=width;this.height=height;this.previousGray=field.gray;
   this.previousChars=new Array(width*height).fill(null);
   const lines=[];
@@ -510,6 +550,7 @@ export class ArtisanComposer {
    lines.push(line);
   }
   this.lastDiagnostics={initial,final,passes,blockAttempts,blockAccepted,
+   critique,faceGuides:structural.faceGuides,
    connectedComponents:structural.components.length,
    skeletonStrokes:structural.strokes.length,
    endpoints:structural.endpoints.length,junctions:structural.junctions.length,
