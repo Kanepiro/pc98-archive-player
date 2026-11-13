@@ -1,3 +1,4 @@
+node_modules
 node_modules/
 dist/
 reference/
@@ -5,3 +6,11 @@ tools/
 verification/private/
 *.log
 .vercel/
+
+# PC Boost local builds, test media and transient conversion results
+native-boost/tsl_boost
+native-boost/tsl_boost.exe
+native-boost/smoke*
+native-boost/*.TSL
+native-boost/__pycache__/
+boost-build/

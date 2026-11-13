@@ -1,10 +1,14 @@
 import {convertVideo} from './video-to-tsl.js';
+import {convertVideoNative} from './pc-boost.js';
 import {analyzeVideoTone} from './tsl-auto-settings.js';
 import {tslName,portraitGridForPixels,landscapeGridForPixels,native16PortraitGrid,native16LandscapeGrid,pc98GridFromPixels} from './tsl-converter-core.js';
 import {fileIdentity,readCheckpointSummary} from './tsl-checkpoint.js';
 import {exportTslInWorker} from './tsl-export-controller.js';
 export function setupConverter({openPreview,stopPlayback,isExporting,enterImmersive}) {
  const $=id=>document.getElementById(id);
+ const isPC=!/(Android|iPhone|iPad|iPod|Mobile)/i.test(navigator.userAgent)&&navigator.userAgentData?.mobile!==true;
+ $('pc-boost-setting').hidden=!isPC;
+ if(!isPC)$('video-pc-boost').checked=false;
  // A deliberate setting change takes precedence over a saved checkpoint.
  // Automatic restores do not emit input/change events.
  $('converter-settings').addEventListener('input',()=>{userAdjustedSettings=true;});
@@ -53,7 +57,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   };
  }
  function busy(value){
-  for(const id of ['video-file','video-choose','converter-settings','video-direct-mp4'])$(id).disabled=value;
+  for(const id of ['video-file','video-choose','converter-settings','video-direct-mp4','video-pc-boost'])$(id).disabled=value;
   const missingDimensions=$('video-mode').value==='pc98'&&!sourceDimensions;
   $('convert-tsl').disabled=value||!selected||missingDimensions;
   $('cancel-tsl').hidden=!controller;
@@ -132,7 +136,8 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
    const mode=$('video-mode').value;
    const grid=selectedGrid();
    const {width,height}=grid;
-   result=await convertVideo(file,{signal:controller.signal,width,height,
+   const converter=$('video-pc-boost').checked&&isPC?convertVideoNative:convertVideo;
+   result=await converter(file,{signal:controller.signal,width,height,
     sourceGrid:mode==='pc98',fps:Number($('video-fps').value),
     brightness:Number($('video-brightness').value),contrast:Number($('video-contrast').value),
     gamma:Number($('video-gamma').value),edge:Number($('video-edge').value),
@@ -142,6 +147,15 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
     onCheckpointIssue:()=>{$('converter-detail').textContent='端末に途中保存できません。変換は続行しますが、閉じると再開できない場合があります。';},
     onProgress:p=>{
      if(p.phase==='loading')return;
+     if(p.phase==='boost-upload'){
+      $('converter-status').textContent='PCブーストへ動画を転送中（PC内のみ）…';return;
+     }
+     if(p.phase==='boost-wait'){
+      $('converter-status').textContent='PCブースト：'+p.message;return;
+     }
+     if(p.phase==='boost-download'){
+      $('converter-status').textContent='PCブーストから完成TSLを受信中…';return;
+     }
      if(p.phase==='vision'){
       $('converter-status').textContent='モード4：'+p.message;
       return;
@@ -167,7 +181,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
      const perf=p.plan.conversionMode==='artisan'&&p.perf
       ?' · 輪郭CPU '+Math.round(p.perf.prepareMs)+'ms / GPU計算・転送 '+Math.round(p.perf.gpuMs)+'ms / 組版CPU '+Math.round(p.perf.layoutMs)+'ms'
       :'';
-     $('converter-detail').textContent=(p.plan.reduced?'長尺のため自動調整 · ':'')+p.plan.effectiveFps.toFixed(2)+' fps · '+(p.acceleration==='WebGPU'?'WebGPU使用':p.acceleration==='CPU（GPU精度照合）'?'CPU処理（GPUとの精度差）':'CPU処理')+(gpuName?' · '+gpuName:'')+perf+' · 残り約'+Math.ceil(p.remaining)+'秒 · 途中保存済み '+p.saved.toLocaleString()+'画面';
+     $('converter-detail').textContent=(p.plan.reduced?'長尺のため自動調整 · ':'')+p.plan.effectiveFps.toFixed(2)+' fps · '+(p.acceleration==='PC Native'?'PCネイティブ C++':p.acceleration==='WebGPU'?'WebGPU使用':p.acceleration==='CPU（GPU精度照合）'?'CPU処理（GPUとの精度差）':'CPU処理')+(gpuName?' · '+gpuName:'')+perf+' · 残り約'+Math.ceil(p.remaining)+'秒 · 途中保存済み '+p.saved.toLocaleString()+'画面';
     }});
    downloadUrl=URL.createObjectURL(result.blob);
    const a=$('tsl-download');a.href=downloadUrl;a.download=tslName(file.name,result.plan.conversionMode);

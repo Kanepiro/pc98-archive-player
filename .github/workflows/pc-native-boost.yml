@@ -1,0 +1,65 @@
+name: PC Native Boost (Windows x64)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'native-boost/**'
+      - 'public/pc-boost.js'
+      - 'public/converter-ui.js'
+      - '.github/workflows/pc-native-boost.yml'
+  push:
+    tags: ['pc-boost-v*']
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build actual native C++ engine
+        run: |
+          cmake -S native-boost -B boost-build -A x64
+          cmake --build boost-build --config Release --parallel 2
+      - name: Fetch FFmpeg essentials for Windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Invoke-WebRequest -Uri 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip' -OutFile 'ffmpeg.zip'
+          Expand-Archive -Path 'ffmpeg.zip' -DestinationPath 'ffmpeg-unpacked'
+          $ffmpeg = Get-ChildItem ffmpeg-unpacked -Recurse -File -Filter ffmpeg.exe | Select-Object -First 1
+          $ffprobe = Get-ChildItem ffmpeg-unpacked -Recurse -File -Filter ffprobe.exe | Select-Object -First 1
+          if (-not $ffmpeg -or -not $ffprobe) { throw 'Missing Windows FFmpeg executables' }
+          New-Item -Type Directory -Force -Path 'pc-boost-package' | Out-Null
+          Copy-Item $ffmpeg.FullName 'pc-boost-package/ffmpeg.exe'
+          Copy-Item $ffprobe.FullName 'pc-boost-package/ffprobe.exe'
+          $lic = Get-ChildItem ffmpeg-unpacked -Recurse -File | Where-Object { $_.Name -match '^(LICENSE|COPYING)' } | Select-Object -First 1
+          if ($lic) { Copy-Item $lic.FullName 'pc-boost-package/FFMPEG_LICENSE.txt' }
+      - name: Verify C++ engine against four TSL modes on Windows
+        shell: pwsh
+        run: |
+          Copy-Item 'boost-build/Release/tsl_boost.exe' 'native-boost/tsl_boost.exe'
+          Copy-Item 'pc-boost-package/ffmpeg.exe' 'native-boost/ffmpeg.exe'
+          Copy-Item 'pc-boost-package/ffprobe.exe' 'native-boost/ffprobe.exe'
+          python native-boost/test_native.py
+      - name: Package localhost helper (no Python installation needed)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pip install --disable-pip-version-check pyinstaller
+          python -m PyInstaller --clean --onefile --name TASL-PC-Boost native-boost/bridge.py
+          Copy-Item 'dist/TASL-PC-Boost.exe' 'pc-boost-package/TASL-PC-Boost.exe'
+          Copy-Item 'boost-build/Release/tsl_boost.exe' 'pc-boost-package/tsl_boost.exe'
+          Copy-Item 'native-boost/README.md' 'pc-boost-package/README.md'
+          Copy-Item 'native-boost/FFMPEG_NOTICE.txt' 'pc-boost-package/FFMPEG_NOTICE.txt'
+          Copy-Item 'LICENSE' 'pc-boost-package/TASL_LICENSE.txt'
+          Compress-Archive -Path 'pc-boost-package/*' -DestinationPath 'TASL-PC-Boost-Windows-x64.zip'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TASL-PC-Boost-Windows-x64
+          path: TASL-PC-Boost-Windows-x64.zip
+          retention-days: 30
