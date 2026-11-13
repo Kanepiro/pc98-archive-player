@@ -22,7 +22,7 @@ try{
  await page.goto(url);
  await page.click('#tab-converter');
  const choices=await page.locator('#video-style option').evaluateAll(a=>a.map(x=>x.value));
- assert.deepEqual(choices,['legacy','halftone','quality']);
+ assert.deepEqual(choices,['legacy','halftone','quality','artisan']);
  await page.selectOption('#video-mode','landscape');
  await page.selectOption('#video-style','halftone');
  assert.equal(await page.locator('#tone-edge').isVisible(),false);

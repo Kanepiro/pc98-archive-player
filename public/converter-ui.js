@@ -10,10 +10,11 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  $('converter-settings').addEventListener('input',()=>{userAdjustedSettings=true;});
  $('converter-settings').addEventListener('change',()=>{userAdjustedSettings=true;});
  let controller=null,tuningController=null,result=null,downloadUrl=null,directMp4Url=null,selected=null,selectSerial=0,userAdjustedSettings=false;
+ let ordinaryPixelValue='24',lastStyle=$('video-style').value;
  const compatibleCheckpoint=job=>{
   const native16=job?.config?.['video-font-render']==='native16';
   const mode=job?.config?.['video-style'];
-  return mode!=='outline'&&job?.engineVersion===(mode==='quality'?(native16?8:7):mode==='halftone'?(native16?13:12):(native16?3:2));
+  return mode!=='outline'&&job?.engineVersion===(mode==='artisan'?14:mode==='quality'?(native16?8:7):mode==='halftone'?(native16?13:12):(native16?3:2));
  };
  function show(which){
   if(isExporting())return;
@@ -105,6 +106,11 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
     onCheckpointIssue:()=>{$('converter-detail').textContent='端末に途中保存できません。変換は続行しますが、閉じると再開できない場合があります。';},
     onProgress:p=>{
      if(p.phase==='loading')return;
+     if(p.phase==='atlas'){
+      $('converter-status').textContent='モード4：CP932の字形を実際に描画して選別中… '+p.done.toLocaleString()+' / '+p.total.toLocaleString();
+      $('converter-detail').textContent='画数が多く線が潰れる文字を除外しています。変換前に一度だけ実行します。';
+      return;
+     }
      if(p.phase==='resumed'){
       $('tsl-progress').max=p.total;$('tsl-progress').value=p.done;
       $('converter-status').textContent='保存済み '+p.done.toLocaleString()+'画面から再開します…';return;
@@ -196,8 +202,8 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  };
  function layoutHint(){
   const mode=$('video-mode').value,pc=mode==='pc98';
-  const quality=$('video-style').value==='quality',halftone=$('video-style').value==='halftone';
-  $('tone-edge').hidden=quality||halftone;
+  const quality=$('video-style').value==='quality',halftone=$('video-style').value==='halftone',artisan=$('video-style').value==='artisan';
+  $('tone-edge').hidden=quality||halftone||artisan;
   const native16=$('video-font-render').value==='native16';
   // Keep the second grid column occupied for both font rendering choices.
   // Hiding this label made every subsequent converter setting jump up a row.
@@ -206,14 +212,23 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   if(pc){$('layout-hint').textContent=(native16?'PC-98実寸：全角16×16／半角8×16ドット。':'既存表示：半角12×24／全角24×24ドット。')+'文字数は選択したグリッドを使用。TASL Ver.1.08実機での再生は未検証です。';return;}
   try{
    const pixels=Number($('video-font-px').value),grid=selectedGrid();
-   const note=(mode==='landscape'?'横16:9・文字は回転しません。':'縦画面の文字アニメです。')+(quality?'モード3：XDoG・線追跡・字形照合と時間方向の安定化で映像を文字化。':halftone?'モード2：空白・句点「。」・「ｏ」「○」「◎」の5階調で網点風に変換。':'モード1：従来の濃淡変換。');
+   const note=(mode==='landscape'?'横16:9・文字は回転しません。':'縦画面の文字アニメです。')+(artisan?'モード4：CP932の漢字・記号を巨大文字で字形照合。線が潰れた文字を除外し、遅くてもAAの形を優先。':quality?'モード3：XDoG・線追跡・字形照合と時間方向の安定化で映像を文字化。':halftone?'モード2：空白・句点「。」・「ｏ」「○」「◎」の5階調で網点風に変換。':'モード1：従来の濃淡変換。');
    $('layout-hint').textContent=native16
     ?`PC-98実寸：全角16×16ドット／半角8×16ドット → ${grid.width}列 × ${grid.height}行。フルHDで等倍描画または最近傍拡大。${note}実機のROM書体そのものではありません。`
     :`文字サイズ約${pixels}px → ${grid.width}列 × ${grid.height}行で生成（フルHD換算）。${note}Webプレーヤー向けです。`;
   }catch(e){$('layout-hint').textContent=e.message;}
  }
  $('video-mode').onchange=()=>{$('video-fit').value=$('video-mode').value==='pc98'?'contain':'cover';layoutHint();};
- $('video-style').onchange=layoutHint;
+ $('video-style').onchange=()=>{
+  if($('video-style').value==='artisan'){
+   ordinaryPixelValue=$('video-font-px').value;
+   $('video-font-render').value='legacy';
+   if($('video-mode').value==='pc98')$('video-mode').value='landscape';
+   $('video-font-px').value='96';
+  }else if(lastStyle==='artisan')$('video-font-px').value=ordinaryPixelValue;
+  lastStyle=$('video-style').value;
+  layoutHint();
+ };
  $('video-font-px').oninput=layoutHint;
  $('video-font-render').onchange=layoutHint;layoutHint();
  const drop=$('video-drop');

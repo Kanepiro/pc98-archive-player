@@ -1,6 +1,7 @@
 // TASL 1.08: unchanged ASCII mode 1 / Shift-JIS quality mode 3.
 import {qualityColumns,encodeQualityFrame} from './tsl-quality.js';
 import {halftoneColumns,encodeHalftoneFrame} from './tsl-halftone.js';
+import {artisanColumns,encodeArtisanFrame} from './tsl-artisan.js';
 export const CANDIDATE_RAMP = ' .:|/(%YVO8D@0#$';
 export const MAX_FRAMES = 10000;
 export const MAX_OUTPUT_BYTES = 192 * 1024 * 1024;
@@ -12,7 +13,7 @@ export function optionsFor(input={}) {
   if(!Number.isFinite(o[k])||o[k]<min||o[k]>max)throw Error('設定値が範囲外です: '+k);
  }
  if(!Number.isInteger(o.width)||!Number.isInteger(o.height))throw Error('文字数は整数で指定してください');
- if(!['legacy','halftone','quality'].includes(o.conversionMode))throw Error('変換方式が不正です');
+ if(!['legacy','halftone','quality','artisan'].includes(o.conversionMode))throw Error('変換方式が不正です');
  return o;
 }
 export function makePlan(duration,input={}) {
@@ -124,20 +125,21 @@ export function rgbaToASCII(pixels,width,height,{brightness=0,contrast=1,gamma=1
 }
 export function tslName(name,conversionMode='legacy') {
  const stem=String(name||'video').replace(/\.[^.]+$/,'').replace(/[\x00-\x1f\\/]/g,'_');
- return (stem||'video')+(conversionMode==='quality'?'_Mode3':conversionMode==='halftone'?'_Mode2':'')+'.TSL';
+ return (stem||'video')+(conversionMode==='quality'?'_Mode3':conversionMode==='halftone'?'_Mode2':conversionMode==='artisan'?'_Mode4':'')+'.TSL';
 }
 export class TSLWriter {
  constructor(plan) {this.plan=plan;this.parts=[];this.batch=[];this.size=0;this.frames=0;}
  append(frame) {
   const lines=frame.split('\r\n');lines.pop();
-  const quality=this.plan.conversionMode==='quality',halftone=this.plan.conversionMode==='halftone';
+  const quality=this.plan.conversionMode==='quality',halftone=this.plan.conversionMode==='halftone',artisan=this.plan.conversionMode==='artisan';
   if(lines.length!==this.plan.height||lines.some(x=>quality?
-    qualityColumns(x)!==this.plan.width:halftone?
+    qualityColumns(x)!==this.plan.width:artisan?
+    artisanColumns(x)!==this.plan.width:halftone?
     halftoneColumns(x)!==this.plan.width:
     x.length!==this.plan.width||[...x].some(c=>!CANDIDATE_RAMP.includes(c))))
    throw Error('画面データが不正です');
   if(this.frames>=this.plan.count)throw Error('画面数が多すぎます');
-  const part=quality?encodeQualityFrame(lines):halftone?encodeHalftoneFrame(lines):frame+'\f\r\n';this.size+=part.length;
+  const part=artisan?encodeArtisanFrame(lines):quality?encodeQualityFrame(lines):halftone?encodeHalftoneFrame(lines):frame+'\f\r\n';this.size+=part.length;
   if(this.size>MAX_OUTPUT_BYTES-4096-this.plan.count*24)throw Error('出力サイズ上限を超えました');
   this.batch.push(part);this.frames++;
   if(this.batch.length>=64){this.parts.push(new Blob(this.batch));this.batch=[];}
@@ -152,7 +154,7 @@ export class TSLWriter {
  }
  finish() {
   if(this.frames!==this.plan.count)throw Error('画面データが不足しています');
-  const p=this.plan,header=['1.08',p.count,p.width,p.height,1,-1,p.conversionMode==='quality'?'Video conversion - Quality':p.conversionMode==='halftone'?'Video conversion - Halftone':'Video conversion',...(p.native16?['# PC98_FONT_16X16']:[]),'\f'].join('\r\n')+'\r\n';
+  const p=this.plan,header=['1.08',p.count,p.width,p.height,1,-1,p.conversionMode==='quality'?'Video conversion - Quality':p.conversionMode==='halftone'?'Video conversion - Halftone':p.conversionMode==='artisan'?'Video conversion - AA Artisan':'Video conversion',...(p.native16?['# PC98_FONT_16X16']:[]),'\f'].join('\r\n')+'\r\n';
   const schedule=p.steps.map((s,i)=>(i+1)+' '+s.ticks+'\r\n').join('')+'0 0\r\n\f\r\n';
   return new Blob([header,schedule,...this.parts,...this.batch,'\x1a'],{type:'application/octet-stream'});
  }

@@ -7,7 +7,7 @@ self.onmessage=async({data:d})=>{
   if(d.type==='init'){
    quality=new QualityConverter(d.atlas,d.sample);
    quality.restore(d.state);
-   await quality.enableWebGPU(d.width,d.height);
+   if(d.mode!=='artisan')await quality.enableWebGPU(d.width,d.height);
    self.postMessage({ready:true,gpuAvailable:!!quality.gpuMatcher});return;
   }
   if(d.type==='snapshot'){
@@ -15,7 +15,9 @@ self.onmessage=async({data:d})=>{
    self.postMessage({state:quality.snapshot()});return;
   }
   const pixels=new Uint8ClampedArray(d.pixels);
-  const frame=d.options.conversionMode==='quality'
+  const frame=d.options.conversionMode==='artisan'
+   ?quality.convert(pixels,d.width,d.height,d.options)
+   :d.options.conversionMode==='quality'
    ?await quality.convertAccelerated(pixels,d.width,d.height,d.options)
    :d.options.conversionMode==='halftone'
     ?rgbaToHalftone(pixels,d.width,d.height,d.options)

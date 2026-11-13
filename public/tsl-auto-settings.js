@@ -5,7 +5,7 @@ import {fitRect} from './tsl-converter-core.js';
 import {HALFTONE_TONES,HALFTONE_DITHER_STRENGTH} from './tsl-halftone.js';
 const clamp=x=>Math.max(0,Math.min(1,x));
 const BAYER4=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5];
-const MODE_SET=new Set(['legacy','halftone','quality']);
+const MODE_SET=new Set(['legacy','halftone','quality','artisan']);
 const POSITIONS=[.08,.2,.32,.44,.56,.68,.8,.92];
 const HIST_BINS=64;
 
