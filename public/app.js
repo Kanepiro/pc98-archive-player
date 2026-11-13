@@ -7,7 +7,7 @@ import {exportTslInWorker} from './tsl-export-controller.js';
 const $=id=>document.getElementById(id),canvas=$('screen'),ctx=canvas.getContext('2d',{alpha:false});
 let current=null,session=null,serial=0,loadSerial=0,frameRequest=0,installPrompt=null,swRegistration=null;
 let exportController=null, exportDownloadUrl=null;
-const events=[],metrics={version:'0.3.24',kind:null,frames:0,seconds:0,underruns:0,gapSamples:0};
+const events=[],metrics={version:'0.3.25',kind:null,frames:0,seconds:0,underruns:0,gapSamples:0};
 function log(type,detail={}){events.push({time:new Date().toISOString(),type,...detail});if(events.length>120)events.shift();}
 function status(s){$('status').textContent=s;}
 function clock(t){metrics.seconds=t;$('clock').textContent=Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0');}
@@ -76,7 +76,7 @@ async function openFile(file){
  if(exportDownloadUrl)URL.revokeObjectURL(exportDownloadUrl);
  exportDownloadUrl=null;$('mp4-download').hidden=true;
  try{
-  if(!file||file.size>128*1024*1024)throw Error('128MB以下のファイルを選んでください');
+  if(!file||file.size>256*1024*1024)throw Error('256MiB以下のファイルを選んでください');
   const bytes=await file.arrayBuffer();if(id!==loadSerial)return;
   const head=String.fromCharCode(...new Uint8Array(bytes,0,Math.min(16,bytes.byteLength))),ext=file.name.split('.').pop().toUpperCase();
   let kind,data;
@@ -210,7 +210,7 @@ $('install').onclick=async()=>{if(installPrompt){await installPrompt.prompt();in
 async function setupOffline(){
  if(!('serviceWorker' in navigator))return;
  try{
-  swRegistration=await navigator.serviceWorker.register('/sw.js?v=0.3.24',{updateViaCache:'none'});await navigator.serviceWorker.ready;
+  swRegistration=await navigator.serviceWorker.register('/sw.js?v=0.3.25',{updateViaCache:'none'});await navigator.serviceWorker.ready;
   swRegistration.update().catch(()=>{});
   $('offline').textContent='オフライン準備済み';
   const show=()=>{if(swRegistration.waiting)$('update').hidden=false;};show();

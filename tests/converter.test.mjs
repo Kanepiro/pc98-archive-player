@@ -14,7 +14,7 @@ test('60 Hz schedule preserves duration within half a tick and has no cumulative
 });
 test('long and high-resolution plans reduce FPS within player and memory limits',()=>{
  const p=makePlan(7200,{width:160,height:50,fps:30});
- assert.ok(p.reduced);assert.ok(p.count<10000);assert.equal(p.steps.at(-1).time+p.steps.at(-1).ticks/60,7200);
+ assert.ok(p.reduced);assert.equal(p.count,10000);assert.equal(p.steps.at(-1).time+p.steps.at(-1).ticks/60,7200);
 });
 test('aspect fit uses the player cell ratio and contains landscape and portrait video',()=>{
  for(const [w,h]of [[1920,1080],[1080,1920],[640,480]]){
@@ -194,4 +194,13 @@ test('Dedicated PC-98 16x16 menu adds native pixel cells without altering legacy
  const old=parseTSL(new TextDecoder('shift_jis').decode(await classic.finish().arrayBuffer()));
  assert.equal(old.native16,false);
  assert.equal(old.width,160);
+});
+
+test('PC-98 16x16 5 minute 30fps mode2 uses 9000 frames and stays under new size cap',()=>{
+ const p=makePlan(300,{width:240,height:67,fps:30,native16:true,conversionMode:'halftone'});
+ assert.equal(p.count,9000);
+ assert.equal(p.effectiveFps,30);
+ assert.equal(p.reduced,false);
+ assert.ok(p.estimatedBytes<=MAX_OUTPUT_BYTES);
+ assert.ok(p.estimatedBytes>128*1024*1024);
 });

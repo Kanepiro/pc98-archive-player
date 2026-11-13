@@ -3,7 +3,7 @@ import {qualityColumns,encodeQualityFrame} from './tsl-quality.js';
 import {halftoneColumns,encodeHalftoneFrame} from './tsl-halftone.js';
 export const CANDIDATE_RAMP = ' .:|/(%YVO8D@0#$';
 export const MAX_FRAMES = 10000;
-export const MAX_OUTPUT_BYTES = 48 * 1024 * 1024;
+export const MAX_OUTPUT_BYTES = 192 * 1024 * 1024;
 export const DEFAULTS = Object.freeze({width:79,height:27,fps:10,brightness:0,contrast:1,gamma:1,edge:.6,conversionMode:'legacy',native16:false});
 export function optionsFor(input={}) {
  const o={...DEFAULTS,...input};
