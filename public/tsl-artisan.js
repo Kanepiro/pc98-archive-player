@@ -25,7 +25,7 @@ export function cp932GlyphMap(){
  glyphMap=map;
  return glyphMap;
 }
-// Preserve only the 802 characters the user explicitly selected.
+// Preserve only the 272 characters the user explicitly selected.
 export function allowedArtisanGlyphMap(){
  if(allowedGlyphMap)return allowedGlyphMap;
  const cp932=cp932GlyphMap(),map=new Map();

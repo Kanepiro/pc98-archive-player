@@ -37,8 +37,8 @@ try{
    forbidden:atlas.some(x=>x.char==='鬱'||x.char==='森'||x.char==='#'||x.char==='A')
   };
  });
- assert.equal(glyphs.listCount,802);
- assert.equal(glyphs.count,803);
+ assert.equal(glyphs.listCount,272);
+ assert.equal(glyphs.count,273);
  assert.deepEqual(glyphs.extra,[]);
  assert.deepEqual(glyphs.missing,[]);
  assert.equal(glyphs.kanji,true);

@@ -4,21 +4,21 @@ import {cp932GlyphMap,allowedArtisanGlyphMap,artisanColumns,encodeArtisanFrame,a
 import {MODE4_ALLOWED_CHARS,MODE4_ALLOWED_SET} from '../public/mode4-allowed.js';
 import {makePlan,optionsFor,TSLWriter,tslName} from '../public/tsl-converter-core.js';
 import {parseTSL} from '../public/tsl.js';
-test('Mode 4 allows precisely the 802 characters supplied by the user plus invisible space',()=>{
+test('Mode 4 allows precisely the 272 characters supplied by the user plus invisible space',()=>{
  const allCp932=cp932GlyphMap();
  const allowed=allowedArtisanGlyphMap();
  assert.ok(allCp932.size>9000);
- assert.equal(MODE4_ALLOWED_CHARS.length,802);
- assert.equal(new Set([...MODE4_ALLOWED_CHARS]).size,802);
- assert.equal(MODE4_ALLOWED_SET.size,802);
- assert.equal(allowed.size,803);
+ assert.equal(MODE4_ALLOWED_CHARS.length,272);
+ assert.equal(new Set([...MODE4_ALLOWED_CHARS]).size,272);
+ assert.equal(MODE4_ALLOWED_SET.size,272);
+ assert.equal(allowed.size,273);
  for(const ch of MODE4_ALLOWED_CHARS) {
   assert.ok(allowed.has(ch),'missing '+ch);
   assert.deepEqual(allowed.get(ch),allCp932.get(ch));
  }
  for(const ch of allowed.keys())assert.ok(ch===' '||MODE4_ALLOWED_SET.has(ch),'extra '+ch);
- for(const ch of ['川','人','一','彡','／','＃','○','◎','ノ',''])assert.ok(allowed.has(ch),'missing '+ch);
- for(const ch of ['鬱','森','A','#','ｱ','■','漢','川']) {
+ for(const ch of ['川','人','一','彡','／','＃','◯','ノ','凹','工'])assert.ok(allowed.has(ch),'missing '+ch);
+ for(const ch of ['鬱','国','森','A','#','ｱ','■','漢','○','◎','。','川']) {
   if(ch==='川')continue;
   assert.equal(allowed.has(ch),false,'forbidden '+ch);
   assert.throws(()=>artisanColumns(ch),/使えない/);
