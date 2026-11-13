@@ -183,14 +183,14 @@ export function qualityCpuDots(target,width,height,S,atlas){
  return out;
 }
 export class QualityConverter{
- constructor(atlas,sample=6){
+ constructor(atlas,sample=6,{artisan=false}={}){
   if(!Array.isArray(atlas)||!atlas.length)throw Error('文字マスクがありません');
   this.sample=sample;this.atlas=atlas.map(a=>({
    ...a,mask:Float32Array.from(a.mask),
    squares:Float32Array.from(a.mask).reduce((s,v)=>s+v*v,0)
   }));
   const available=new Set(this.atlas.map(a=>a.char));
-  if(!available.has(' ')||!available.has('#')||!available.has('／'))throw Error('文字マスクが不足しています');
+  if(!available.has(' ')||!available.has('／')||(!artisan&&!available.has('#')))throw Error('文字マスクが不足しています');
   this.previous=null;this.prevGlyphs=null;
   this.gpuMatcher=null;this.gpuBenchmarked=false;this.acceleration='CPU';
  }

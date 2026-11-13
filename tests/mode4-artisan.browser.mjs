@@ -25,17 +25,25 @@ try{
  assert.equal(await page.locator('#video-font-px').inputValue(),'96');
  const glyphs=await page.evaluate(async()=>{
   const {makeArtisanGlyphAtlas}=await import('/tsl-artisan.js');
+  const {MODE4_ALLOWED_CHARS}=await import('/mode4-allowed.js');
   const atlas=await makeArtisanGlyphAtlas(6);
-  return {count:atlas.length,kanji:atlas.some(x=>x.char==='川'),hiragana:atlas.some(x=>x.char==='あ'),dense:atlas.some(x=>x.char==='鬱'),rare:atlas.some(x=>x.char==='轟'),clutter:atlas.some(x=>x.char==='釁'),hard:atlas.some(x=>x.char==='齔'),simple:atlas.some(x=>x.char==='森')};
+  const allowed=new Set([...MODE4_ALLOWED_CHARS,' ']);
+  return {
+   count:atlas.length,
+   listCount:MODE4_ALLOWED_CHARS.length,
+   extra:atlas.filter(x=>!allowed.has(x.char)).map(x=>x.char),
+   missing:MODE4_ALLOWED_CHARS.split('').filter(c=>!atlas.some(x=>x.char===c)),
+   kanji:atlas.some(x=>x.char==='川'),
+   forbidden:atlas.some(x=>x.char==='鬱'||x.char==='森'||x.char==='#'||x.char==='A')
+  };
  });
- assert.ok(glyphs.count>1000,'Too few usable glyphs: '+JSON.stringify(glyphs));
- assert.ok(glyphs.kanji,'Simple kanji omitted');
- assert.equal(glyphs.dense,false,'Dense 鬱 should be rejected by raster shape complexity');
- assert.equal(glyphs.rare,false,'Dense 轟 should be rejected by raster shape complexity');
- assert.equal(glyphs.clutter,false,'Dense 釁 should be rejected');
- assert.equal(glyphs.hard,false,'Dense 齔 should be rejected');
- assert.equal(glyphs.simple,true,'Readable 森 should remain');
- console.log('MODE4_ATLAS',JSON.stringify(glyphs));
+ assert.equal(glyphs.listCount,802);
+ assert.equal(glyphs.count,803);
+ assert.deepEqual(glyphs.extra,[]);
+ assert.deepEqual(glyphs.missing,[]);
+ assert.equal(glyphs.kanji,true);
+ assert.equal(glyphs.forbidden,false);
+ console.log('MODE4_ATLAS',JSON.stringify({count:glyphs.count,listCount:glyphs.listCount,extra:glyphs.extra.length,missing:glyphs.missing.length}));
  await page.setInputFiles('#video-file',src);
  await page.click('#convert-tsl');
  await page.waitForFunction(()=>/変換が完了しました|変換できません/.test(document.querySelector('#converter-status').textContent),null,{timeout:360000});
@@ -49,6 +57,11 @@ try{
  assert.equal(lines.length,data.height);
  const characters=new Set([...data.frames.join('')].filter(c=>c.trim()&&c!=='\n'));
  assert.ok(characters.size>=2,'No AA detail: '+JSON.stringify([...characters]));
+ const decodedText=[...data.frames.join('').replaceAll('\n','')].filter(x=>x!==' ');
+ const whitelist=await page.evaluate(async()=>{const m=await import('/mode4-allowed.js');return m.MODE4_ALLOWED_CHARS;});
+ const allowed=new Set([...whitelist]);
+ assert.deepEqual(decodedText.filter(c=>!allowed.has(c)),[],"TSL contained a non-whitelisted character");
+
  assert.deepEqual(errors,[]);
  console.log('MODE4_E2E_PASS',JSON.stringify({bytes:bytes.length,frames:data.frames.length,grid:[data.width,data.height],chars:characters.size,preview:lines.slice(0,6)}));
  await page.click('#preview-tsl');

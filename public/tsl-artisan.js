@@ -1,6 +1,7 @@
-// Mode 4: all displayable CP932 glyphs, filtered by their *rendered* clarity.
+// Mode 4: only the user's curated CP932 glyphs, plus structural blank cells.
 // The archive remains Shift-JIS/CP932, with single and double column glyphs.
-let glyphMap;
+import {MODE4_ALLOWED_CHARS,MODE4_ALLOWED_SET} from './mode4-allowed.js';
+let glyphMap,allowedGlyphMap;
 export function cp932GlyphMap(){
  if(glyphMap)return glyphMap;
  const decoder=new TextDecoder('shift_jis');
@@ -24,8 +25,21 @@ export function cp932GlyphMap(){
  glyphMap=map;
  return glyphMap;
 }
+// Preserve only the 802 characters the user explicitly selected.
+export function allowedArtisanGlyphMap(){
+ if(allowedGlyphMap)return allowedGlyphMap;
+ const cp932=cp932GlyphMap(),map=new Map();
+ // ASCII space is not a drawing glyph, only a necessary empty cell.
+ for(const char of [' ',...MODE4_ALLOWED_CHARS]){
+  const bytes=cp932.get(char);
+  if(!bytes)throw Error('指定文字がCP932にありません: '+char);
+  map.set(char,bytes);
+ }
+ allowedGlyphMap=map;
+ return map;
+}
 export function artisanColumns(line){
- const glyphs=cp932GlyphMap();
+ const glyphs=allowedArtisanGlyphMap();
  let sum=0;
  for(const char of line){
   const bytes=glyphs.get(char);
@@ -35,7 +49,7 @@ export function artisanColumns(line){
  return sum;
 }
 export function encodeArtisanFrame(lines){
- const glyphs=cp932GlyphMap();
+ const glyphs=allowedArtisanGlyphMap();
  const bytes=new Uint8Array(lines.reduce((sum,line)=>sum+artisanColumns(line)+2,3));
  let offset=0;
  for(const line of lines){
@@ -73,12 +87,11 @@ export async function makeArtisanGlyphAtlas(sample=6,signal,progress=()=>{}){
  const canvas=doc.createElement('canvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});
  const small=doc.createElement('canvas'),mini=small.getContext('2d',{willReadFrequently:true});
  if(!ctx||!mini)throw Error('字形の描画に失敗しました');
- const entries=[...cp932GlyphMap()],atlas=[],unique=new Set();
+ const entries=[...allowedArtisanGlyphMap()],atlas=[];
  const font='20px monospace';
  const supported=async()=>{try{await doc.fonts?.ready;}catch{}};
  await supported();
- // Missing-font squares are duplicated under many CP932 code points; keep only
- // one copy of a rasterized silhouette to avoid wasting matching iterations.
+ // Every selected glyph is eligible: do not silently prune the user's list.
  for(let index=0;index<entries.length;index++){
   if(signal?.aborted)throw new DOMException('解析を中止しました','AbortError');
   const [char,bytes]=entries[index],cols=bytes.length;
@@ -86,10 +99,6 @@ export async function makeArtisanGlyphAtlas(sample=6,signal,progress=()=>{}){
   ctx.fillStyle='#000';ctx.fillRect(0,0,canvas.width,canvas.height);
   ctx.fillStyle='#fff';ctx.font=font;ctx.textBaseline='top';
   if(char!==' ')ctx.fillText(char,0,0,canvas.width);
-  const raw=ctx.getImageData(0,0,canvas.width,canvas.height).data;
-  const gray=new Float32Array(canvas.width*canvas.height);
-  for(let i=0;i<gray.length;i++)gray[i]=raw[i*4]/255;
-  if(char!==' '&&!acceptableArtisanMask(gray,cols,canvas.width,canvas.height))continue;
   small.width=sample*cols;small.height=sample;
   mini.fillStyle='#000';mini.fillRect(0,0,small.width,small.height);
   mini.imageSmoothingEnabled=true;mini.imageSmoothingQuality='high';
@@ -97,13 +106,10 @@ export async function makeArtisanGlyphAtlas(sample=6,signal,progress=()=>{}){
   const pixels=mini.getImageData(0,0,small.width,small.height).data;
   const mask=new Float32Array(sample*sample*cols);
   for(let i=0;i<mask.length;i++)mask[i]=pixels[i*4]/255;
-  if(char!==' '&&mask.every(v=>v===0))continue;
-  const id=cols+':'+Array.from(mask,v=>Math.round(v*31)).join(',');
-  if(char!==' '&&unique.has(id))continue;
-  unique.add(id);atlas.push({char,columns:cols,mask});
+  atlas.push({char,columns:cols,mask});
   if(index%350===349){progress(index+1,entries.length);await new Promise(resolve=>setTimeout(resolve,0));}
  }
- for(const essential of [' ','#','／']){
+ for(const essential of [' ','／']){
   if(!atlas.some(g=>g.char===essential))throw Error('モード4で必須字形が欠落: '+essential);
  }
  progress(entries.length,entries.length);

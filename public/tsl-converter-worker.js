@@ -5,7 +5,7 @@ let quality=null;
 self.onmessage=async({data:d})=>{
  try{
   if(d.type==='init'){
-   quality=new QualityConverter(d.atlas,d.sample);
+   quality=new QualityConverter(d.atlas,d.sample,{artisan:d.mode==='artisan'});
    quality.restore(d.state);
    if(d.mode!=='artisan')await quality.enableWebGPU(d.width,d.height);
    self.postMessage({ready:true,gpuAvailable:!!quality.gpuMatcher});return;
