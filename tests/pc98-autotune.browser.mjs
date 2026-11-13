@@ -14,23 +14,21 @@ try{
  const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
  const errors=[];
  page.on('pageerror',e=>errors.push(e.message));
- await page.goto('http://127.0.0.1:4486/');
+ await page.goto(process.env.PLAYER_URL||'http://127.0.0.1:4488/');
  await page.click('#tab-converter');
  await page.setInputFiles('#video-file',src);
  for(const style of ['artisan','legacy','halftone','quality']){
   await page.selectOption('#video-style',style);
   await page.selectOption('#video-mode','pc98');
-  for(const size of ['79x27','80x25','120x40','160x50']){
-   await page.selectOption('#video-size',size);
-   for(const font of ['legacy','native16']){
-    await page.selectOption('#video-font-render',font);
-    await page.click('#auto-tune');
-    await page.waitForFunction(()=>/場面を解析|解析できませんでした|濃淡が少なく/.test(document.querySelector('#auto-tune-status').textContent),null,{timeout:120000});
-    const status=await page.locator('#auto-tune-status').textContent();
-    assert.match(status,/場面を解析/,'PC-98 '+style+' / '+size+' / '+font+': '+status);
-    console.log('PC98_AUTO_TUNE_PASS',JSON.stringify({style,size,font,status}));
-   }
-  }
+  assert.equal(await page.locator('#video-font-render').inputValue(),'native16');
+  assert.equal(await page.locator('#video-font-render').isDisabled(),true);
+  assert.equal(await page.locator('#video-size').count(),0);
+  await page.waitForFunction(()=>document.getElementById('layout-hint').textContent.includes('全角40×22文字相当'),null,{timeout:30000});
+  await page.click('#auto-tune');
+  await page.waitForFunction(()=>/場面を解析|解析できませんでした|濃淡が少なく/.test(document.querySelector('#auto-tune-status').textContent),null,{timeout:120000});
+  const status=await page.locator('#auto-tune-status').textContent();
+  assert.match(status,/場面を解析/,'PC-98 '+style+': '+status);
+  console.log('PC98_AUTO_TUNE_PASS',JSON.stringify({style,grid:'全角40×22',status}));
  }
  console.log('PAGE_ERRORS',JSON.stringify(errors));
 }finally{await browser.close();}

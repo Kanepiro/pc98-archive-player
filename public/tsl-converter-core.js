@@ -9,7 +9,7 @@ export const DEFAULTS = Object.freeze({width:79,height:27,fps:10,brightness:0,co
 export function optionsFor(input={}) {
  const o={...DEFAULTS,...input};
  if(typeof o.native16!=='boolean')throw Error('16ドット表示の設定が不正です');
- for(const [k,min,max] of [['width',4,o.native16?240:160],['height',4,o.native16?120:100],['fps',1,30],['brightness',-100,100],['contrast',.25,3],['gamma',.4,2.5],['edge',0,1]]) {
+ for(const [k,min,max] of [['width',4,o.native16?480:160],['height',4,o.native16?240:100],['fps',1,30],['brightness',-100,100],['contrast',.25,3],['gamma',.4,2.5],['edge',0,1]]) {
   if(!Number.isFinite(o[k])||o[k]<min||o[k]>max)throw Error('設定値が範囲外です: '+k);
  }
  if(!Number.isInteger(o.width)||!Number.isInteger(o.height))throw Error('文字数は整数で指定してください');
@@ -52,6 +52,40 @@ export function native16LandscapeGrid(){return {width:240,height:67,targetAspect
 export function native16PortraitGrid(aspect=9/16){
  if(!Number.isFinite(aspect)||aspect<.25||aspect>1)throw Error('縦画面の比率が不正です');
  return {width:Math.max(4,Math.min(240,Math.round(240*aspect))),height:120,targetAspect:aspect};
+}
+
+// Original PC-98 character geometry: fullwidth glyphs are 16x16 dots and
+// halfwidth glyphs 8x16. TSL stores its width in HALF-WIDTH columns.
+// No screen presets, no upscale, no downscale: derive directly from decoded
+// source video dimensions. In 1920x1080 this is 120 fullwidth x 67 rows,
+// represented as 240 halfwidth columns x 67 rows in the TSL header.
+export function pc98GridFromPixels(pixelWidth,pixelHeight){
+ if(!Number.isInteger(pixelWidth)||!Number.isInteger(pixelHeight)||
+    pixelWidth<32||pixelHeight<64||pixelWidth*pixelHeight>3840*2160)
+  throw Error('PC-98実寸変換に対応する動画解像度ではありません');
+ const fullwidth=Math.floor(pixelWidth/16),height=Math.floor(pixelHeight/16);
+ const width=fullwidth*2;
+ if(width<4||width>480||height<4||height>240)
+  throw Error('PC-98実寸文字数が範囲外です');
+ return {width,height,fullwidth,usedWidth:fullwidth*16,usedHeight:height*16,
+  remainingWidth:pixelWidth%16,remainingHeight:pixelHeight%16,
+  sourceWidth:pixelWidth,sourceHeight:pixelHeight};
+}
+
+// Crop only leftover source pixels that cannot form a complete 16x16 cell.
+// Unlike contain/cover scaling, this does not resize 1920x1080 into 1920x1072;
+// it keeps the source image's original dot geometry before the AA sampler.
+export function pc98SourceDrawRect(sourceWidth,sourceHeight,canvasWidth,canvasHeight,
+ positionX=.5,positionY=.5){
+ const grid=pc98GridFromPixels(sourceWidth,sourceHeight);
+ if(!(canvasWidth>0&&canvasHeight>0)||![positionX,positionY].every(v=>
+   Number.isFinite(v)&&v>=0&&v<=1))throw Error('実寸表示の位置が不正です');
+ const xScale=canvasWidth/grid.usedWidth,yScale=canvasHeight/grid.usedHeight;
+ return {
+  x:grid.remainingWidth?-grid.remainingWidth*positionX*xScale:0,
+  y:grid.remainingHeight?-grid.remainingHeight*positionY*yScale:0,
+  width:sourceWidth*xScale,height:sourceHeight*yScale
+ };
 }
 
 // A landscape Full-HD image must remain horizontal throughout video -> TSL -> MP4.

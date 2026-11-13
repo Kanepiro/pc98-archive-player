@@ -1,7 +1,7 @@
 // Offline, deterministic brightness/contrast/gamma suggestion.
 // No API calls, no AI model, no upload and no saved video frames.
 // It is a histogram proxy, not an image-quality guarantee.
-import {fitRect} from './tsl-converter-core.js';
+import {fitRect,pc98SourceDrawRect} from './tsl-converter-core.js';
 import {HALFTONE_TONES,HALFTONE_DITHER_STRENGTH} from './tsl-halftone.js';
 const clamp=x=>Math.max(0,Math.min(1,x));
 const BAYER4=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5];
@@ -126,8 +126,8 @@ export function suggestToneSettings(frames,{mode='halftone'}={}) {
 }
 
 export async function analyzeVideoTone(file,{
- mode='halftone',width=80,height=45,fit='cover',positionX=.5,positionY=.5,
- signal,onProgress=()=>{}
+ mode='halftone',width=80,height=45,fit='cover',sourceGrid=false,
+ positionX=.5,positionY=.5,signal,onProgress=()=>{}
 }={}) {
  aborted(signal);
  if(!MODE_SET.has(mode))throw Error('変換方式が不正です');
@@ -136,8 +136,8 @@ export async function analyzeVideoTone(file,{
  // image, but must accept every input grid that the converter itself permits.
  // In particular PC-98 native 16-dot display uses 240x67 (landscape) or
  // up to 240x120 (portrait). The old 160x100 check rejected those layouts.
- if(!Number.isInteger(width)||width<4||width>240||
-    !Number.isInteger(height)||height<4||height>120)
+ if(!Number.isInteger(width)||width<4||width>480||
+    !Number.isInteger(height)||height<4||height>240)
   throw Error('文字数が不正です');
  if(!['cover','contain'].includes(fit)||![positionX,positionY].every(x=>Number.isFinite(x)&&x>=0&&x<=1))
   throw Error('切り抜き設定が不正です');
@@ -157,7 +157,9 @@ export async function analyzeVideoTone(file,{
   if(!(video.duration>0&&video.duration<=7200&&Number.isFinite(video.duration)))
    throw Error('動画は2時間以内にしてください');
   if(!video.videoWidth||!video.videoHeight)throw Error('映像を取得できません');
-  const rect=fitRect(video.videoWidth,video.videoHeight,canvas.width,canvas.height,.5,fit,positionX,positionY);
+  const rect=sourceGrid?
+   pc98SourceDrawRect(video.videoWidth,video.videoHeight,canvas.width,canvas.height,positionX,positionY):
+   fitRect(video.videoWidth,video.videoHeight,canvas.width,canvas.height,.5,fit,positionX,positionY);
   const positions=video.duration<1.5?[.15,.5,.85]:video.duration<5?[.12,.37,.62,.87]:POSITIONS;
   for(let i=0;i<positions.length;i++){
    aborted(signal);

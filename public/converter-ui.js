@@ -1,6 +1,6 @@
 import {convertVideo} from './video-to-tsl.js';
 import {analyzeVideoTone} from './tsl-auto-settings.js';
-import {tslName,portraitGridForPixels,landscapeGridForPixels,native16PortraitGrid,native16LandscapeGrid} from './tsl-converter-core.js';
+import {tslName,portraitGridForPixels,landscapeGridForPixels,native16PortraitGrid,native16LandscapeGrid,pc98GridFromPixels} from './tsl-converter-core.js';
 import {fileIdentity,readCheckpointSummary} from './tsl-checkpoint.js';
 import {exportTslInWorker} from './tsl-export-controller.js';
 export function setupConverter({openPreview,stopPlayback,isExporting,enterImmersive}) {
@@ -11,10 +11,28 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  $('converter-settings').addEventListener('change',()=>{userAdjustedSettings=true;});
  let controller=null,tuningController=null,result=null,downloadUrl=null,directMp4Url=null,selected=null,selectSerial=0,userAdjustedSettings=false;
  let ordinaryPixelValue='24',lastStyle=$('video-style').value;
+ let sourceDimensions=null,sourceSizeError=null,sourceSizePromise=null;
+ async function probeVideoDimensions(file){
+  const v=document.createElement('video'),url=URL.createObjectURL(file);
+  v.muted=true;v.preload='metadata';v.playsInline=true;
+  try{
+   return await new Promise((resolve,reject)=>{
+    const timer=setTimeout(()=>finish(Error('動画の解像度を取得できませんでした')),20000);
+    const finish=err=>{
+     clearTimeout(timer);v.onloadedmetadata=null;v.onerror=null;
+     err?reject(err):resolve({width:v.videoWidth,height:v.videoHeight});
+    };
+    v.onloadedmetadata=()=>finish(v.videoWidth&&v.videoHeight?null:Error('映像トラックがありません'));
+    v.onerror=()=>finish(Error('この動画の解像度を読み取れません'));
+    try{v.src=url;v.load();}catch(e){finish(e);}
+   });
+  }finally{v.removeAttribute('src');v.load();URL.revokeObjectURL(url);}
+ }
  const compatibleCheckpoint=job=>{
   const native16=job?.config?.['video-font-render']==='native16';
   const mode=job?.config?.['video-style'];
-  return mode!=='outline'&&job?.engineVersion===(mode==='artisan'?19:mode==='quality'?(native16?8:7):mode==='halftone'?(native16?13:12):(native16?3:2));
+  const version=mode==='artisan'?19:mode==='quality'?(native16?8:7):mode==='halftone'?(native16?13:12):(native16?3:2);
+  return mode!=='outline'&&job?.engineVersion===version+(job?.config?.['video-mode']==='pc98'?20:0);
  };
  function show(which){
   if(isExporting())return;
@@ -36,9 +54,10 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  }
  function busy(value){
   for(const id of ['video-file','video-choose','converter-settings','video-direct-mp4'])$(id).disabled=value;
-  $('convert-tsl').disabled=value||!selected;
+  const missingDimensions=$('video-mode').value==='pc98'&&!sourceDimensions;
+  $('convert-tsl').disabled=value||!selected||missingDimensions;
   $('cancel-tsl').hidden=!controller;
-  $('auto-tune').disabled=!!controller||(!tuningController&&!selected);
+  $('auto-tune').disabled=!!controller||(!tuningController&&(!selected||missingDimensions));
   $('auto-tune').textContent=tuningController?'解析を中止':'おまかせ設定（無料・端末内）';
   $('preview-tsl').disabled=value||!result;
   $('preview-tsl-full').disabled=value||!result;
@@ -49,17 +68,18 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   if(directMp4Url)URL.revokeObjectURL(directMp4Url);directMp4Url=null;$('direct-mp4-download').hidden=true;
  }
  function converterConfig(){
-  return Object.fromEntries(['video-mode','video-style','video-font-render','video-font-px','video-size','video-fps','video-fit','crop-x','crop-y','video-brightness','video-contrast','video-gamma','video-edge'].map(id=>[id,$(id).value]));
+  return Object.fromEntries(['video-mode','video-style','video-font-render','video-font-px','video-fps','video-fit','crop-x','crop-y','video-brightness','video-contrast','video-gamma','video-edge'].map(id=>[id,$(id).value]));
  }
  function restoreConfig(config){
   for(const [id,value] of Object.entries(config||{}))if($(id)&&typeof value==='string')$(id).value=value;
-  layoutHint();
+  if($('video-mode').value==='pc98')$('video-font-render').value='native16';
+  layoutHint();busy(false);
  }
  function selectedGrid(){
   const mode=$('video-mode').value;
   if(mode==='pc98'){
-   const [width,height]=$('video-size').value.split('x').map(Number);
-   return {width,height};
+   if(!sourceDimensions)throw Error(sourceSizeError||'元動画の解像度を読み込んでいます…');
+   return pc98GridFromPixels(sourceDimensions.width,sourceDimensions.height);
   }
   const native16=$('video-font-render').value==='native16';
   const pixels=Number($('video-font-px').value);
@@ -69,8 +89,23 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  }
  function selectFile(file){
   if(!file||controller||tuningController||isExporting())return;
-  selected=file;clearResult();const serial=++selectSerial;
+  selected=file;sourceDimensions=null;sourceSizeError=null;
+  clearResult();const serial=++selectSerial;
   $('video-name').textContent='選択した動画：'+file.name;
+  sourceSizePromise=probeVideoDimensions(file).then(dimensions=>{
+   if(serial===selectSerial&&selected===file){
+    sourceDimensions=dimensions;
+    $('video-name').textContent='選択した動画：'+file.name+'（'+dimensions.width+'×'+dimensions.height+'px）';
+    layoutHint();busy(!!controller);
+   }
+   return dimensions;
+  },error=>{
+   if(serial===selectSerial&&selected===file){
+    sourceSizeError=error.message;layoutHint();busy(!!controller);
+   }
+   throw error;
+  });
+  sourceSizePromise.catch(()=>{});
   $('convert-tsl').textContent='変換';
   $('tsl-progress').hidden=true;
   $('converter-status').textContent='動画を選択しました。設定を確認して「変換」を押してください。';
@@ -97,7 +132,8 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
    const mode=$('video-mode').value;
    const grid=selectedGrid();
    const {width,height}=grid;
-   result=await convertVideo(file,{signal:controller.signal,width,height,fps:Number($('video-fps').value),
+   result=await convertVideo(file,{signal:controller.signal,width,height,
+    sourceGrid:mode==='pc98',fps:Number($('video-fps').value),
     brightness:Number($('video-brightness').value),contrast:Number($('video-contrast').value),
     gamma:Number($('video-gamma').value),edge:Number($('video-edge').value),
     conversionMode:$('video-style').value,native16:$('video-font-render').value==='native16',
@@ -137,7 +173,11 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
    const a=$('tsl-download');a.href=downloadUrl;a.download=tslName(file.name,result.plan.conversionMode);
    $('tsl-result').hidden=false;
    $('converter-status').textContent=directMP4?'TSL完成。元音声付きMP4を作成中…':'変換が完了しました';
-   $('converter-detail').textContent=result.plan.width+' × '+result.plan.height+'文字'+(result.plan.native16?' · 全角16×16ドット（半角8×16）':(mode==='pc98'?'':' · 約'+Number($('video-font-px').value)+'px'))+' · '+result.plan.count.toLocaleString()+'画面 · '+result.plan.duration.toFixed(2)+'秒 · '+(result.blob.size/1024/1024).toFixed(2)+' MB'+(result.plan.reduced?' · 長尺のためフレームレートを自動調整':'');
+   $('converter-detail').textContent=(mode==='pc98'
+    ?'元動画から自動算出 · 全角'+Math.floor(result.plan.width/2)+'×'+result.plan.height+'文字相当（半角'+result.plan.width+'列）'
+    :result.plan.width+' × '+result.plan.height+'文字')+
+    (result.plan.native16?' · 全角16×16ドット（半角8×16）':' · 約'+Number($('video-font-px').value)+'px')+
+    ' · '+result.plan.count.toLocaleString()+'画面 · '+result.plan.duration.toFixed(2)+'秒 · '+(result.blob.size/1024/1024).toFixed(2)+' MB'+(result.plan.reduced?' · 長尺のためフレームレートを自動調整':'');
    if(directMP4){
     if(result.plan.duration>300)throw Error('音声付きMP4は5分以内の動画に対応しています（TSLは保存可能）');
     const bytes=await result.blob.arrayBuffer();
@@ -179,6 +219,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
    const {width,height}=selectedGrid();
    const recommended=await analyzeVideoTone(file,{
     mode:$('video-style').value,width,height,fit:$('video-fit').value,
+    sourceGrid:$('video-mode').value==='pc98',
     positionX:Number($('crop-x').value)/100,positionY:Number($('crop-y').value)/100,
     signal:tune.signal,
     onProgress:(done,total)=>{$('auto-tune-status').textContent='無料の簡易解析中 '+done+' / '+total+' 場面（端末内のみ）';}
@@ -220,9 +261,20 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   const native16=$('video-font-render').value==='native16';
   // Keep the second grid column occupied for both font rendering choices.
   // Hiding this label made every subsequent converter setting jump up a row.
-  $('pc-grid').hidden=!pc;$('video-font-setting').hidden=pc;
-  $('video-font-px').disabled=native16;
-  if(pc){$('layout-hint').textContent=(native16?'PC-98実寸：全角16×16／半角8×16ドット。':'既存表示：半角12×24／全角24×24ドット。')+'文字数は選択したグリッドを使用。TASL Ver.1.08実機での再生は未検証です。';return;}
+  if(pc&&$('video-font-render').value!=='native16')$('video-font-render').value='native16';
+  $('video-font-render').disabled=pc;
+  $('video-font-px').disabled=pc||native16;
+  $('video-fit').disabled=pc;
+  if(pc){
+   try{
+    const g=selectedGrid();
+    $('layout-hint').textContent='元動画 '+g.sourceWidth+'×'+g.sourceHeight+
+     'px ÷ 16 → 全角'+g.fullwidth+'×'+g.height+'文字相当（半角'+g.width+'×'+g.height+
+     '列）。全角16×16／半角8×16ドット固定。16で割り切れない端数：横'+g.remainingWidth+'px、縦'+g.remainingHeight+
+     'pxを中央基準で除外。文字数の手動選択は不要。';
+   }catch(e){$('layout-hint').textContent='PC-98実寸：元動画の解像度から文字数を自動計算します。'+e.message;}
+   return;
+  }
   try{
    const pixels=Number($('video-font-px').value),grid=selectedGrid();
    const note=(mode==='landscape'?'横16:9・文字は回転しません。':'縦画面の文字アニメです。')+(artisan?'モード4：顔・人物・動物の認識と主輪郭抽出、全画面・複数行のAA組版。272文字＋余白のみ。初回はAI認識用データを読み込みます。':quality?'モード3：XDoG・線追跡・字形照合と時間方向の安定化で映像を文字化。':halftone?'モード2：空白・句点「。」・「ｏ」「○」「◎」の5階調で網点風に変換。':'モード1：従来の濃淡変換。');
@@ -231,13 +283,19 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
     :`文字サイズ約${pixels}px → ${grid.width}列 × ${grid.height}行で生成（フルHD換算）。${note}Webプレーヤー向けです。`;
   }catch(e){$('layout-hint').textContent=e.message;}
  }
- $('video-mode').onchange=()=>{$('video-fit').value=$('video-mode').value==='pc98'?'contain':'cover';layoutHint();};
+ $('video-mode').onchange=()=>{
+  const pc=$('video-mode').value==='pc98';
+  $('video-fit').value=pc?'contain':'cover';
+  if(pc)$('video-font-render').value='native16';
+  layoutHint();busy(!!controller);
+ };
  $('video-style').onchange=()=>{
   if($('video-style').value==='artisan'){
    ordinaryPixelValue=$('video-font-px').value;
-   $('video-font-render').value='legacy';
-   if($('video-mode').value==='pc98')$('video-mode').value='landscape';
-   $('video-font-px').value='96';
+   if($('video-mode').value!=='pc98'){
+    $('video-font-render').value='legacy';
+    $('video-font-px').value='96';
+   }
   }else if(lastStyle==='artisan')$('video-font-px').value=ordinaryPixelValue;
   lastStyle=$('video-style').value;
   layoutHint();

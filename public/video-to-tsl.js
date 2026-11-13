@@ -1,4 +1,4 @@
-import {makePlan,fitRect,densityRamp,TSLWriter,optionsFor} from './tsl-converter-core.js';
+import {makePlan,fitRect,densityRamp,TSLWriter,optionsFor,pc98GridFromPixels,pc98SourceDrawRect} from './tsl-converter-core.js';
 import {drawTSL} from './tsl.js';
 import {makeGlyphAtlas} from './tsl-quality.js';
 import {makeArtisanGlyphAtlas} from './tsl-artisan.js';
@@ -54,8 +54,8 @@ function readQualityState(worker,signal){
  });
 }
 export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIssue=()=>{},checkpointConfig={},...input}={}) {
- check(signal);const options=optionsFor(input);
- const {fit='contain',positionX=.5,positionY=.5}=input;
+ check(signal);let options=optionsFor(input);
+ const {fit='contain',positionX=.5,positionY=.5,sourceGrid=false}=input;
  if(!['contain','cover'].includes(fit)||![positionX,positionY].every(x=>Number.isFinite(x)&&x>=0&&x<=1))throw Error('切り抜き設定が不正です');
  if(!file||file.size===0)throw Error('空のファイルです');
  if(file.size>2*1024**3)throw Error('動画ファイルは2GB以下にしてください');
@@ -66,23 +66,32 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
  try {
   onProgress({phase:'loading'});
   await mediaEvent(video,'loadeddata',signal,()=>{video.src=url;video.load();});
-  const plan=makePlan(video.duration,options);
   if(!video.videoWidth||!video.videoHeight)throw Error('映像トラックがありません');
   if(video.videoWidth*video.videoHeight>3840*2160)throw Error('動画の解像度は4K（約830万画素）以下にしてください');
+  // Source-resolution PC-98 mode always derives the grid from actual decoded
+  // video metadata, never a size preset or a stale UI value.
+  if(sourceGrid){
+   const native=pc98GridFromPixels(video.videoWidth,video.videoHeight);
+   options=optionsFor({...options,width:native.width,height:native.height,native16:true});
+  }
+  const plan=makePlan(video.duration,options);
   const canvas=document.createElement('canvas'),sample=options.conversionMode==='artisan'
    ?(plan.width*plan.height<=3000?10:6):options.conversionMode==='quality'?6:4;
   canvas.width=plan.width*sample;canvas.height=plan.height*sample;
   const ctx=canvas.getContext('2d',{willReadFrequently:true,alpha:false});
-  const rect=fitRect(video.videoWidth,video.videoHeight,canvas.width,canvas.height,.5,fit,positionX,positionY);
+  const rect=sourceGrid?
+   pc98SourceDrawRect(video.videoWidth,video.videoHeight,canvas.width,canvas.height,positionX,positionY):
+   fitRect(video.videoWidth,video.videoHeight,canvas.width,canvas.height,.5,fit,positionX,positionY);
   const ramp=options.conversionMode==='legacy'?calibrateRamp():undefined;
   let writer=new TSLWriter(plan),checkpoint=null,checkpointEnabled=true,resumeStart=0,saved=0,resumeState=null;
   // Each checkpoint is keyed by the source, content sample, conversion settings and video metadata.
   // The video itself is deliberately NOT persisted.
   try{
    const identity=fileIdentity(file);
-   const engineVersion=options.conversionMode==='artisan'?19:options.conversionMode==='quality'?(options.native16?8:7):options.conversionMode==='halftone'?(options.native16?13:12):(options.native16?3:2);
+   const baseEngineVersion=options.conversionMode==='artisan'?19:options.conversionMode==='quality'?(options.native16?8:7):options.conversionMode==='halftone'?(options.native16?13:12):(options.native16?3:2);
+   const engineVersion=baseEngineVersion+(sourceGrid?20:0);
    const signature=JSON.stringify([engineVersion,identity,await fingerprint(file),
-    [options.width,options.height,options.fps,options.brightness,options.contrast,options.gamma,options.edge,options.conversionMode,options.native16,fit,positionX,positionY],
+    [options.width,options.height,options.fps,options.brightness,options.contrast,options.gamma,options.edge,options.conversionMode,options.native16,sourceGrid,fit,positionX,positionY],
     [video.videoWidth,video.videoHeight,video.duration,plan.count]]);
    const previous=await readCheckpoint();
    if(previous?.job.signature===signature){

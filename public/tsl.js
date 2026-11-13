@@ -10,7 +10,7 @@ export function parseTSL(text){
   if(hdr.length<6)hdr.push(val.split('#')[0].trim().split(/\s+/)[0]);else names.push(val);
  }
  const count=Number(hdr[1]),width=Number(hdr[2]),height=Number(hdr[3]);
- if(!Number.isInteger(count)||count<1||count>10000||!Number.isInteger(width)||width<1||width>(native16?240:200)||!Number.isInteger(height)||height<1||height>(native16?120:100))throw Error('TSLの画面数またはサイズが不正です');
+ if(!Number.isInteger(count)||count<1||count>10000||!Number.isInteger(width)||width<1||width>(native16?480:200)||!Number.isInteger(height)||height<1||height>(native16?240:100))throw Error('TSLの画面数またはサイズが不正です');
  if(chunks.length<count+3)throw Error('TSLの画面データが不足しています');
  const frames=chunks.slice(2,2+count).map(s=>s.replace(/\n+$/,''));
  const schedule=[];let duration=0;
