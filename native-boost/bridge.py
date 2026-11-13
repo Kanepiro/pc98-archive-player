@@ -31,8 +31,15 @@ LOCK = threading.RLock()
 
 
 def allowed_origin(origin):
+    # Only the original site, this project's Vercel preview hostnames, and
+    # loopback development pages. Do not allow arbitrary vercel.app domains.
     return origin in (None, "", APP_ORIGIN) or bool(
-        re.fullmatch(r"http://(?:127\.0\.0\.1|localhost):[0-9]{2,5}", origin)
+        origin and (
+            re.fullmatch(
+                r"https://pc98-archive-player-[a-z0-9-]+-hiroaki-kanekos-projects\.vercel\.app",
+                origin
+            ) or re.fullmatch(r"http://(?:127\.0\.0\.1|localhost):[0-9]{2,5}", origin)
+        )
     )
 
 

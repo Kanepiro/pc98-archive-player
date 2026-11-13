@@ -13,6 +13,8 @@ spec.loader.exec_module(b)
 def run():
     assert b.allowed_origin("https://pc98-archive-player-seven.vercel.app")
     assert b.allowed_origin("http://localhost:4173")
+    assert b.allowed_origin("https://pc98-archive-player-3kff7aump-hiroaki-kanekos-projects.vercel.app")
+    assert not b.allowed_origin("https://pc98-archive-player-3kff7aump-other-account.vercel.app")
     assert not b.allowed_origin("https://evil.example.com")
     assert not b.allowed_origin("http://127.0.0.1.evil.example.com:4173")
     with tempfile.TemporaryDirectory(prefix="pc_boost_test_") as temp:

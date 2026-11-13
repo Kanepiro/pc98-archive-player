@@ -10,9 +10,11 @@ WindowsとLinuxで利用する構成です。
    `TASL-PC-Boost-Windows-x64` アーティファクトの ZIP を展開します。
 2. ZIP 内の `TASL-PC-Boost.exe` を起動し、黒いコンソール画面を開いたままにします。
    管理者権限やPythonの別インストールは不要です。
-3. 同じPCのChrome/Edgeで
-   `https://pc98-archive-player-seven.vercel.app/` を開き、
+3. 同じPCのChrome/Edgeで、GitHubの検証用PR #6から
+   Vercelのプレビュー画面を開きます（Vercelログインが必要な場合があります）。
+   `https://github.com/Kanepiro/pc98-archive-player/pull/6`
    「動画 → TSL」画面で **PCブースト（PC専用・C++ネイティブ）** にチェックします。
+   ※既存の本番サイトにはまだブースト選択項目は表示されません。
 4. 動画と画質設定を選んで通常の「変換」を押します。
 5. 終了時は補助プログラムのコンソールを閉じてください。
 
