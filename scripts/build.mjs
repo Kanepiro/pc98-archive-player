@@ -2,7 +2,13 @@ import {cp,mkdir,readdir,readFile,writeFile} from 'node:fs/promises';
 import {build} from 'esbuild';
 import {createHash} from 'node:crypto';
 const sources=['src/mms/core.hpp','src/mms/engine.hpp','src/mms/bridge.cpp'];
-const hash=createHash('sha256');for(const f of sources)hash.update(await readFile(f));
+// Git checkouts on Windows may use CRLF; the WASM source digest is defined
+// over canonical LF text so a platform newline conversion does not change it.
+const hash=createHash('sha256');
+for(const f of sources){
+ const source=(await readFile(f,'utf8')).replace(/\r\n/g,'\n');
+ hash.update(source,'utf8');
+}
 const expected=(await readFile('src/mms/wasm-source.sha256','utf8')).trim();
 if(hash.digest('hex')!==expected)throw Error('MMS sources changed: run npm run build:wasm with Emscripten 3.1.69 before committing.');
 await mkdir('dist',{recursive:true});await cp('public','dist',{recursive:true});

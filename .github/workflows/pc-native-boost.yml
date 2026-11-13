@@ -36,8 +36,11 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           npm ci
+          if ($LASTEXITCODE -ne 0) { throw 'npm ci failed' }
           npm run build
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path 'dist/index.html')) { throw 'Web player build failed' }
           npm test
+          if ($LASTEXITCODE -ne 0) { throw 'Web player tests failed' }
       - name: Build native C++ converter
         shell: pwsh
         run: |
