@@ -112,8 +112,10 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   let pending=[],startIndex=resumeStart,acceleration='CPU',focusRect=null;
   if(resumeStart<plan.count){
    worker=new Worker(new URL('./tsl-converter-worker.js',import.meta.url),{type:'module'});
-   if(['quality','artisan'].includes(options.conversionMode)){
-    const atlas=options.conversionMode==='artisan'?await makeArtisanGlyphAtlas(sample,signal,(done,total)=>onProgress({phase:'atlas',done,total})):makeGlyphAtlas(sample);
+   {
+    const atlas=options.conversionMode==='artisan'
+     ?await makeArtisanGlyphAtlas(sample,signal,(done,total)=>onProgress({phase:'atlas',done,total}))
+     :options.conversionMode==='quality'?makeGlyphAtlas(sample):null;
     await new Promise((resolve,reject)=>{
      check(signal);
      const timeout=setTimeout(()=>finish(Error('文字パレットの準備がタイムアウトしました')),30000);

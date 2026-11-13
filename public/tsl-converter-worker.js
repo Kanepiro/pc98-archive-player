@@ -2,27 +2,41 @@ import {rgbaToASCII} from './tsl-converter-core.js';
 import {QualityConverter} from './tsl-quality.js';
 import {ArtisanComposer} from './tsl-artisan-engine.js';
 import {rgbaToHalftone} from './tsl-halftone.js';
-let quality=null;
+import {GpuToneConverter} from './tsl-tone-webgpu.js';
+let quality=null,tones=null;
 self.onmessage=async({data:d})=>{
  try{
   if(d.type==='init'){
-   quality=d.mode==='artisan'?new ArtisanComposer(d.atlas,d.sample):new QualityConverter(d.atlas,d.sample);
-   quality.restore(d.state);
-   if(d.mode!=='artisan')await quality.enableWebGPU(d.width,d.height);
-   self.postMessage({ready:true,gpuAvailable:!!quality.gpuMatcher});return;
+   if(d.mode==='legacy'||d.mode==='halftone'){
+    try{tones=await GpuToneConverter.create(d.mode,d.sample,d.width,d.height);}
+    catch{tones=null;}
+   }else{
+    quality=d.mode==='artisan'?new ArtisanComposer(d.atlas,d.sample):new QualityConverter(d.atlas,d.sample);
+    quality.restore(d.state);
+    await quality.enableWebGPU(d.width,d.height);
+   }
+   self.postMessage({ready:true,gpuAvailable:!!quality?.gpuMatcher||!!tones});return;
   }
   if(d.type==='snapshot'){
    if(!quality)throw Error('モード3が初期化されていません');
    self.postMessage({state:quality.snapshot()});return;
   }
   const pixels=new Uint8ClampedArray(d.pixels);
-  const frame=d.options.conversionMode==='artisan'
-   ?quality.convert(pixels,d.width,d.height,d.options)
-   :d.options.conversionMode==='quality'
-   ?await quality.convertAccelerated(pixels,d.width,d.height,d.options)
-   :d.options.conversionMode==='halftone'
+  let frame,acceleration='CPU';
+  if(['artisan','quality'].includes(d.options.conversionMode)){
+   frame=await quality.convertAccelerated(pixels,d.width,d.height,d.options);
+   acceleration=quality.acceleration;
+  }else{
+   if(tones){
+    try{
+     frame=await tones.convert(pixels,d.options);
+     acceleration=tones.acceleration;
+    }catch{tones.dispose();tones=null;}
+   }
+   if(frame===undefined)frame=d.options.conversionMode==='halftone'
     ?rgbaToHalftone(pixels,d.width,d.height,d.options)
     :rgbaToASCII(pixels,d.width,d.height,d.options);
-  self.postMessage({frame,acceleration:d.options.conversionMode==='quality'?quality.acceleration:'CPU'});
+  }
+  self.postMessage({frame,acceleration});
  }catch(e){self.postMessage({error:e.message});}
 };

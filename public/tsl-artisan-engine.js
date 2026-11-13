@@ -1,6 +1,7 @@
 import {parseArtisanStructure} from './tsl-artisan-structure.js';
 import {guideArtisanFaces} from './tsl-artisan-portrait.js';
 import {refineArtisanLayout} from './tsl-artisan-critic.js';
+import {Mode4GpuMatcher} from './tsl-artisan-webgpu.js';
 import {composeArtisanBand} from './tsl-artisan-blocks.js';
 // Mode 4 "AA artisan" composer. Independent of Mode 3's per-row template matcher.
 // Structural contour field + alignment-tolerant stroke fitting + 2D seam-aware
@@ -300,18 +301,31 @@ function insertTop(arr,j,score,limit){
  arr.splice(i,0,{j,score});
  if(arr.length>limit)arr.pop();
 }
-function makeCandidates(field,atlas,width,height,S,prevChars,oldGray){
+function localCellOrientation(field,width,height,S){
+ const out=new Float32Array(width*height*8);
+ for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+  const offset=(y*width+x)*8,start=(y*S)*field.w+x*S;
+  out.set(strokeHistogram(field.target,S,S,start,field.w),offset);
+  if(x+1<width)out.set(strokeHistogram(field.target,S*2,S,start,field.w),offset+4);
+ }
+ return out;
+}
+function makeCandidates(field,atlas,width,height,S,prevChars,oldGray,gpuScores=null,orientations=null){
  const n=atlas.length,candidates=new Array(width*height),unary=new Float32Array(width*height*n);
  unary.fill(Infinity);
  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
   const pos=y*width+x,offset=pos*n;
   const best1=[],best2=[];
-  const hist1=strokeHistogram(field.target,S,S,(y*S)*field.w+x*S,field.w);
-  const hist2=x+1<width?strokeHistogram(field.target,2*S,S,(y*S)*field.w+x*S,field.w):null;
+  const hist1=orientations?orientations.subarray(pos*8,pos*8+4):
+   strokeHistogram(field.target,S,S,(y*S)*field.w+x*S,field.w);
+  const hist2=x+1<width?(orientations?orientations.subarray(pos*8+4,pos*8+8):
+   strokeHistogram(field.target,2*S,S,(y*S)*field.w+x*S,field.w)):null;
   let prevIndex=-1;
   for(let j=0;j<n;j++){
    const g=atlas[j];if(x+g.columns>width)continue;
-   const score=placementLoss(field,g,x,y,S,g.columns===1?hist1:hist2,
+   const gScore=gpuScores?.[offset+j];
+   const score=gpuScores?(gScore>=1e18?Infinity:gScore):
+    placementLoss(field,g,x,y,S,g.columns===1?hist1:hist2,
     prevChars?.[pos],oldGray);
    unary[offset+j]=score;
    insertTop(g.columns===1?best1:best2,j,score,g.columns===1?14:24);
@@ -432,6 +446,7 @@ export class ArtisanComposer {
   this.previousGray=null;this.previousChars=null;
   this.width=0;this.height=0;this.lastDiagnostics=null;
   this.lastFrame=null;this.lastSemanticKey=null;
+  this.gpuMatcher=null;this.acceleration='CPU';
  }
  snapshot(){
   if(!this.previousGray)return null;
@@ -453,7 +468,50 @@ export class ArtisanComposer {
   this.lastFrame=typeof state.frame==='string'?state.frame:null;
   this.lastSemanticKey=typeof state.semanticKey==='string'?state.semanticKey:null;
  }
+ async enableWebGPU(width,height){
+  try{
+   this.gpuMatcher=await Mode4GpuMatcher.create(this.atlas,this.sample,width,height);
+   this.acceleration=this.gpuMatcher?'WebGPU':'CPU';
+  }catch(e){
+   this.gpuError=String(e);
+   this.gpuMatcher?.dispose();this.gpuMatcher=null;this.acceleration='CPU';
+  }
+ }
  convert(pixels,width,height,options={}){
+  const prepared=this._prepare(pixels,width,height,options);
+  if(prepared.cached)return prepared.cached;
+  this.acceleration='CPU';
+  return this._render(prepared,null,null);
+ }
+ async convertAccelerated(pixels,width,height,options={}){
+  const prepared=this._prepare(pixels,width,height,options);
+  if(prepared.cached)return prepared.cached;
+  if(!this.gpuMatcher){this.acceleration='CPU';return this._render(prepared,null,null);}
+  const {field,width:w,height:h,S,oldChars,oldGray}=prepared;
+  const orientations=localCellOrientation(field,w,h,S);
+  try{
+   const gpuScores=await this.gpuMatcher.compute(field,orientations,oldChars,oldGray);
+   // Compare GPU float32 scoring with authoritative CPU loss before use.
+   const total=this.atlas.length,wTotal=w*h;
+   for(let k=0;k<Math.min(72,wTotal*total);k++){
+    const pos=(k*1543)%wTotal,j=(k*137)%total,x=pos%w,y=Math.floor(pos/w);
+    const glyph=this.atlas[j];
+    if(x+glyph.columns>w)continue;
+    const hist=orientations.subarray(pos*8+(glyph.columns-1)*4,pos*8+(glyph.columns-1)*4+4);
+    const cpu=placementLoss(field,glyph,x,y,S,hist,oldChars?.[pos],oldGray);
+    const gpu=gpuScores[pos*total+j];
+    if(!Number.isFinite(cpu)?gpu<1e18:Math.abs(cpu-gpu)>.0025){
+     throw Error('CPU/GPU字形評価の誤差が許容値を超過');
+    }
+   }
+   this.acceleration='WebGPU';
+   return this._render(prepared,gpuScores,orientations);
+  }catch{
+   this.gpuMatcher?.dispose();this.gpuMatcher=null;this.acceleration='CPU';
+   return this._render(prepared,null,null);
+  }
+ }
+ _prepare(pixels,width,height,options={}){
   if(!Number.isInteger(width)||!Number.isInteger(height)||width<4||height<4)
    throw Error('モード4の画像サイズが不正です');
   const S=this.sample,oldGray=this.previousGray?.length===width*height*S*S
@@ -471,7 +529,7 @@ export class ArtisanComposer {
    }
    if(identical){
     this.lastDiagnostics={...this.lastDiagnostics,reused:true};
-    return this.lastFrame;
+    return {cached:this.lastFrame};
    }
   }
   const rawStructure=parseArtisanStructure(field,options.semantic);
@@ -483,7 +541,12 @@ export class ArtisanComposer {
   field.columnCount=width;field.rowCount=height;
   const oldChars=this.width===width&&this.height===height&&!field.cut
    ?this.previousChars:null;
-  const {unary,candidates}=makeCandidates(field,this.atlas,width,height,S,oldChars,oldGray);
+  return {width,height,S,field,oldChars,oldGray,semanticKey,structural};
+ }
+ _render(prepared,gpuScores,orientations){
+  const {width,height,S,field,oldChars,oldGray,semanticKey}=prepared;
+  const structural=prepared.structural||null;
+  const {unary,candidates}=makeCandidates(field,this.atlas,width,height,S,oldChars,oldGray,gpuScores,orientations);
   const seams=sourceSeams(field,width,height,S);
   const rows=new Array(height);
   // Initial layout: data-driven row arrangement without vertical couplings.

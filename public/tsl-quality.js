@@ -215,7 +215,7 @@ export class QualityConverter{
   try{
    this.gpuMatcher=await Mode3GpuMatcher.create(this.atlas,this.sample,width,height);
    if(this.gpuMatcher){
-    // Shader warmup is intentionally excluded from the performance comparison.
+    // Shader warmup verifies the GPU path before numerical output comparison.
     await this.gpuMatcher.compute(new Float32Array(width*height*this.sample*this.sample));
    }
   }catch{
@@ -229,20 +229,19 @@ export class QualityConverter{
   const state=targetImage(pixels,width,height,S,brightness,contrast,gamma,this.previous);
   let dots=null;
   try{
-   const at=performance.now(),gpuDots=await this.gpuMatcher.compute(state.target);
-   const gpuMs=performance.now()-at;
+   const gpuDots=await this.gpuMatcher.compute(state.target);
    if(!this.gpuBenchmarked){
     this.gpuBenchmarked=true;
-    const start=performance.now();
     const cpuDots=qualityCpuDots(state.target,width,height,S,this.atlas);
-    const cpuMs=performance.now()-start;
     let maxError=0;
     for(let k=0;k<gpuDots.length;k+=37){
      const diff=Math.abs(gpuDots[k]-cpuDots[k]);
      if(!Number.isFinite(diff)){maxError=Infinity;break;}
      maxError=Math.max(maxError,diff);
     }
-    if(gpuMs<cpuMs*.90 && maxError<.001){
+    // GPU is explicitly requested wherever available. Preserve numerical
+    // parity with CPU rather than reject a correct GPU for being slower.
+    if(maxError<.001){
      this.acceleration='WebGPU';dots=gpuDots;
     }else{
      this.acceleration='CPU';dots=cpuDots;
