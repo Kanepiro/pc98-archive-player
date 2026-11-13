@@ -1,3 +1,4 @@
+import {requireHardwareAdapter} from './tsl-gpu-device.js';
 // GPU-assisted Mode 3 glyph correlation. Only the expensive independent
 // template dot-products run on WebGPU; the original CPU contour tracer,
 // dynamic-programming layout and temporal logic remain authoritative.
@@ -36,8 +37,10 @@ export class Mode3GpuMatcher {
   if(!globalThis.navigator?.gpu || !globalThis.GPUBufferUsage || !globalThis.GPUMapMode)return null;
   const adapter=await navigator.gpu.requestAdapter({powerPreference:'high-performance'});
   if(!adapter)return null;
+  const adapterInfo=requireHardwareAdapter(adapter);
   const device=await adapter.requestDevice();
   const matcher=new Mode3GpuMatcher(device,atlas,sample,width,height);
+  matcher.adapterInfo=adapterInfo;
   try{await matcher.init();return matcher;}
   catch(e){matcher.dispose();throw e;}
  }

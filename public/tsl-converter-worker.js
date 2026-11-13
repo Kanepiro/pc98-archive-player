@@ -3,13 +3,13 @@ import {QualityConverter} from './tsl-quality.js';
 import {ArtisanComposer} from './tsl-artisan-engine.js';
 import {rgbaToHalftone} from './tsl-halftone.js';
 import {GpuToneConverter} from './tsl-tone-webgpu.js';
-let quality=null,tones=null;
+let quality=null,tones=null,gpuUnavailableReason='';
 self.onmessage=async({data:d})=>{
  try{
   if(d.type==='init'){
    if(d.mode==='legacy'||d.mode==='halftone'){
     try{tones=await GpuToneConverter.create(d.mode,d.sample,d.width,d.height);}
-    catch{tones=null;}
+    catch(e){tones=null;gpuUnavailableReason=String(e);}
    }else{
     quality=d.mode==='artisan'?new ArtisanComposer(d.atlas,d.sample):new QualityConverter(d.atlas,d.sample);
     quality.restore(d.state);
@@ -37,6 +37,9 @@ self.onmessage=async({data:d})=>{
     ?rgbaToHalftone(pixels,d.width,d.height,d.options)
     :rgbaToASCII(pixels,d.width,d.height,d.options);
   }
-  self.postMessage({frame,acceleration});
+  self.postMessage({frame,acceleration,
+   perf:d.options.conversionMode==='artisan'?quality.lastPerf:null,
+   adapterInfo:quality?.gpuMatcher?.adapterInfo||tones?.adapterInfo||null,
+   gpuReason:quality?.gpuError||gpuUnavailableReason||''});
  }catch(e){self.postMessage({error:e.message});}
 };

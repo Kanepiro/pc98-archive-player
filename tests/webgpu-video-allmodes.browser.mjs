@@ -21,6 +21,13 @@ try{
   const page=await browser.newPage({acceptDownloads:true,viewport:{width:420,height:880}});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(url,{waitUntil:'load'});
+  const software=await page.evaluate(async()=>{
+   const adapter=await navigator.gpu?.requestAdapter({powerPreference:'high-performance'});
+   const info=adapter?.info||{};
+   return /swiftshader|llvmpipe|software|warp/i.test(
+    [info.vendor,info.architecture,info.device,info.description].join(' '))||
+    adapter?.isFallbackAdapter===true;
+  });
   await page.click('#tab-converter');
   await page.selectOption('#video-mode','landscape');
   await page.selectOption('#video-style',mode);
@@ -43,8 +50,12 @@ try{
   assert.deepEqual(errors,[]);
   const gpu=tracker.some(s=>s.includes('WebGPU使用'));
   const cpu=tracker.some(s=>s.includes('CPU処理'));
-  assert.ok(gpu,mode+' should use WebGPU when a tested GPU adapter is available');
-  console.log('GPU_ALL_E2E',JSON.stringify({mode,gpu,cpu,grid:[data.width,data.height],
+  if(software){
+   assert.ok(cpu,mode+' must use CPU instead of a software WebGPU renderer');
+   assert.equal(gpu,false,mode+' must not claim physical WebGPU');
+   assert.ok(tracker.some(s=>s.includes('ソフトウェアGPU')),mode+' should name the fallback');
+  }else assert.ok(gpu||cpu,mode+' must finish on hardware WebGPU or CPU fallback');
+  console.log('GPU_ALL_E2E',JSON.stringify({mode,gpu,cpu,software,grid:[data.width,data.height],
    frames:data.frames.length,status,preview:data.frames[0].split('\n').slice(0,2)}));
   await page.close();
  }

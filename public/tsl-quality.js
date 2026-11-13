@@ -218,7 +218,8 @@ export class QualityConverter{
     // Shader warmup verifies the GPU path before numerical output comparison.
     await this.gpuMatcher.compute(new Float32Array(width*height*this.sample*this.sample));
    }
-  }catch{
+  }catch(e){
+   this.gpuError=String(e);
    this.gpuMatcher?.dispose();this.gpuMatcher=null;this.acceleration='CPU';
   }
  }

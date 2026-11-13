@@ -173,7 +173,8 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
    }
    const elapsed=(performance.now()-started)/1000,processed=i+1-resumeStart;
    onProgress({phase:'converting',done:i+1,total:plan.count,seconds:time,elapsed,
-    remaining:elapsed/processed*(plan.count-i-1),plan,saved,acceleration});
+    remaining:elapsed/processed*(plan.count-i-1),plan,saved,acceleration,
+    perf:converted.perf,adapterInfo:converted.adapterInfo,gpuReason:converted.gpuReason});
   }
   check(signal);
   const blob=writer.finish();

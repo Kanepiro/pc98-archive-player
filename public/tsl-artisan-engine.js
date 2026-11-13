@@ -316,9 +316,11 @@ function makeCandidates(field,atlas,width,height,S,prevChars,oldGray,gpuScores=n
  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
   const pos=y*width+x,offset=pos*n;
   const best1=[],best2=[];
-  const hist1=orientations?orientations.subarray(pos*8,pos*8+4):
+  // GPU scores already include tangent orientation. Avoid redundantly
+  // tracing the same geometry on CPU when rendering the GPU result.
+  const hist1=gpuScores?null:orientations?orientations.subarray(pos*8,pos*8+4):
    strokeHistogram(field.target,S,S,(y*S)*field.w+x*S,field.w);
-  const hist2=x+1<width?(orientations?orientations.subarray(pos*8+4,pos*8+8):
+  const hist2=x+1<width?(gpuScores?null:orientations?orientations.subarray(pos*8+4,pos*8+8):
    strokeHistogram(field.target,2*S,S,(y*S)*field.w+x*S,field.w)):null;
   let prevIndex=-1;
   for(let j=0;j<n;j++){
@@ -447,6 +449,7 @@ export class ArtisanComposer {
   this.width=0;this.height=0;this.lastDiagnostics=null;
   this.lastFrame=null;this.lastSemanticKey=null;
   this.gpuMatcher=null;this.acceleration='CPU';
+  this.lastPerf=null;this.gpuError=null;
  }
  snapshot(){
   if(!this.previousGray)return null;
@@ -478,38 +481,60 @@ export class ArtisanComposer {
   }
  }
  convert(pixels,width,height,options={}){
+  const start=performance.now();
   const prepared=this._prepare(pixels,width,height,options);
-  if(prepared.cached)return prepared.cached;
+  const prepMs=performance.now()-start;
+  if(prepared.cached){
+   this.lastPerf={prepareMs:prepMs,gpuMs:0,layoutMs:0,reused:true};
+   return prepared.cached;
+  }
   this.acceleration='CPU';
-  return this._render(prepared,null,null);
+  const layoutStart=performance.now();
+  const output=this._render(prepared,null,null);
+  this.lastPerf={prepareMs:prepMs,gpuMs:0,layoutMs:performance.now()-layoutStart};
+  return output;
  }
  async convertAccelerated(pixels,width,height,options={}){
+  const start=performance.now();
   const prepared=this._prepare(pixels,width,height,options);
-  if(prepared.cached)return prepared.cached;
-  if(!this.gpuMatcher){this.acceleration='CPU';return this._render(prepared,null,null);}
-  const {field,width:w,height:h,S,oldChars,oldGray}=prepared;
-  const orientations=localCellOrientation(field,w,h,S);
-  try{
-   const gpuScores=await this.gpuMatcher.compute(field,orientations,oldChars,oldGray);
-   // Compare GPU float32 scoring with authoritative CPU loss before use.
-   const total=this.atlas.length,wTotal=w*h;
-   for(let k=0;k<Math.min(72,wTotal*total);k++){
-    const pos=(k*1543)%wTotal,j=(k*137)%total,x=pos%w,y=Math.floor(pos/w);
-    const glyph=this.atlas[j];
-    if(x+glyph.columns>w)continue;
-    const hist=orientations.subarray(pos*8+(glyph.columns-1)*4,pos*8+(glyph.columns-1)*4+4);
-    const cpu=placementLoss(field,glyph,x,y,S,hist,oldChars?.[pos],oldGray);
-    const gpu=gpuScores[pos*total+j];
-    if(!Number.isFinite(cpu)?gpu<1e18:Math.abs(cpu-gpu)>.0025){
-     throw Error('CPU/GPU字形評価の誤差が許容値を超過');
-    }
-   }
-   this.acceleration='WebGPU';
-   return this._render(prepared,gpuScores,orientations);
-  }catch{
-   this.gpuMatcher?.dispose();this.gpuMatcher=null;this.acceleration='CPU';
-   return this._render(prepared,null,null);
+  const prepMs=performance.now()-start;
+  if(prepared.cached){
+   this.lastPerf={prepareMs:prepMs,gpuMs:0,layoutMs:0,reused:true};
+   return prepared.cached;
   }
+  const {field,width:w,height:h,S,oldChars,oldGray}=prepared;
+  let gpuScores=null,gpuMs=0;
+  if(this.gpuMatcher){
+   const gpuStart=performance.now();
+   try{
+    gpuScores=await this.gpuMatcher.compute(field,oldChars,oldGray);
+    // Validate several independent stroke orientations and visual scores
+    // against the CPU reference; a driver mismatch must not corrupt output.
+    const n=this.atlas.length,cells=w*h;
+    for(let k=0;k<Math.min(72,cells*n);k++){
+     const pos=(k*1543)%cells,j=(k*137)%n,x=pos%w,y=Math.floor(pos/w);
+     const glyph=this.atlas[j];
+     if(x+glyph.columns>w)continue;
+     const hist=strokeHistogram(field.target,glyph.columns*S,S,
+      (y*S)*field.w+x*S,field.w);
+     const cpu=placementLoss(field,glyph,x,y,S,hist,oldChars?.[pos],oldGray);
+     const gpu=gpuScores[pos*n+j];
+     if(!Number.isFinite(cpu)?gpu<1e18:Math.abs(cpu-gpu)>.0025)
+      throw Error('GPU輪郭方向・文字照合の精度検証に失敗');
+    }
+    this.acceleration='WebGPU';
+   }catch(e){
+    this.gpuError=String(e);
+    this.gpuMatcher?.dispose();this.gpuMatcher=null;
+    gpuScores=null;this.acceleration='CPU';
+   }
+   gpuMs=performance.now()-gpuStart;
+  }else this.acceleration='CPU';
+  const layoutStart=performance.now();
+  const output=this._render(prepared,gpuScores,null);
+  this.lastPerf={prepareMs:prepMs,gpuMs,layoutMs:performance.now()-layoutStart,
+   gpuValidated:!!gpuScores};
+  return output;
  }
  _prepare(pixels,width,height,options={}){
   if(!Number.isInteger(width)||!Number.isInteger(height)||width<4||height<4)

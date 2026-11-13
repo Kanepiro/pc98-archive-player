@@ -122,7 +122,16 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
      const now=performance.now();if(now-last<150&&p.done!==p.total)return;last=now;
      $('tsl-progress').max=p.total;$('tsl-progress').value=p.done;
      $('converter-status').textContent='変換中 '+Math.floor(p.done/p.total*100)+'% · '+p.done.toLocaleString()+' / '+p.total.toLocaleString()+'画面';
-     $('converter-detail').textContent=(p.plan.reduced?'長尺のため自動調整 · ':'')+p.plan.effectiveFps.toFixed(2)+' fps · '+(p.acceleration==='WebGPU'?'WebGPU使用':p.acceleration==='CPU（GPU精度照合）'?'CPU処理（GPUとの精度差）':'CPU処理')+' · 残り約'+Math.ceil(p.remaining)+'秒 · 途中保存済み '+p.saved.toLocaleString()+'画面';
+     const gpuName=p.adapterInfo
+      ?p.adapterInfo.identified?'GPU: '+p.adapterInfo.name
+       :'WebGPUアダプターの機種は未識別'
+      :/ソフトウェアWebGPU/.test(p.gpuReason||'')
+       ?'SwiftShader等のソフトウェアGPUを除外しCPU処理'
+       :'';
+     const perf=p.plan.conversionMode==='artisan'&&p.perf
+      ?' · 輪郭CPU '+Math.round(p.perf.prepareMs)+'ms / GPU計算・転送 '+Math.round(p.perf.gpuMs)+'ms / 組版CPU '+Math.round(p.perf.layoutMs)+'ms'
+      :'';
+     $('converter-detail').textContent=(p.plan.reduced?'長尺のため自動調整 · ':'')+p.plan.effectiveFps.toFixed(2)+' fps · '+(p.acceleration==='WebGPU'?'WebGPU使用':p.acceleration==='CPU（GPU精度照合）'?'CPU処理（GPUとの精度差）':'CPU処理')+(gpuName?' · '+gpuName:'')+perf+' · 残り約'+Math.ceil(p.remaining)+'秒 · 途中保存済み '+p.saved.toLocaleString()+'画面';
     }});
    downloadUrl=URL.createObjectURL(result.blob);
    const a=$('tsl-download');a.href=downloadUrl;a.download=tslName(file.name,result.plan.conversionMode);
