@@ -132,7 +132,12 @@ export async function analyzeVideoTone(file,{
  aborted(signal);
  if(!MODE_SET.has(mode))throw Error('変換方式が不正です');
  if(!file||file.size<=0||file.size>2*1024**3)throw Error('動画ファイルは2GB以内にしてください');
- if(!Number.isInteger(width)||width<4||width>160||!Number.isInteger(height)||height<4||height>100)
+ // The recommended-settings analyser samples an internally capped 128x80
+ // image, but must accept every input grid that the converter itself permits.
+ // In particular PC-98 native 16-dot display uses 240x67 (landscape) or
+ // up to 240x120 (portrait). The old 160x100 check rejected those layouts.
+ if(!Number.isInteger(width)||width<4||width>240||
+    !Number.isInteger(height)||height<4||height>120)
   throw Error('文字数が不正です');
  if(!['cover','contain'].includes(fit)||![positionX,positionY].every(x=>Number.isFinite(x)&&x>=0&&x<=1))
   throw Error('切り抜き設定が不正です');
