@@ -68,7 +68,8 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   const plan=makePlan(video.duration,options);
   if(!video.videoWidth||!video.videoHeight)throw Error('映像トラックがありません');
   if(video.videoWidth*video.videoHeight>3840*2160)throw Error('動画の解像度は4K（約830万画素）以下にしてください');
-  const canvas=document.createElement('canvas'),sample=['quality','artisan'].includes(options.conversionMode)?6:4;
+  const canvas=document.createElement('canvas'),sample=options.conversionMode==='artisan'
+   ?(plan.width*plan.height<=3000?10:6):options.conversionMode==='quality'?6:4;
   canvas.width=plan.width*sample;canvas.height=plan.height*sample;
   const ctx=canvas.getContext('2d',{willReadFrequently:true,alpha:false});
   const rect=fitRect(video.videoWidth,video.videoHeight,canvas.width,canvas.height,.5,fit,positionX,positionY);
@@ -78,7 +79,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   // The video itself is deliberately NOT persisted.
   try{
    const identity=fileIdentity(file);
-   const engineVersion=options.conversionMode==='artisan'?16:options.conversionMode==='quality'?(options.native16?8:7):options.conversionMode==='halftone'?(options.native16?13:12):(options.native16?3:2);
+   const engineVersion=options.conversionMode==='artisan'?17:options.conversionMode==='quality'?(options.native16?8:7):options.conversionMode==='halftone'?(options.native16?13:12):(options.native16?3:2);
    const signature=JSON.stringify([engineVersion,identity,await fingerprint(file),
     [options.width,options.height,options.fps,options.brightness,options.contrast,options.gamma,options.edge,options.conversionMode,options.native16,fit,positionX,positionY],
     [video.videoWidth,video.videoHeight,video.duration,plan.count]]);

@@ -1,11 +1,12 @@
 import {rgbaToASCII} from './tsl-converter-core.js';
 import {QualityConverter} from './tsl-quality.js';
+import {ArtisanComposer} from './tsl-artisan-engine.js';
 import {rgbaToHalftone} from './tsl-halftone.js';
 let quality=null;
 self.onmessage=async({data:d})=>{
  try{
   if(d.type==='init'){
-   quality=new QualityConverter(d.atlas,d.sample,{artisan:d.mode==='artisan'});
+   quality=d.mode==='artisan'?new ArtisanComposer(d.atlas,d.sample):new QualityConverter(d.atlas,d.sample);
    quality.restore(d.state);
    if(d.mode!=='artisan')await quality.enableWebGPU(d.width,d.height);
    self.postMessage({ready:true,gpuAvailable:!!quality.gpuMatcher});return;
