@@ -130,7 +130,7 @@ struct FullGPU {
   if(host.size()*4>512ull*1024*1024)throw std::runtime_error("layout arena exceeds 512 MiB");
   baseWords=host.size();ringWords=5*p.n+p.cells+32;
   residentEnabled=wantResident;fallbackReason=0;
-  if(residentEnabled&&ringWords*4*10>256ull*1024*1024){residentEnabled=false;fallbackReason=1;}
+  if(residentEnabled&&ringWords*4*10+1024*1024>256ull*1024*1024){residentEnabled=false;fallbackReason=1;}
   // A single job-start check. Never resize/tune based on per-frame load.
   videoMemory();
   if(residentEnabled&&metrics[13]>=0&&metrics[13]>0&&
@@ -144,7 +144,11 @@ struct FullGPU {
   }
   if(!reuse){
    releaseArena();
-   try{allocateArena(desired,p.cells);}
+   try{
+    if(residentEnabled&&std::getenv("TASL_TEST_WARP")&&std::getenv("TASL_TEST_RESIDENT_FAIL_ALLOC"))
+     throw std::runtime_error("explicit WARP allocation failure test");
+    allocateArena(desired,p.cells);
+   }
    catch(...){
     if(!residentEnabled)throw;
     releaseArena();residentEnabled=false;fallbackReason=3;allocateArena(baseWords,p.cells);

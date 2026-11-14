@@ -49,6 +49,18 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Contour HLSL compilation failed' }
           & gpu-build/Release/native_modes.exe --check-shader
           if ($LASTEXITCODE -ne 0) { throw 'Native modes HLSL compilation failed' }
+      - uses: actions/checkout@v4
+        with:
+          ref: d4ba273d9036a59a2770fe2f0c4456bcf8f74e00
+          path: baseline-source
+      - name: Compile untouched v0.3.41 for bit-for-bit replay
+        shell: pwsh
+        run: |
+          cmake -S baseline-source/native-boost -B baseline-build -A x64
+          if ($LASTEXITCODE -ne 0) { throw 'Baseline configure failed' }
+          cmake --build baseline-build --config Release --parallel 2 --target fullgpu_layout fullgpu_contour fullgpu_nms
+          if ($LASTEXITCODE -ne 0) { throw 'Baseline compilation failed' }
+          Copy-Item baseline-source/native-boost/*.hlsl baseline-build/Release/
       - name: Verify native shader execution using explicit software test adapter
         shell: pwsh
         run: |
@@ -91,6 +103,10 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'Native platform isolation failed' }
             node tests/native-resident.browser.mjs
             if ($LASTEXITCODE -ne 0) { throw 'GPU residency parity failed' }
+            python tests/native-resident-fallback.py
+            if ($LASTEXITCODE -ne 0) { throw 'GPU allocation fallback parity failed' }
+            python tests/native-resident-baseline.py
+            if ($LASTEXITCODE -ne 0) { throw 'Original Windows native byte parity failed' }
             node tests/fullgpu-layout.browser.mjs
             if ($LASTEXITCODE -ne 0) { throw 'Native layout regression failed' }
             node tests/video-comparison.browser.mjs

@@ -8,6 +8,7 @@ struct ContourGPU {
  ComPtr<ID3D11Buffer> buffer,readback,counterReadback,constants;
  ComPtr<ID3D11UnorderedAccessView> uav;
  std::vector<uint32_t> host;
+ size_t arenaCapacity=0,readbackCapacity=0;
  uint32_t offsets[24]={};
  struct alignas(16) Params {uint32_t w,h,op,stage,source,destination,axis,count;float brightness,contrast,gamma,reserved;};
  static ComPtr<ID3DBlob> compile(const char* entry){
@@ -69,16 +70,28 @@ struct ContourGPU {
   if(p.op==5){p.count=head[7];if(p.count>100000)throw std::runtime_error("face points limit");std::cin.read((char*)(host.data()+offsets[15]),n*4);std::cin.read((char*)(host.data()+offsets[21]),(8+p.count*4)*4);if(!std::cin)throw std::runtime_error("face command input");}
   if(p.op==4){p.count=head[7];if(p.count>8)throw std::runtime_error("semantic region count");std::cin.read((char*)(host.data()+offsets[21]),p.count*24*4);if(!std::cin)throw std::runtime_error("semantic region input");}
   if(p.op==3)for(uint32_t i=0;i<n;i++)if(host[offsets[7]+i]>1)throw std::runtime_error("skeleton mask not binary");
-  buffer.Reset();readback.Reset();uav.Reset();
-  D3D11_BUFFER_DESC d={};d.ByteWidth=(UINT)host.size()*4;d.Usage=D3D11_USAGE_DEFAULT;
+  // Retain the largest required working area after job warm-up. Changes in
+  // operation do not allocate/free it every frame; no utilization-based tuning.
+  unbind();
+  D3D11_BUFFER_DESC d={};d.Usage=D3D11_USAGE_DEFAULT;
   d.BindFlags=D3D11_BIND_UNORDERED_ACCESS;d.MiscFlags=D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;d.StructureByteStride=4;
-  D3D11_SUBRESOURCE_DATA data={};data.pSysMem=host.data();checked(gpu.device->CreateBuffer(&d,&data,&buffer),"contour arena");
-  D3D11_UNORDERED_ACCESS_VIEW_DESC ud={};ud.ViewDimension=D3D11_UAV_DIMENSION_BUFFER;ud.Buffer.NumElements=(UINT)host.size();
-  checked(gpu.device->CreateUnorderedAccessView(buffer.Get(),&ud,&uav),"contour arena view");
+  if(host.size()>arenaCapacity){
+   buffer.Reset();uav.Reset();d.ByteWidth=(UINT)host.size()*4;
+   checked(gpu.device->CreateBuffer(&d,nullptr,&buffer),"contour arena");
+   D3D11_UNORDERED_ACCESS_VIEW_DESC ud={};ud.ViewDimension=D3D11_UAV_DIMENSION_BUFFER;ud.Buffer.NumElements=(UINT)host.size();
+   checked(gpu.device->CreateUnorderedAccessView(buffer.Get(),&ud,&uav),"contour arena view");arenaCapacity=host.size();
+  }
+  const UINT zero[4]={};gpu.context->ClearUnorderedAccessViewUint(uav.Get(),zero);
+  auto upload=[&](UINT at,UINT words){D3D11_BOX box={at*4,0,0,(at+words)*4,1,1};gpu.context->UpdateSubresource(buffer.Get(),0,&box,host.data()+at,0,0);};
+  upload(0,64);upload(offsets[input],n);
+  if(p.op==5){upload(offsets[15],n);upload(offsets[21],8+p.count*4);}
+  if(p.op==4&&p.count)upload(offsets[21],p.count*24);
   d.BindFlags=0;d.MiscFlags=0;d.StructureByteStride=0;d.Usage=D3D11_USAGE_STAGING;d.CPUAccessFlags=D3D11_CPU_ACCESS_READ;
   uint32_t outputWords=p.op==6?128*128*3+320*320:n*(p.op==1||p.op==4?3:p.op==5?2:1);
-  d.ByteWidth=(outputWords+4)*4;
-  checked(gpu.device->CreateBuffer(&d,nullptr,&readback),"contour readback");
+  if(outputWords+4>readbackCapacity){
+   readback.Reset();d.ByteWidth=(outputWords+4)*4;
+   checked(gpu.device->CreateBuffer(&d,nullptr,&readback),"contour readback");readbackCapacity=outputWords+4;
+  }
   if(p.op==1){
    launch(0,p,n);
    p.count=4;p.source=1;p.destination=2;p.axis=0;launch(1,p,4*n);

@@ -2,6 +2,7 @@
 import {packNativeMode4} from './tsl-mode4-native-exact.js';
 export const RESIDENT_MAGIC=0x524c4754;
 export const RESIDENT_LIMIT=256*1024*1024;
+export const NMS_RESERVE=1024*1024;
 export function residentBytes(width,height,S){return 10*4*(5*width*height*S*S+width*height+32);}
 export class NativeLayoutTransfer {
  constructor(enabled=true){this.enabled=enabled;this.sequence=0;this.session=0;this.atlas=null;}
@@ -10,7 +11,7 @@ export class NativeLayoutTransfer {
  pack(prepared,atlas,forceInitial=false){
   const {field,width,height,S,oldChars,oldGray}=prepared,cells=width*height,n=cells*S*S;
   const initial=forceInitial||this.atlas!==atlas||this.width!==width||this.height!==height||this.S!==S;
-  const resident=this.enabled&&residentBytes(width,height,S)<=RESIDENT_LIMIT;
+  const resident=this.enabled&&residentBytes(width,height,S)+NMS_RESERVE<=RESIDENT_LIMIT;
   const faces=Array.isArray(field.faces)?field.faces.slice(0,8):[],old=oldGray?.length===n?1:0;
   let body,op;
   if(initial||!resident){

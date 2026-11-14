@@ -11,7 +11,7 @@ try{
   const {FullGpuNativeLayout}=await import('/tsl-fullgpu-native.js');
   const {ArtisanComposer}=await import('/tsl-artisan-engine.js');
   const {makeArtisanGlyphAtlas}=await import('/tsl-artisan.js');
-  const atlas=await makeArtisanGlyphAtlas(6),composer=new ArtisanComposer(atlas,6);
+  const composer=new ArtisanComposer(await makeArtisanGlyphAtlas(6),6),atlas=composer.atlas;
   const canvas=document.createElement('canvas');canvas.width=144;canvas.height=72;
   const ctx=canvas.getContext('2d'),inputs=[],baseline=[],resident=[];
   const old=new FullGpuNativeLayout(true,false);
@@ -31,8 +31,11 @@ try{
   // Interleaving a second job must cause safe reinitialization, never stale input.
   const other=new FullGpuNativeLayout(true);await other.compose(inputs[0],[...atlas]);
   const resumed=await next.compose(inputs[5],atlas);
-  return {baseline,resident,resumed,expected:baseline[5].frame};
+  const {NativeLayoutTransfer}=await import('/tsl-fullgpu-resident.js');
+  const fixture=Array.from(new NativeLayoutTransfer().pack(inputs[0],atlas).buffer);
+  return {baseline,resident,resumed,expected:baseline[5].frame,fixture};
  });
+ await writeFile('gpu-validation/resident-input.bin',Buffer.from(ring.fixture));delete ring.fixture;
  for(let i=0;i<ring.baseline.length;i++){
   assert.equal(ring.resident[i].frame,ring.baseline[i].frame,'Exact glyph output frame '+i);
   assert.deepEqual(ring.resident[i].diagnostics,ring.baseline[i].diagnostics);
