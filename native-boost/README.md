@@ -1,6 +1,6 @@
 # TASL PCブースト — WindowsネイティブDirectCompute版
 
-この版は、**元のPC-98 Archive Player v0.3.35のモード1〜4を正本として使用**します。
+この版は、**元のPC-98 Archive Player v0.3.36のモード1〜4を正本として使用**します。
 前回の別アルゴリズム版とは異なり、モード4の顔・物体認識、主輪郭抽出、
 272文字の候補、全体組版、文字配置の再評価を一切置き換えません。
 
@@ -11,7 +11,7 @@ GPUとCPUの浮動小数点精度が異なるため**選ばれる文字の完全
 
 ## Windows 10/11 x64 の使い方
 
-1. `TASL-Faithful-PC-Boost-DirectCompute-Windows-x64.zip` をフォルダーに**すべて展開**する。
+1. `TASL-Faithful-PC-Boost-v0.3.36-DirectCompute-Windows-x64.zip` をフォルダーに**すべて展開**する。
 2. 旧PCブーストのEXEが起動している場合は、作業を完了・保存してから閉じる。
    ※両方は同じポート39083を使うため同時に起動できません。
 3. `TASL-Faithful-PC-Boost.exe` をダブルクリックする。

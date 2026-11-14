@@ -45,3 +45,7 @@ body.immersive-active header,body.immersive-active .tabs,body.immersive-active f
 #pc-boost-setting small{grid-column:2;line-height:1.6;font-size:11px;color:#a9bfcc}
 
 #pc-boost-setting[hidden]{display:none}
+
+/* PC-98 mode fixes the character cell to 16x16, so pixel size cannot apply. */
+#video-font-setting.pc98-locked{filter:grayscale(1);opacity:.48;cursor:not-allowed}
+.converter-options #video-font-setting.pc98-locked input{background:#30353a;border-color:#687078;color:#b6bec3;cursor:not-allowed}

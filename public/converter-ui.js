@@ -16,6 +16,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  $('converter-settings').addEventListener('change',()=>{userAdjustedSettings=true;});
  let controller=null,tuningController=null,result=null,downloadUrl=null,directMp4Url=null,selected=null,selectSerial=0,userAdjustedSettings=false;
  let ordinaryPixelValue='24',lastStyle=$('video-style').value;
+ let ordinaryFontRenderValue=$('video-font-render').value;
  let sourceDimensions=null,sourceSizeError=null,sourceSizePromise=null;
  async function probeVideoDimensions(file){
   const v=document.createElement('video'),url=URL.createObjectURL(file);
@@ -78,6 +79,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  function restoreConfig(config){
   for(const [id,value] of Object.entries(config||{}))if($(id)&&typeof value==='string')$(id).value=value;
   if($('video-mode').value==='pc98')$('video-font-render').value='native16';
+  else ordinaryFontRenderValue=$('video-font-render').value;
   layoutHint();busy(false);
  }
  function selectedGrid(){
@@ -296,6 +298,10 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   if(pc&&$('video-font-render').value!=='native16')$('video-font-render').value='native16';
   $('video-font-render').disabled=pc;
   $('video-font-px').disabled=pc||native16;
+  // PC-98 fixes glyph geometry: visibly gray the size control without
+  // removing its grid slot or overwriting the value for other modes.
+  $('video-font-setting').classList.toggle('pc98-locked',pc);
+  $('video-font-setting').setAttribute('aria-disabled',String(pc));
   $('video-fit').disabled=pc;
   if(pc){
    try{
@@ -318,7 +324,12 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  $('video-mode').onchange=()=>{
   const pc=$('video-mode').value==='pc98';
   $('video-fit').value=pc?'contain':'cover';
-  if(pc)$('video-font-render').value='native16';
+  if(pc){
+   ordinaryFontRenderValue=$('video-font-render').value;
+   $('video-font-render').value='native16';
+  }else if($('video-font-render').disabled){
+   $('video-font-render').value=ordinaryFontRenderValue;
+  }
   layoutHint();busy(!!controller);
  };
  $('video-style').onchange=()=>{
@@ -326,6 +337,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
    ordinaryPixelValue=$('video-font-px').value;
    if($('video-mode').value!=='pc98'){
     $('video-font-render').value='legacy';
+    ordinaryFontRenderValue='legacy';
     $('video-font-px').value='96';
    }
   }else if(lastStyle==='artisan')$('video-font-px').value=ordinaryPixelValue;
@@ -333,7 +345,11 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   layoutHint();
  };
  $('video-font-px').oninput=layoutHint;
- $('video-font-render').onchange=layoutHint;layoutHint();
+ $('video-font-render').onchange=()=>{
+  if($('video-mode').value!=='pc98')ordinaryFontRenderValue=$('video-font-render').value;
+  layoutHint();
+ };
+ layoutHint();
  const drop=$('video-drop');
  drop.addEventListener('dragover',e=>{e.preventDefault();if(!controller)drop.classList.add('dragover');});
  drop.addEventListener('dragleave',()=>drop.classList.remove('dragover'));

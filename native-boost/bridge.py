@@ -196,7 +196,7 @@ atexit.register(GPU.close)
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TASL-Faithful-Boost/1.0"
+    server_version = "TASL-Faithful-Boost/0.3.36"
 
     def allowed(self):
         origin = self.headers.get("Origin", "")
@@ -282,7 +282,7 @@ class Handler(BaseHTTPRequestHandler):
         if route == "/health":
             return self.response(200, {
                 "name": "TASL Original Algorithm PC Boost",
-                "version": "1.0", "originalMode4": True,
+                "version": "0.3.36", "originalMode4": True,
                 "nativeExact": bool(executable("mode4_score_exact")),
                 "nativeGpu": GPU.probe(),
                 "gpuName": GPU.name,
