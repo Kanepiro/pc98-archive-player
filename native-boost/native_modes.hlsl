@@ -159,16 +159,16 @@ void scoreQuality(uint3 id:SV_DispatchThreadID){
 [numthreads(128,1,1)]
 void rowsQuality(uint3 id:SV_DispatchThreadID){
  uint y=threadIndex(id);if(y>=H)return;uint base=y*(W+1);
- for(uint x=0;x<=W;x++){SF(23,base+x,x==0?0:1e20);A[O(24)+base+x]=0xffffffff;}
- for(uint x=0;x<W;x++){
-  float prior=F(23,base+x);if(prior>=1e19)continue;
-  for(uint j=0;j<G;j++){uint cols=A[O(17)+j];if(x+cols>W)continue;
-   float score=prior+F(22,(y*W+x)*G+j);if(score<F(23,base+x+cols)){SF(23,base+x+cols,score);A[O(24)+base+x+cols]=j;}
+ for(uint initX=0;initX<=W;initX++){SF(23,base+initX,initX==0?0:1e20);A[O(24)+base+initX]=0xffffffff;}
+ for(uint cellX=0;cellX<W;cellX++){
+  float prior=F(23,base+cellX);if(prior>=1e19)continue;
+  for(uint candidate=0;candidate<G;candidate++){uint cols=A[O(17)+candidate];if(cellX+cols>W)continue;
+   float score=prior+F(22,(y*W+cellX)*G+candidate);if(score<F(23,base+cellX+cols)){SF(23,base+cellX+cols,score);A[O(24)+base+cellX+cols]=candidate;}
   }
  }
- uint x=W;for(uint step=0;step<W&&x>0;step++){
-  uint j=A[O(24)+base+x];if(j>=G){A[O(25)+y*W]=0xfffffffe;return;}
-  uint cols=A[O(17)+j];x-=cols;A[O(25)+y*W+x]=j;
-  if(cols==2)A[O(25)+y*W+x+1]=0xffffffff;
+ uint backX=W;for(uint step=0;step<W&&backX>0;step++){
+  uint glyph=A[O(24)+base+backX];if(glyph>=G){A[O(25)+y*W]=0xfffffffe;return;}
+  uint glyphCols=A[O(17)+glyph];backX-=glyphCols;A[O(25)+y*W+backX]=glyph;
+  if(glyphCols==2)A[O(25)+y*W+backX+1]=0xffffffff;
  }
 }
