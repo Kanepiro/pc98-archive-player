@@ -1,5 +1,7 @@
 # TASL platform split v0.3.39 — 2026-11-14
 
+Historical v0.3.39 record. Windows modes 1–3 and the release status below are superseded by [native v0.3.40](native-allmodes-v0.3.40.md). Mobile remains v0.3.39.
+
 ## Sources and preservation
 
 - Web baseline: main f1894fa85c6c58faf57beaba7847f020ebcbb804 (v0.3.37).

@@ -1,6 +1,6 @@
 # TASL Archive Player
 
-Windowsネイティブ版とスマホWebGPU版を専用URLで提供します。現在の表示版はそれぞれv0.3.39です。
+Windowsネイティブ版とスマホWebGPU版を専用URLで提供します。現在の表示版はWindowsネイティブ版 v0.3.40、スマホWebGPU版 v0.3.39です。Windows版はモード1〜4すべてでDirectComputeを優先し、非対応・失敗時に元のCPU処理へ切り替えます。
 
 **スマホ版:** https://pc98-archive-player-seven.vercel.app/mobile/
 
