@@ -5,11 +5,12 @@
 using Clock=std::chrono::steady_clock;
 static ComPtr<ID3DBlob> fullShader(const char* entry){
  auto path=shaderFilename();path=path.substr(0,path.find_last_of(L"\\/")+1)+L"fullgpu_layout.hlsl";
+ auto cached=readShaderCache(path,entry);if(cached)return cached;
  ComPtr<ID3DBlob> code,error;
  auto hr=D3DCompileFromFile(path.c_str(),nullptr,D3D_COMPILE_STANDARD_FILE_INCLUDE,entry,"cs_5_0",
   D3DCOMPILE_ENABLE_STRICTNESS|D3DCOMPILE_OPTIMIZATION_LEVEL3,0,&code,&error);
  if(FAILED(hr))throw std::runtime_error(std::string(entry)+": "+(error?(char*)error->GetBufferPointer():"compile failed"));
- return code;
+ writeShaderCache(path,entry,code.Get());return code;
 }
 struct FullGPU {
  NativeDirectCompute gpu;
@@ -45,7 +46,7 @@ struct FullGPU {
   offsets[3]=add(N,&p.gray);offsets[4]=add(N,&p.oldGray);offsets[5]=add(C,&p.oldIndex);
   offsets[6]=add(G,&p.columns);offsets[7]=add(G,&p.shape);offsets[8]=add(G,&p.penalty);
   offsets[9]=add(G*4,&p.glyphOrient);offsets[10]=add(p.mask.size(),&p.mask);offsets[11]=add(p.expanded.size(),&p.expanded);
-  offsets[12]=add(p.face.size(),&p.face);offsets[13]=zeros(C*G);offsets[14]=zeros(C*40);
+  offsets[12]=add(32,&p.face);offsets[13]=zeros(C*G);offsets[14]=zeros(C*40);
   offsets[15]=zeros(C);offsets[16]=zeros(C);offsets[17]=zeros(C*40);
   offsets[18]=zeros(p.H*(p.W+1)*S);offsets[19]=zeros((p.H+1)*p.W*S);
   offsets[20]=zeros(G*8*S);offsets[21]=zeros(C*14*3);offsets[22]=zeros(16);
@@ -60,6 +61,9 @@ struct FullGPU {
   }
   std::copy(offsets.begin(),offsets.end(),host.begin());
   if(host.size()*4>512ull*1024*1024)throw std::runtime_error("layout arena exceeds 512 MiB");
+  if(memory){D3D11_BUFFER_DESC prior={};memory->GetDesc(&prior);
+   if(prior.ByteWidth==host.size()*4){gpu.context->UpdateSubresource(memory.Get(),0,nullptr,host.data(),0,0);return;}
+  }
   memory.Reset();uav.Reset();staging.Reset();
   D3D11_BUFFER_DESC desc={};desc.ByteWidth=(UINT)host.size()*4;desc.Usage=D3D11_USAGE_DEFAULT;
   desc.BindFlags=D3D11_BIND_UNORDERED_ACCESS;desc.MiscFlags=D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;desc.StructureByteStride=4;
@@ -68,6 +72,7 @@ struct FullGPU {
   D3D11_UNORDERED_ACCESS_VIEW_DESC vd={};vd.ViewDimension=D3D11_UAV_DIMENSION_BUFFER;vd.Buffer.NumElements=(UINT)host.size();
   checked(gpu.device->CreateUnorderedAccessView(memory.Get(),&vd,&uav),"GPU arena view");
   desc.BindFlags=0;desc.Usage=D3D11_USAGE_STAGING;desc.CPUAccessFlags=D3D11_CPU_ACCESS_READ;desc.MiscFlags=0;desc.StructureByteStride=0;
+  desc.ByteWidth=(UINT)(p.cells+16)*4;
   checked(gpu.device->CreateBuffer(&desc,nullptr,&staging),"layout readback");
  }
  void dispatch(int which,Params& p,UINT x,UINT y=1){
@@ -118,13 +123,16 @@ struct FullGPU {
   }
   end(5);gpu.context->End(disjoint.Get());
   ID3D11UnorderedAccessView* none[]={nullptr};gpu.context->CSSetUnorderedAccessViews(0,1,none,nullptr);
-  gpu.context->CopyResource(staging.Get(),memory.Get());
+  D3D11_BOX rowsBox={offsets[15]*4,0,0,(UINT)(offsets[15]+src.cells)*4,1,1};
+  D3D11_BOX diagBox={offsets[22]*4,0,0,(offsets[22]+16)*4,1,1};
+  gpu.context->CopySubresourceRegion(staging.Get(),0,0,0,0,memory.Get(),0,&rowsBox);
+  gpu.context->CopySubresourceRegion(staging.Get(),0,(UINT)src.cells*4,0,0,memory.Get(),0,&diagBox);
   D3D11_MAPPED_SUBRESOURCE mapped={};checked(gpu.context->Map(staging.Get(),0,D3D11_MAP_READ,0,&mapped),"layout readback");
   const auto* result=(const uint32_t*)mapped.pData;
   uint32_t header[]={0x344c4746,p.W,p.H,p.G};
   std::cout.write((char*)header,sizeof(header));
-  std::cout.write((const char*)(result+offsets[15]),src.cells*4);
-  std::cout.write((const char*)(result+offsets[22]),16*4);
+  std::cout.write((const char*)result,src.cells*4);
+  std::cout.write((const char*)(result+src.cells),16*4);
   gpu.context->Unmap(staging.Get(),0);
   D3D11_QUERY_DATA_TIMESTAMP_DISJOINT freq={};std::array<double,8> timings{};timings.fill(-1);
   if(gpu.context->GetData(disjoint.Get(),&freq,sizeof(freq),0)==S_OK&&!freq.Disjoint){

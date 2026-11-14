@@ -73,6 +73,23 @@ struct InputView {
  ComPtr<ID3D11ShaderResourceView> srv;
 };
 
+static std::wstring shaderCachePath(const std::wstring& source,const char* entry){
+ std::wstring suffix;for(auto p=entry;*p;p++)suffix.push_back((wchar_t)*p);
+ return source+L"-"+suffix+L".cso";
+}
+static ComPtr<ID3DBlob> readShaderCache(const std::wstring& source,const char* entry){
+ ComPtr<ID3DBlob> code;auto cache=shaderCachePath(source,entry);
+ WIN32_FILE_ATTRIBUTE_DATA a={},b={};
+ if(!GetFileAttributesExW(cache.c_str(),GetFileExInfoStandard,&a)||!GetFileAttributesExW(source.c_str(),GetFileExInfoStandard,&b))return code;
+ if(CompareFileTime(&a.ftLastWriteTime,&b.ftLastWriteTime)<0)return code;
+ auto directory=source.substr(0,source.find_last_of(L"\\/")+1);WIN32_FIND_DATAW found={};
+ HANDLE search=FindFirstFileW((directory+L"*.hlsl").c_str(),&found);
+ if(search!=INVALID_HANDLE_VALUE){bool stale=false;do{if(CompareFileTime(&a.ftLastWriteTime,&found.ftLastWriteTime)<0)stale=true;}while(FindNextFileW(search,&found));FindClose(search);if(stale)return code;}
+ D3DReadFileToBlob(cache.c_str(),&code);return code;
+}
+static void writeShaderCache(const std::wstring& source,const char* entry,ID3DBlob* code){
+ if(std::getenv("TASL_WRITE_SHADER_CACHE"))checked(D3DWriteBlobToFile(code,shaderCachePath(source,entry).c_str(),TRUE),"write shader cache");
+}
 struct NativeDirectCompute {
  UINT adapterIndex=0;
  ComPtr<ID3D11Device> device;

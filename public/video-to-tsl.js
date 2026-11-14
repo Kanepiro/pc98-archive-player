@@ -93,7 +93,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
    const engineVersion=baseEngineVersion+(sourceGrid?20:0);
    const signature=JSON.stringify([engineVersion,identity,await fingerprint(file),
     [options.width,options.height,options.fps,options.brightness,options.contrast,options.gamma,options.edge,options.conversionMode,options.native16,sourceGrid,fit,positionX,positionY],
-    [video.videoWidth,video.videoHeight,video.duration,plan.count],!!input.exactNative]);
+    [video.videoWidth,video.videoHeight,video.duration,plan.count],!!input.exactNative,!!input.legacyLayout]);
    const previous=await readCheckpoint();
    if(previous?.job.signature===signature){
     try{
@@ -139,14 +139,14 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
      worker.onerror=e=>finish(Error(e.message||'変換ワーカーを開始できませんでした'));
      worker.onmessage=({data:d})=>finish(d.error?Error(d.error):null);
      worker.postMessage({type:'init',atlas,sample,state:resumeState,width:plan.width,height:plan.height,mode:options.conversionMode,
-      exactNative:input.exactNative===true});
+      exactNative:input.exactNative===true,legacyLayout:input.legacyLayout===true});
     });
    }
    if(options.conversionMode==='artisan'){
     onProgress({phase:'vision',message:'顔・動物・物体の認識モデルを準備しています'});
     try{
      const module=await import('./tsl-artisan-vision.js');
-     if(input.exactNative){
+     if(input.exactNative&&!input.legacyLayout){
       try{const native=await import('./tsl-native-vision.js');vision=await native.createNativeVision({onStatus:message=>onProgress({phase:'vision',message})});}
       catch(e){onProgress({phase:'vision',message:'DirectML認識を使えません: '+e.message});}
      }
@@ -191,7 +191,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
    const elapsed=(performance.now()-started)/1000,processed=i+1-resumeStart;
    onProgress({phase:'converting',done:i+1,total:plan.count,seconds:time,elapsed,
     remaining:elapsed/processed*(plan.count-i-1),plan,saved,acceleration,
-    perf:converted.perf,adapterInfo:converted.adapterInfo,gpuReason:converted.gpuReason});
+    visionBackend:vision?(vision.backend||'MediaPipe CPU'):'利用不可',perf:converted.perf,adapterInfo:converted.adapterInfo,gpuReason:converted.gpuReason});
   }
   check(signal);
   const blob=writer.finish();

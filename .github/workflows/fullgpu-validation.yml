@@ -37,6 +37,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          $env:TASL_WRITE_SHADER_CACHE = '1'
           cmake -S native-boost -B gpu-build -A x64
           if ($LASTEXITCODE -ne 0) { throw 'CMake failed' }
           cmake --build gpu-build --config Release --parallel 2
@@ -52,6 +53,14 @@ jobs:
           $env:TASL_TEST_WARP = '1'
           & gpu-build/Release/fullgpu_layout.exe --probe
           if ($LASTEXITCODE -ne 0) { throw 'WARP initialization failed' }
+      - name: Download pinned FFmpeg for native output validation
+        shell: pwsh
+        run: |
+          Invoke-WebRequest 'https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-8.1.2-essentials_build.zip' -OutFile ffmpeg.zip
+          if ((Get-FileHash ffmpeg.zip -Algorithm SHA256).Hash.ToLower() -ne 'db580001caa24ac104c8cb856cd113a87b0a443f7bdf47d8c12b1d740584a2ec') { throw 'FFmpeg hash mismatch' }
+          Expand-Archive ffmpeg.zip ffmpeg-dist
+          Copy-Item (Get-ChildItem ffmpeg-dist -Recurse -Filter ffmpeg.exe).FullName native-boost/
+          Copy-Item (Get-ChildItem ffmpeg-dist -Recurse -Filter ffprobe.exe).FullName native-boost/
       - name: Run independent original-critic regression
         shell: pwsh
         run: |
@@ -60,6 +69,9 @@ jobs:
           npm run build
           if ($LASTEXITCODE -ne 0) { throw 'Web build failed' }
           Copy-Item gpu-build/Release/*.exe native-boost/
+          Copy-Item gpu-build/Release/*.cso native-boost/
+          & native-boost/ffmpeg.exe -hide_banner -loglevel error -f lavfi -i 'testsrc2=size=640x360:rate=4:duration=2' -c:v libx264 -pix_fmt yuv420p -y dist/__validation.mp4
+          if ($LASTEXITCODE -ne 0) { throw 'Comparison video creation failed' }
           $env:TASL_TEST_WARP = '1'
           $env:TASL_NO_BROWSER = '1'
           $env:TASL_BOOST_PORT = '39085'
@@ -69,11 +81,15 @@ jobs:
             Start-Sleep -Seconds 3
             node tests/fullgpu-layout.browser.mjs
             if ($LASTEXITCODE -ne 0) { throw 'Native layout regression failed' }
+            node tests/video-comparison.browser.mjs
+            if ($LASTEXITCODE -ne 0) { throw 'Whole video comparison failed' }
           } finally { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
       - name: Verify native GPU detection postprocessing
         shell: pwsh
         run: |
           pip install numpy==1.26.4 opencv-python-headless==4.11.0.86
+          python tests/preprocess-parity.py
+          if ($LASTEXITCODE -ne 0) { throw 'GPU preprocessing regression failed' }
           python tests/nms-parity.py
           if ($LASTEXITCODE -ne 0) { throw 'GPU NMS regression failed' }
       - name: Verify GPU raster against original Windows GDI
@@ -81,6 +97,11 @@ jobs:
         run: |
           python tests/raster-parity.py
           if ($LASTEXITCODE -ne 0) { throw 'GPU raster parity failed' }
+      - name: Compare complete MP4 output from the same source
+        shell: pwsh
+        run: |
+          python tests/mp4-comparison.py
+          if ($LASTEXITCODE -ne 0) { throw 'Native MP4 comparison failed' }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -89,4 +110,66 @@ jobs:
             gpu-build/Release/
             gpu-validation/
             gpu-server.log
+            native-boost/ffmpeg.exe
+            native-boost/ffprobe.exe
+          retention-days: 7
+
+  package:
+    needs: [windows, models]
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: FullGPU-internal-validation
+          path: build-input
+      - uses: actions/download-artifact@v4
+        with:
+          name: Source-models-for-DirectML
+          path: model-input
+      - name: Build portable application with native DirectML runtime
+        shell: pwsh
+        run: |
+          pip install pyinstaller==6.16.0 onnxruntime-directml==1.23.2 numpy==1.26.4 opencv-python-headless==4.11.0.86
+          if ($LASTEXITCODE -ne 0) { throw 'Python runtime installation failed' }
+          npm ci
+          npm run build
+          if ($LASTEXITCODE -ne 0) { throw 'App build failed' }
+          python -m PyInstaller --noconfirm --clean --onedir --name TASL-PC-Boost --distpath native-dist --workpath native-temp --collect-all onnxruntime --collect-all cv2 native-boost/bridge.py
+          if ($LASTEXITCODE -ne 0) { throw 'Portable build failed' }
+          $app = 'native-dist/TASL-PC-Boost'
+          Copy-Item build-input/gpu-build/Release/*.exe $app/
+          Copy-Item build-input/gpu-build/Release/*.hlsl $app/
+          Copy-Item build-input/gpu-build/Release/*.cso $app/
+          Copy-Item build-input/native-boost/ffmpeg.exe $app/
+          Copy-Item build-input/native-boost/ffprobe.exe $app/
+          Copy-Item dist $app/app -Recurse
+          Copy-Item model-input $app/models -Recurse
+          Copy-Item build-input/gpu-validation $app/VALIDATION -Recurse
+          Copy-Item native-boost/README-FULLGPU-JA.md $app/README-JA.md
+          Copy-Item native-boost/CHANGELOG-FULLGPU.md $app/CHANGELOG.md
+          Copy-Item native-boost/VALIDATION-NOTES.md $app/VALIDATION-NOTES.md
+          python tests/packaged-smoke.py $app
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged application smoke test failed' }
+          python native-boost/package_report.py $app
+          if ($LASTEXITCODE -ne 0) { throw 'Validation report generation failed' }
+          Compress-Archive -Path $app -DestinationPath TASL-PC-Boost-v0.3.38-NativeGPU-Windows-x64.zip
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: TASL-PC-Boost-v0.3.38-NativeGPU-Windows-x64
+          path: TASL-PC-Boost-v0.3.38-NativeGPU-Windows-x64.zip
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: Packaged-smoke-failure
+          path: native-dist/TASL-PC-Boost/packaged-smoke.log
           retention-days: 7

@@ -16,7 +16,7 @@ export async function createNativeVision({onStatus=()=>{}}={}){
     const pixels=c.getImageData(0,0,sw,sh).data;
     const result=await fetch('/api/vision/detect',{method:'POST',headers:{'Content-Type':'application/octet-stream','X-TASL-Width':String(sw),'X-TASL-Height':String(sh)},body:pixels,signal:AbortSignal.timeout(90000)});
     if(!result.ok)throw Error((await result.text()).slice(0,300));
-    const d=await result.json();backend=d.backend;lastTiming=d.timing;
+    const d=await result.json();backend=d.backend;lastTiming={...d.timing,preprocessBackend:d.preprocessBackend,providerEvidence:d.providerEvidence};
     previous=mapVisionDetections(d.objects,d.faces,sw,sh,rect,w,h);last=time;return previous;
    }catch(e){
     onStatus('DirectML画像認識を使用できないため元のCPUモデルへ切替: '+e.message);

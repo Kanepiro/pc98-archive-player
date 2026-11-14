@@ -12,11 +12,12 @@ struct ContourGPU {
  struct alignas(16) Params {uint32_t w,h,op,stage,source,destination,axis,count;float brightness,contrast,gamma,reserved;};
  static ComPtr<ID3DBlob> compile(const char* entry){
   auto path=shaderFilename();path=path.substr(0,path.find_last_of(L"\\/")+1)+L"fullgpu_contour.hlsl";
+  auto cached=readShaderCache(path,entry);if(cached)return cached;
   ComPtr<ID3DBlob> code,error;
   auto hr=D3DCompileFromFile(path.c_str(),nullptr,D3D_COMPILE_STANDARD_FILE_INCLUDE,entry,"cs_5_0",
     D3DCOMPILE_ENABLE_STRICTNESS|D3DCOMPILE_OPTIMIZATION_LEVEL3,0,&code,&error);
   if(FAILED(hr))throw std::runtime_error(std::string(entry)+": "+(error?(char*)error->GetBufferPointer():"compile failed"));
-  return code;
+  writeShaderCache(path,entry,code.Get());return code;
  }
  ContourGPU(){
   const char* entries[]={"normalize","blur","grayCopy","gradient","peaks","connect","compress","componentStats","target","distanceField","thin","thin","semanticPriority","topologyStats","pruneTopology","junctionPriority","clearFace","drawFace","visionPreprocess"};
@@ -65,6 +66,8 @@ struct ContourGPU {
   D3D11_UNORDERED_ACCESS_VIEW_DESC ud={};ud.ViewDimension=D3D11_UAV_DIMENSION_BUFFER;ud.Buffer.NumElements=(UINT)host.size();
   checked(gpu.device->CreateUnorderedAccessView(buffer.Get(),&ud,&uav),"contour arena view");
   d.BindFlags=0;d.MiscFlags=0;d.StructureByteStride=0;d.Usage=D3D11_USAGE_STAGING;d.CPUAccessFlags=D3D11_CPU_ACCESS_READ;
+  uint32_t outputWords=p.op==6?128*128*3+320*320:n*(p.op==1||p.op==4?3:p.op==5?2:1);
+  d.ByteWidth=(outputWords+4)*4;
   checked(gpu.device->CreateBuffer(&d,nullptr,&readback),"contour readback");
   if(p.op==1){
    launch(0,p,n);
@@ -110,15 +113,19 @@ struct ContourGPU {
     p.source=8;p.destination=7;p.stage=1;launch(10,p,n);
    }
   }
-  unbind();gpu.context->CopyResource(readback.Get(),buffer.Get());
+  unbind();uint32_t destinationByte=16;
+  auto copyOutput=[&](uint32_t slot,uint32_t words){D3D11_BOX b={offsets[slot]*4,0,0,(offsets[slot]+words)*4,1,1};
+   gpu.context->CopySubresourceRegion(readback.Get(),0,destinationByte,0,0,buffer.Get(),0,&b);destinationByte+=words*4;};
+  if(p.op==4){D3D11_BOX b={(offsets[13]+2)*4,0,0,(offsets[13]+3)*4,1,1};gpu.context->CopySubresourceRegion(readback.Get(),0,0,0,0,buffer.Get(),0,&b);}
+  if(p.op==6){copyOutput(3,128*128*3);copyOutput(10,320*320);}
+  else if(p.op==5){copyOutput(10,n);copyOutput(15,n);}
+  else if(p.op==4){copyOutput(10,n);copyOutput(15,n);copyOutput(7,n);}
+  else if(p.op==1){copyOutput(10,n);copyOutput(3,n);copyOutput(11,n);}
+  else copyOutput(p.op==2?11:7,n);
   D3D11_MAPPED_SUBRESOURCE mapped={};checked(gpu.context->Map(readback.Get(),0,D3D11_MAP_READ,0,&mapped),"contour result");
   auto* result=(uint32_t*)mapped.pData;
-  uint32_t outputHeader[]={0x43524754,p.op,n,p.op==4?result[offsets[13]+2]:0};std::cout.write((char*)outputHeader,16);
-  if(p.op==6){std::cout.write((char*)(result+offsets[3]),128*128*3*4);std::cout.write((char*)(result+offsets[10]),320*320*4);}
-  else if(p.op==5){for(auto k:{10,15})std::cout.write((char*)(result+offsets[k]),n*4);}
-  else if(p.op==4){for(auto k:{10,15,7})std::cout.write((char*)(result+offsets[k]),n*4);}
-  else if(p.op==1){for(auto k:{10,3,11})std::cout.write((char*)(result+offsets[k]),n*4);}
-  else std::cout.write((char*)(result+offsets[p.op==2?11:7]),n*4);
+  uint32_t outputHeader[]={0x43524754,p.op,n,p.op==4?result[0]:0};std::cout.write((char*)outputHeader,16);
+  std::cout.write((char*)(result+4),outputWords*4);
   gpu.context->Unmap(readback.Get(),0);
   double wall=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-begin).count();
   std::cout.write((char*)&wall,8);std::cout.flush();

@@ -1,11 +1,6 @@
-"""TASL faithful PC Boost: loopback-only local player and exact native scoring.
-
-The video->TSL conversion always runs the original browser Mode 1/2/3/4
-pipeline, INCLUDING MediaPipe and the original structural AA layout.
-Only the original Mode 4 placementLoss arithmetic is offloaded to a compiled
-CPU scorer, with per-frame CPU parity checking and safe fallback.
-
-Standalone Windows EXE uses this to serve the original bundled player.
+"""Windows-native GPU host: DirectCompute image analysis and whole-frame layout,
+DirectML source-model inference, and native GPU raster/NV12 plus NVENC.
+CPU is retained for host control, serialization, I/O, and failed GPU stages.
 """
 import hashlib
 import json
@@ -215,7 +210,7 @@ atexit.register(GPU.close)
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TASL-Faithful-Boost/0.3.37"
+    server_version = "TASL-FullGPU-Boost/0.3.38"
 
     def allowed(self):
         origin = self.headers.get("Origin", "")
@@ -307,8 +302,8 @@ class Handler(BaseHTTPRequestHandler):
                 "backend": v.backend if v and v.ready else "CPU fallback"})
         if route == "/health":
             return self.response(200, {
-                "name": "TASL Original Algorithm PC Boost",
-                "version": "0.3.37", "originalMode4": True,
+                "name": "TASL Native GPU PC Boost",
+                "version": "0.3.38", "originalMode4": True,
                 "nativeExact": bool(executable("mode4_score_exact")),
                 "nativeGpu": GPU.probe(),
                 "nativeContour": CONTOUR.probe(), "contourReason": CONTOUR.reason,
@@ -336,8 +331,11 @@ class Handler(BaseHTTPRequestHandler):
                         "message": job.mp4_message, "encoder": job.mp4_encoder,
                         "done": job.mp4_done, "total": job.mp4_total,
                         "width": job.mp4_width, "height": job.mp4_height,
+                        "reportReady": job.output.with_suffix(".mp4-report.json").is_file(),
                         "size": ready.stat().st_size
                         if job.mp4_state == "done" and ready.is_file() else 0})
+            if parts[4] == "report":
+                return self.send_file(job.output.with_suffix(".mp4-report.json"),"application/json")
             if parts[4] == "result":
                 with job.lock:
                     done = job.mp4_state == "done"
@@ -527,7 +525,7 @@ def main():
     except OSError as exc:
         raise SystemExit("Port 39083 in use. Close the other TASL PC Boost first.") from exc
     url = f"http://{HOST}:{PORT}/"
-    print("TASL Original Algorithm Boost: " + url, flush=True)
+    print("TASL Native GPU PC Boost: " + url, flush=True)
     if os.getenv("TASL_NO_BROWSER") != "1" and WEB_ROOT.joinpath("index.html").exists():
         threading.Timer(.6, lambda: webbrowser.open(url)).start()
     try:

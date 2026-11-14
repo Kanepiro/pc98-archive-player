@@ -18,6 +18,7 @@ self.onmessage=async({data:d})=>{
     if(d.mode==='artisan'&&d.exactNative)
      await quality.enablePCBoost(d.width,d.height);
     else await quality.enableWebGPU(d.width,d.height);
+    if(d.mode==='artisan'&&d.exactNative&&d.legacyLayout){quality.fullGpuLayout=null;quality.nativeContour=null;}
    }
    self.postMessage({ready:true,gpuAvailable:!!quality?.gpuMatcher||!!tones});return;
   }

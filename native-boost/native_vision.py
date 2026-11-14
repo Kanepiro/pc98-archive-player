@@ -76,12 +76,12 @@ class NativeVision:
             transform=np.array([[sx,0,tx],[0,sx,ty]],np.float32)
             preprocess_backend="CPU"
             try:
-                if self.test_cpu:raise RuntimeError("Explicit CPU model test")
+                if self.test_cpu and os.getenv("TASL_TEST_NATIVE_VISION")!="1":raise RuntimeError("Explicit CPU model test")
                 payload=struct.pack("<4I3fI",0x43504754,6,w,h,0,1,1,0)+rgba
                 data=self.preprocessor.compute(payload)
                 face_input=np.frombuffer(data,np.float32,count=128*128*3,offset=16).reshape(1,128,128,3)
                 obj=np.frombuffer(data,np.uint8,count=320*320*4,offset=16+128*128*3*4).reshape(320,320,4)[:,:,:3].copy()
-                preprocess_backend="DirectCompute"
+                preprocess_backend="WARP-Test" if self.preprocessor.software else "DirectCompute"
             except Exception as e:
                 face=cv2.warpAffine(rgb,transform,(128,128),flags=cv2.INTER_LINEAR,borderMode=cv2.BORDER_CONSTANT,borderValue=0)
                 obj=cv2.resize(rgb,(320,320),interpolation=cv2.INTER_LINEAR)

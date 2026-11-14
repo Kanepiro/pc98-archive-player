@@ -9,6 +9,8 @@ import math
 from pathlib import Path
 import re
 import subprocess
+import time
+from gpu_metrics import RunMetrics
 
 def metadata(tsl):
     with tsl.open("rb") as f:
@@ -81,6 +83,7 @@ def _encode(job, executable, fps, native_width, native_height,
            "-y", str(target)]
     render_log = job.output.with_suffix(".render.log")
     renderer = encoder = None
+    attempt_started=time.perf_counter()
     last_lines = []
     try:
         with render_log.open("wb") as log:
@@ -128,9 +131,15 @@ def _encode(job, executable, fps, native_width, native_height,
                     proc.kill()
         with job.lock:
             job.mp4_procs = []
+            if not hasattr(job,"mp4_attempts"):job.mp4_attempts=[]
+            job.mp4_attempts.append({"wallSeconds":time.perf_counter()-attempt_started,
+                "encoder":codec,"raster":"DirectCompute NV12" if gpu_raster else "GDI CPU",
+                "encoderExit":encoder.returncode if encoder else None,"rendererExit":renderer.returncode if renderer else None,
+                "renderLog":render_log.read_text(encoding="utf-8",errors="replace")[-2000:] if render_log.exists() else ""})
 
 
 def run_mp4(job, executable):
+    metrics=RunMetrics(job.output.parent);measurement=metrics.start();started=time.perf_counter()
     try:
         with job.lock:
             job.mp4_state = "preparing"
@@ -198,6 +207,13 @@ def run_mp4(job, executable):
         _log(job, state="cancelled" if job.mp4_cancel else "error",
              message=str(exc)[:800])
     finally:
+        try:
+            report=metrics.finish(measurement,{"appVersion":"0.3.38","stage":"MP4","status":job.mp4_state,
+                "totalMp4Seconds":time.perf_counter()-started,"encoder":job.mp4_encoder,"message":job.mp4_message,
+                "attempts":getattr(job,"mp4_attempts",[]),"plan":job.plan})
+            job.output.with_suffix(".mp4-report.json").write_bytes(report.read_bytes())
+        except Exception:
+            pass
         with job.lock:
             finished = job.mp4_state == "done"
         # Do not delete user-provided files, only our own hashed temp video.
