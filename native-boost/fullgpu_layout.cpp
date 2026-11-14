@@ -18,7 +18,9 @@ struct FullGPU {
  std::array<ComPtr<ID3D11ComputeShader>,9> shaders;
  ComPtr<ID3D11Buffer> memory,staging,constants,counterReadback;
  ComPtr<ID3D11UnorderedAccessView> uav,scratchA,scratchB;
- bool residentEnabled=false;
+ bool residentEnabled=false,firstRequest=true,bindingsActive=false;
+ int boundShader=-1;
+ std::array<uint32_t,4> residentShape{};
  size_t ringWords=0,baseWords=0;
  std::vector<uint32_t> frameInput;
  std::array<double,16> metrics{};
@@ -133,14 +135,15 @@ struct FullGPU {
   if(residentEnabled&&ringWords*4*10+1024*1024>256ull*1024*1024){residentEnabled=false;fallbackReason=1;}
   // A single job-start check. Never resize/tune based on per-frame load.
   videoMemory();
-  if(residentEnabled&&metrics[13]>=0&&metrics[13]>0&&
-     metrics[12]+double((baseWords+ringWords*10)*4)+256.0*1024*1024>metrics[13]){
+  if(residentEnabled&&(metrics[13]<=0||
+     metrics[12]+double((baseWords+ringWords*10)*4)+256.0*1024*1024>metrics[13])){
    residentEnabled=false;fallbackReason=2;
   }
   const size_t desired=baseWords+(residentEnabled?ringWords*10:0);
+  const std::array<uint32_t,4> shape={(uint32_t)p.W,(uint32_t)p.H,(uint32_t)p.S,(uint32_t)p.G};
   bool reuse=false;
   if(memory){D3D11_BUFFER_DESC prior={};memory->GetDesc(&prior);
-   reuse=prior.ByteWidth==desired*4&&(!residentEnabled||scratchA);
+   reuse=prior.ByteWidth==desired*4&&(!residentEnabled||(scratchA&&residentShape==shape));
   }
   if(!reuse){
    releaseArena();
@@ -154,6 +157,7 @@ struct FullGPU {
     releaseArena();residentEnabled=false;fallbackReason=3;allocateArena(baseWords,p.cells);
    }
   }
+  residentShape=shape;
   if(residentEnabled)frameInput.resize(ringWords);
 
   uploadInputs(p);
@@ -173,15 +177,19 @@ struct FullGPU {
    lastParams=p;paramsValid=true;metrics[2]++;metrics[3]+=sizeof(Params);
   }
   metrics[11]++;
-  ID3D11Buffer* cb[]={constants.Get()};ID3D11UnorderedAccessView* uv[]={uav.Get()};
-  gpu.context->CSSetConstantBuffers(0,1,cb);gpu.context->CSSetUnorderedAccessViews(0,1,uv,nullptr);
-  gpu.context->CSSetShader(shaders[which].Get(),nullptr,0);gpu.context->Dispatch(x,y,1);
+  if(!residentEnabled||!bindingsActive){
+   ID3D11Buffer* cb[]={constants.Get()};ID3D11UnorderedAccessView* uv[]={uav.Get()};
+   gpu.context->CSSetConstantBuffers(0,1,cb);gpu.context->CSSetUnorderedAccessViews(0,1,uv,nullptr);bindingsActive=true;
+  }
+  if(!residentEnabled||boundShader!=which){gpu.context->CSSetShader(shaders[which].Get(),nullptr,0);boundShader=which;}
+  gpu.context->Dispatch(x,y,1);
  }
  void start(int k){gpu.context->End(stamps[k].start.Get());}
  void end(int k){gpu.context->End(stamps[k].end.Get());}
  void compute(const LayoutRequest& request){
   const auto& src=*request.value;
-  metrics.fill(0);metrics[10]=-1;metrics[12]=-1;metrics[13]=-1;
+  metrics.fill(0);metrics[7]=firstRequest?2:0;firstRequest=false;
+  metrics[10]=-1;metrics[12]=-1;metrics[13]=-1;
   auto begin=Clock::now();
   const auto priorFallback=fallbackReason;
   if(request.initial||!residentEnabled)prepareArena(src,request.initial&&request.resident);
@@ -217,7 +225,7 @@ struct FullGPU {
   for(UINT parity=0;parity<2&&!budgetReached;parity++)for(UINT y=parity;y+1<p.H&&!budgetReached;y+=2)for(UINT x=parity;x+2<=p.W;x+=2){
    p.x=x;p.y=y;dispatch(5,p,1);dispatch(6,p,cellGroups);dispatch(7,p,1);
    if(++scanned%32==0){
-    ID3D11UnorderedAccessView* empty[]={nullptr};gpu.context->CSSetUnorderedAccessViews(0,1,empty,nullptr);
+    ID3D11UnorderedAccessView* empty[]={nullptr};gpu.context->CSSetUnorderedAccessViews(0,1,empty,nullptr);bindingsActive=false;
     D3D11_BOX box={offsets[22]*4,0,0,offsets[22]*4+16,1,1};
     gpu.context->CopySubresourceRegion(counterReadback.Get(),0,0,0,0,memory.Get(),0,&box);
     metrics[4]++;metrics[5]+=16;
@@ -231,7 +239,7 @@ struct FullGPU {
   end(5);
   if(residentEnabled)dispatch(8,p,cellGroups); // Retain IDs; does not change layout or evaluation.
   gpu.context->End(disjoint.Get());
-  ID3D11UnorderedAccessView* none[]={nullptr};gpu.context->CSSetUnorderedAccessViews(0,1,none,nullptr);
+  ID3D11UnorderedAccessView* none[]={nullptr};gpu.context->CSSetUnorderedAccessViews(0,1,none,nullptr);bindingsActive=false;
   D3D11_BOX rowsBox={offsets[15]*4,0,0,(UINT)(offsets[15]+src.cells)*4,1,1};
   D3D11_BOX diagBox={offsets[22]*4,0,0,(offsets[22]+16)*4,1,1};
   gpu.context->CopySubresourceRegion(staging.Get(),0,0,0,0,memory.Get(),0,&rowsBox);
