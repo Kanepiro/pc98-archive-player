@@ -1,5 +1,6 @@
 import {FullGpuNativeLayout} from './tsl-fullgpu-native.js';
-import {parseArtisanStructure} from './tsl-artisan-structure.js';
+import {parseArtisanStructure,buildArtisanTopology,finishArtisanTopology} from './tsl-artisan-structure.js';
+import {NativeContour} from './tsl-fullgpu-contour.js';
 import {guideArtisanFaces} from './tsl-artisan-portrait.js';
 import {refineArtisanLayout} from './tsl-artisan-critic.js';
 import {Mode4GpuMatcher} from './tsl-artisan-webgpu.js';
@@ -451,7 +452,7 @@ export class ArtisanComposer {
   this.width=0;this.height=0;this.lastDiagnostics=null;
   this.lastFrame=null;this.lastSemanticKey=null;
   this.gpuMatcher=null;this.directComputeMatcher=null;this.exactMatcher=null;
-  this.nativeGpuInfo=null;this.acceleration='CPU';this.fullGpuLayout=null;
+  this.nativeGpuInfo=null;this.acceleration='CPU';this.fullGpuLayout=null;this.nativeContour=null;
   this.lastPerf=null;this.gpuError=null;
  }
  snapshot(){
@@ -486,11 +487,12 @@ export class ArtisanComposer {
    const response=await fetch('/health',{cache:'no-store'});
    if(!response.ok)throw Error('PCネイティブGPUの状態を取得できません');
    const health=await response.json();
+   if(health.nativeContour)this.nativeContour=new NativeContour(!!health.layoutSoftware);
    if(health.nativeLayout){this.fullGpuLayout=new FullGpuNativeLayout(!!health.layoutSoftware);}
    if(!health.nativeGpu&&!health.nativeLayout)
     throw Error(health.gpuReason||'DirectCompute対応GPUが見つかりません');
    this.directComputeMatcher=new Mode4ExactNativeMatcher('/api/mode4/gpu-score');
-   this.nativeGpuInfo={name:health.gpuName||'DirectCompute GPU',
+   this.nativeGpuInfo={name:health.layoutName||health.gpuName||'DirectCompute GPU',
     identified:true,architecture:'Direct3D 11',software:false};
    this.acceleration='DirectCompute';
   }catch(e){
@@ -524,7 +526,7 @@ export class ArtisanComposer {
  }
  async convertAccelerated(pixels,width,height,options={}){
   const start=performance.now();
-  const prepared=this._prepare(pixels,width,height,options);
+  const prepared=this.nativeContour?await this._prepareGpu(pixels,width,height,options):this._prepare(pixels,width,height,options);
   const prepMs=performance.now()-start;
   if(prepared.cached){
    this.lastPerf={prepareMs:prepMs,gpuMs:0,layoutMs:0,reused:true};
@@ -540,7 +542,7 @@ export class ArtisanComposer {
      connectedComponents:prepared.structural.components.length,skeletonStrokes:prepared.structural.strokes.length,
      semanticRegions:prepared.structural.regions.map(r=>r.kind)};
     this.acceleration=result.perf.software?'WARP Test Global':'DirectCompute Global';
-    this.lastPerf={prepareMs:prepMs,...result.perf,gpuMs:result.perf.matchingGpuMs,
+    this.lastPerf={prepareMs:prepMs,contourStages:this.nativeContour?.timings||null,...result.perf,gpuMs:result.perf.matchingGpuMs,
      layoutMs:result.perf.rowLayoutGpuMs+result.perf.bandLayoutGpuMs+result.perf.criticGpuMs};
     return result.frame;
    }catch(e){this.gpuError=String(e);this.fullGpuLayout=null;}
@@ -653,12 +655,28 @@ export class ArtisanComposer {
    gpuValidated:!!gpuScores};
   return output;
  }
- _prepare(pixels,width,height,options={}){
+ async _prepareGpu(pixels,width,height,options){
+  const S=this.sample,old=this.previousGray?.length===width*height*S*S?this.previousGray:null;
+  try{
+   const field=await this.nativeContour.run(1,width*S,height*S,pixels,options);
+   let change=0,count=0;
+   if(old){const step=Math.max(1,Math.floor(field.gray.length/2500));
+    for(let i=0;i<field.gray.length;i+=step){change+=Math.abs(field.gray[i]-old[i]);count++;}}
+   field.cut=count>0&&change/count>.18;
+   const topology=buildArtisanTopology(field,options.semantic);
+   const skeleton=await this.nativeContour.run(3,field.w,field.h,topology.mask);
+   const structure=finishArtisanTopology(field,topology,skeleton);
+   const guided=guideArtisanFaces(field,structure,options.semantic);
+   guided.dist=await this.nativeContour.run(2,field.w,field.h,guided.target);
+   return this._prepare(pixels,width,height,options,field,guided);
+  }catch(e){this.gpuError=String(e);this.nativeContour=null;return this._prepare(pixels,width,height,options);}
+ }
+ _prepare(pixels,width,height,options={},nativeField=null,nativeStructural=null){
   if(!Number.isInteger(width)||!Number.isInteger(height)||width<4||height<4)
    throw Error('モード4の画像サイズが不正です');
   const S=this.sample,oldGray=this.previousGray?.length===width*height*S*S
    ?this.previousGray:null;
-  const field=artisanContourField(pixels,width,height,S,options,oldGray);
+  const field=nativeField||artisanContourField(pixels,width,height,S,options,oldGray);
   const semanticKey=JSON.stringify((options.semantic||[]).map(r=>[
    r.kind,Math.round(r.x*200),Math.round(r.y*200),
    Math.round(r.w*200),Math.round(r.h*200)]));
@@ -674,11 +692,11 @@ export class ArtisanComposer {
     return {cached:this.lastFrame};
    }
   }
-  const rawStructure=parseArtisanStructure(field,options.semantic);
-  const structural=guideArtisanFaces(field,rawStructure,options.semantic);
+  const rawStructure=nativeStructural||parseArtisanStructure(field,options.semantic);
+  const structural=nativeStructural||guideArtisanFaces(field,rawStructure,options.semantic);
   field.target=structural.target;
   field.importance=structural.importance;
-  field.dist=contourDistance(field.target,field.w,field.h);
+  field.dist=nativeStructural?.dist||contourDistance(field.target,field.w,field.h);
   field.faces=(options.semantic||[]).filter(x=>x.kind==='face'&&x.confidence>=.6);
   field.columnCount=width;field.rowCount=height;
   const oldChars=this.width===width&&this.height===height&&!field.cut

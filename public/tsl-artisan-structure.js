@@ -28,7 +28,7 @@ function skeletonize(bits,w,h){
  }
  return data;
 }
-export function parseArtisanStructure(field,semantic=[]){
+export function buildArtisanTopology(field,semantic=[]){
  const {target,w,h}=field,n=w*h;
  if(target.length!==n)throw Error('AAの輪郭データ長が不正です');
  const regions=Array.isArray(semantic)?semantic.filter(r=>
@@ -125,7 +125,12 @@ export function parseArtisanStructure(field,semantic=[]){
     importance:priority});
   }
  }
- const skeleton=skeletonize(mask,w,h),junctions=[],endpoints=[];
+ return {mask,source,importance,components,regions};
+}
+export function finishArtisanTopology(field,topology,skeleton){
+ const {w,h}=field,n=w*h;
+ const {source,importance,components,regions}=topology;
+ const junctions=[],endpoints=[];
  const offsets=[-w,-w+1,1,w+1,w,w-1,-1,-w-1];
  for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
   const i=y*w+x;if(!skeleton[i])continue;
@@ -175,4 +180,9 @@ export function parseArtisanStructure(field,semantic=[]){
  }
  return {target:source,importance,components,skeleton,
   endpoints,junctions,strokes:edges,regions};
+}
+
+export function parseArtisanStructure(field,semantic=[]){
+ const topology=buildArtisanTopology(field,semantic);
+ return finishArtisanTopology(field,topology,skeletonize(topology.mask,field.w,field.h));
 }

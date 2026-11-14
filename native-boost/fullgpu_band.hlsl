@@ -72,11 +72,11 @@ void solveBands(uint3 group:SV_GroupID,uint tid:SV_GroupIndex){
   if(tid==0){makeOptions(y*W+x,true);makeOptions((y+1)*W+x,false);}
   GroupMemoryBarrierWithGroupSync();
   uint total=live*topCount*bottomCount;
-  for(uint task=tid;task<total;task+=128)pairScores[task]=pairCost(task,y,x);
+  [loop] for(uint batch=0;batch<22;batch++){uint task=tid+batch*128;if(task<total)pairScores[task]=pairCost(task,y,x);}
   GroupMemoryBarrierWithGroupSync();
   for(uint rank=0;rank<beamWidth;rank++){
    float best=INF;uint bestIndex=0xffffffff;
-   for(uint scan=tid;scan<total;scan+=128)if(pairScores[scan]<best){best=pairScores[scan];bestIndex=scan;}
+   [loop] for(uint batchScan=0;batchScan<22;batchScan++){uint scan=tid+batchScan*128;if(scan<total&&pairScores[scan]<best){best=pairScores[scan];bestIndex=scan;}}
    reduction[tid]=best;argmin[tid]=bestIndex;
    GroupMemoryBarrierWithGroupSync();
    for(uint stride=64;stride>0;stride/=2){
@@ -97,7 +97,7 @@ void solveBands(uint3 group:SV_GroupID,uint tid:SV_GroupIndex){
    GroupMemoryBarrierWithGroupSync();
    if(chosenIndex!=0xffffffff){
     uint4 key=pairKey(chosenIndex,x);
-    for(uint duplicate=tid;duplicate<total;duplicate+=128)if(all(pairKey(duplicate,x)==key))pairScores[duplicate]=INF;
+    [loop] for(uint batchDuplicate=0;batchDuplicate<22;batchDuplicate++){uint duplicate=tid+batchDuplicate*128;if(duplicate<total&&all(pairKey(duplicate,x)==key))pairScores[duplicate]=INF;}
    }
    GroupMemoryBarrierWithGroupSync();
   }

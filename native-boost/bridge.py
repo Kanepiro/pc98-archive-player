@@ -27,7 +27,7 @@ from pathlib import Path
 from urllib.parse import urlsplit, unquote
 from base64 import urlsafe_b64decode
 import mp4_native
-from fullgpu_bridge import FullGpuClient
+from fullgpu_bridge import FullGpuClient, ContourGpuClient
 
 HOST = "127.0.0.1"
 PORT = int(os.getenv("TASL_BOOST_PORT", "39083"))
@@ -194,6 +194,8 @@ class NativeGpuClient:
 
 GPU = NativeGpuClient()
 LAYOUT = FullGpuClient(executable)
+CONTOUR = ContourGpuClient(executable)
+atexit.register(CONTOUR.close)
 atexit.register(LAYOUT.close)
 atexit.register(GPU.close)
 
@@ -288,6 +290,7 @@ class Handler(BaseHTTPRequestHandler):
                 "version": "0.3.37", "originalMode4": True,
                 "nativeExact": bool(executable("mode4_score_exact")),
                 "nativeGpu": GPU.probe(),
+                "nativeContour": CONTOUR.probe(), "contourReason": CONTOUR.reason,
                 "nativeLayout": LAYOUT.probe(), "layoutName": LAYOUT.name,
                 "layoutSoftware": LAYOUT.software, "layoutReason": LAYOUT.reason,
                 "gpuName": GPU.name,
@@ -326,7 +329,8 @@ class Handler(BaseHTTPRequestHandler):
         if not self.allowed():
             return self.response(403, {"error": "Origin denied"})
         route = urlsplit(self.path).path
-        if route == "/api/mode4/gpu-layout":
+        if route in ("/api/mode4/gpu-layout", "/api/mode4/gpu-contour"):
+            client = CONTOUR if route.endswith("gpu-contour") else LAYOUT
             try:
                 if self.headers.get("Content-Type", "").split(";")[0] != "application/octet-stream":
                     return self.response(415, {"error": "Binary layout payload required"})
@@ -334,9 +338,9 @@ class Handler(BaseHTTPRequestHandler):
                 if not 36 <= length <= MAX_SCORE_REQUEST:
                     raise ValueError("Layout request exceeds capacity")
                 payload = self.rfile.read(length)
-                result = LAYOUT.compute(payload)
+                result = client.compute(payload)
                 return self.response(200, result, "application/octet-stream", {
-                    "X-TASL-Compute-Backend": "WARP-Test" if LAYOUT.software else "DirectCompute-Global"})
+                    "X-TASL-Compute-Backend": "WARP-Test" if client.software else "DirectCompute-Global"})
             except (ValueError, OSError, RuntimeError) as e:
                 return self.response(503, {"error": str(e)[:450]})
         if route == "/api/mode4/gpu-score":

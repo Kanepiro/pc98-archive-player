@@ -6,6 +6,8 @@ import threading
 import queue
 
 class FullGpuClient:
+    program_name = "fullgpu_layout"
+    marker = b"DIRECTCOMPUTE_LAYOUT "
     def __init__(self, executable):
         self.executable = executable
         self.lock = threading.RLock()
@@ -19,15 +21,15 @@ class FullGpuClient:
             if self.known:
                 return self.healthy
             self.known = True
-            program = self.executable("fullgpu_layout")
+            program = self.executable(self.program_name)
             if os.name != "nt" or not program:
                 self.reason = "Windowsネイティブ全体組版GPUを使用できません"
                 return False
             try:
                 p = subprocess.run([program, "--probe"], capture_output=True, timeout=90)
-                self.healthy = p.returncode == 0 and p.stdout.startswith(b"DIRECTCOMPUTE_LAYOUT ")
+                self.healthy = p.returncode == 0 and p.stdout.startswith(self.marker)
                 if self.healthy:
-                    self.name = p.stdout.decode("utf-8", "replace").strip().split("DIRECTCOMPUTE_LAYOUT ", 1)[1]
+                    self.name = p.stdout.decode("utf-8", "replace").strip().split(self.marker.decode(), 1)[1]
                     self.software = "TEST ONLY" in self.name
                 else:
                     self.reason = p.stderr.decode("utf-8", "replace")[-800:]
@@ -49,18 +51,9 @@ class FullGpuClient:
         with self.lock:
             if not self.probe():
                 raise RuntimeError(self.reason)
-            if len(payload) < 36:
-                raise ValueError("Incomplete layout request")
-            magic, version, w, h, s, g, old, cut, faces = struct.unpack_from("<9I", payload)
-            if magic != 0x4353344d or version != 1 or not (4 <= w <= 480 and 4 <= h <= 240 and 4 <= s <= 10 and 2 <= g <= 512 and faces <= 8 and old <= 1 and cut <= 1):
-                raise ValueError("Invalid layout dimensions")
-            cells, n = w*h, w*h*s*s
-            expected = 4*(9+5*n+9*cells+4*faces+7*g+4*g*s*s)
-            if len(payload) != expected or cells*g > 6000000 or n > 3000000:
-                raise ValueError("Layout payload length/capacity mismatch")
-            size = cells*4+144
+            size = self.validate(payload)
             if not self.process or self.process.poll() is not None:
-                self.process = subprocess.Popen([self.executable("fullgpu_layout"), "--stream"],
+                self.process = subprocess.Popen([self.executable(self.program_name), "--stream"],
                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=0)
             proc = self.process
             result = queue.Queue(maxsize=1)
@@ -94,3 +87,29 @@ class FullGpuClient:
                 self.healthy = False
                 self.reason = str(e) or "GPU layout timed out"
                 raise RuntimeError(self.reason) from e
+
+    def validate(self, payload):
+        if len(payload) < 36:
+            raise ValueError("Incomplete layout request")
+        magic, version, w, h, s, g, old, cut, faces = struct.unpack_from("<9I", payload)
+        if magic != 0x4353344d or version != 1 or not (4 <= w <= 480 and 4 <= h <= 240 and 4 <= s <= 10 and 2 <= g <= 512 and faces <= 8 and old <= 1 and cut <= 1):
+            raise ValueError("Invalid layout dimensions")
+        cells, n = w*h, w*h*s*s
+        expected = 4*(9+5*n+9*cells+4*faces+7*g+4*g*s*s)
+        if len(payload) != expected or cells*g > 6000000 or n > 3000000:
+            raise ValueError("Layout payload length/capacity mismatch")
+        return cells*4+144
+
+class ContourGpuClient(FullGpuClient):
+    program_name = "fullgpu_contour"
+    marker = b"DIRECTCOMPUTE_CONTOUR "
+
+    def validate(self, payload):
+        if len(payload) < 32:
+            raise ValueError("Incomplete contour header")
+        magic, op, w, h = struct.unpack_from("<4I", payload)
+        if magic != 0x43504754 or op not in (1, 2, 3) or w < 4 or h < 4 or w*h > 3000000:
+            raise ValueError("Invalid contour dimensions")
+        if len(payload) != 32+w*h*4:
+            raise ValueError("Contour size mismatch")
+        return 24+w*h*(12 if op == 1 else 4)
