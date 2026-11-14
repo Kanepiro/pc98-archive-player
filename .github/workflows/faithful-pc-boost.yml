@@ -113,7 +113,9 @@ jobs:
             node tests/exact-mode4-parity.browser.mjs
             if ($LASTEXITCODE -ne 0) { throw 'Exact scoring changed original Mode 4 output' }
             node tests/faithful-video-parity.browser.mjs
-            if ($LASTEXITCODE -ne 0) { throw 'Original video-to-TSL output differs' }
+            if ($LASTEXITCODE -ne 0) { throw 'Original video-to-TSL regression failed' }
+            node tests/gpu-first-quality.browser.mjs
+            if ($LASTEXITCODE -ne 0) { throw 'GPU-first quality or CPU fallback regression failed' }
             node tests/faithful-mp4.browser.mjs
             if ($LASTEXITCODE -ne 0) { throw 'Original TSL -> native H264/AAC MP4 failed' }
           } finally {
@@ -122,10 +124,10 @@ jobs:
       - name: Package the validated portable Windows application
         shell: pwsh
         run: |
-          Compress-Archive -Path 'pc-boost-package/*' -DestinationPath 'TASL-Faithful-PC-Boost-Windows-x64.zip' -CompressionLevel Optimal
-          if (-not (Test-Path 'TASL-Faithful-PC-Boost-Windows-x64.zip')) { throw 'Final ZIP missing' }
+          Compress-Archive -Path 'pc-boost-package/*' -DestinationPath 'TASL-Faithful-PC-Boost-GPU-Windows-x64.zip' -CompressionLevel Optimal
+          if (-not (Test-Path 'TASL-Faithful-PC-Boost-GPU-Windows-x64.zip')) { throw 'Final ZIP missing' }
       - uses: actions/upload-artifact@v4
         with:
-          name: TASL-Faithful-PC-Boost-Windows-x64
-          path: TASL-Faithful-PC-Boost-Windows-x64.zip
+          name: TASL-Faithful-PC-Boost-GPU-Windows-x64
+          path: TASL-Faithful-PC-Boost-GPU-Windows-x64.zip
           retention-days: 30

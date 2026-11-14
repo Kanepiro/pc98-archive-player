@@ -43,3 +43,5 @@ body.immersive-active header,body.immersive-active .tabs,body.immersive-active f
 /* PC faithful mode is a separate choice, without shifting the settings grid. */
 #pc-boost-setting{display:grid;grid-template-columns:20px minmax(0,1fr);align-items:center}
 #pc-boost-setting small{grid-column:2;line-height:1.6;font-size:11px;color:#a9bfcc}
+
+#pc-boost-setting[hidden]{display:none}

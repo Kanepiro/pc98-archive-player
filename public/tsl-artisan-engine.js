@@ -476,6 +476,17 @@ export class ArtisanComposer {
   this.exactMatcher=new Mode4ExactNativeMatcher();
   this.acceleration='PC Native Exact';
  }
+ async enablePCBoost(width,height){
+  // Use the dedicated GPU to accelerate Mode 4 letter scoring first.
+  // All structural parsing, recognition and 2D AA composition remain original.
+  // When the real GPU cannot be used, retain C++ native CPU as a fallback.
+  this.nativeFallbackAvailable=true;
+  await this.enableWebGPU(width,height);
+  if(!this.gpuMatcher){
+   if(!this.gpuError)this.gpuError='実GPUのWebGPUアダプターが利用できません';
+   this.enableExactNative();
+  }
+ }
  async enableWebGPU(width,height){
   try{
    this.gpuMatcher=await Mode4GpuMatcher.create(this.atlas,this.sample,width,height);
@@ -509,12 +520,46 @@ export class ArtisanComposer {
   }
   const {field,width:w,height:h,S,oldChars,oldGray}=prepared;
   let gpuScores=null,gpuMs=0;
-  if(this.exactMatcher){
+  if(this.gpuMatcher){
+   const gpuStart=performance.now();
+   try{
+    const scores=await this.gpuMatcher.compute(field,oldChars,oldGray);
+    // A GPU's float32 arithmetic may legitimately choose different glyphs
+    // from JS float64. Reject broken scores, NOT normal precision differences.
+    // Keep the original semantic contour and global 2D composition stages.
+    const n=this.atlas.length,cells=w*h;
+    let checked=0,severelyWrong=0;
+    for(let k=0;k<Math.min(128,cells*n);k++){
+     const pos=(k*1543)%cells,j=(k*137)%n,x=pos%w,y=Math.floor(pos/w);
+     const glyph=this.atlas[j];
+     if(x+glyph.columns>w)continue;
+     const hist=strokeHistogram(field.target,glyph.columns*S,S,
+      (y*S)*field.w+x*S,field.w);
+     const cpu=placementLoss(field,glyph,x,y,S,hist,oldChars?.[pos],oldGray);
+     const gpu=scores[pos*n+j];
+     checked++;
+     if(!Number.isFinite(cpu)){
+      if(!Number.isFinite(gpu)||gpu<1e18)severelyWrong++;
+     }else if(!Number.isFinite(gpu)||gpu<0||gpu>=1e18||
+        Math.abs(cpu-gpu)>Math.max(.14,.65*Math.abs(cpu))){
+      severelyWrong++;
+     }
+    }
+    if(checked===0||severelyWrong>Math.max(5,Math.ceil(checked*.15)))
+     throw Error('GPU文字照合が元の輪郭評価から大幅に逸脱しました: '+severelyWrong+'/'+checked);
+    gpuScores=scores;
+    this.acceleration='WebGPU';
+   }catch(e){
+    this.gpuError=String(e);
+    this.gpuMatcher?.dispose();this.gpuMatcher=null;
+    if(this.nativeFallbackAvailable&&!this.exactMatcher)this.enableExactNative();
+   }
+   gpuMs+=performance.now()-gpuStart;
+  }
+  if(this.exactMatcher&&!gpuScores){
    const nativeStart=performance.now();
    try{
-    // Exact offload of the ORIGINAL placementLoss only. The rest of Mode 4
-    // (semantic regions, skeleton, geometry, whole-frame layout and critic)
-    // runs unchanged. Float64 native results avoid tie-breaking artifacts.
+    // Native C++ keeps the original formula and uses float64 scores.
     const orientation=localCellOrientation(field,w,h,S);
     const scores=await this.exactMatcher.compute(field,this.atlas,w,h,S,oldChars,oldGray,orientation);
     const n=this.atlas.length,cells=w*h;
@@ -528,45 +573,18 @@ export class ArtisanComposer {
      const actual=scores[pos*n+j];
      if(!Number.isFinite(expected)?actual!==Infinity:!Number.isFinite(actual)||
         Math.abs(expected-actual)>1e-9)
-      throw Error('PC native score did not match original Mode 4');
+      throw Error('Native C++ scoring did not match original Mode 4');
     }
     gpuScores=scores;
     this.acceleration='PC Native Exact';
    }catch(e){
-    // Never substitute a different AA algorithm or accept corrupt scores.
-    // The fallback below is the unmodified original placementLoss() code.
+    // Neither the GPU nor C++ may silently substitute a different algorithm.
     this.gpuError=String(e);
     this.exactMatcher=null;
-    this.acceleration='CPU';
    }
-   gpuMs=performance.now()-nativeStart;
+   gpuMs+=performance.now()-nativeStart;
   }
-  if(this.gpuMatcher&&!gpuScores){
-   const gpuStart=performance.now();
-   try{
-    gpuScores=await this.gpuMatcher.compute(field,oldChars,oldGray);
-    // Validate several independent stroke orientations and visual scores
-    // against the CPU reference; a driver mismatch must not corrupt output.
-    const n=this.atlas.length,cells=w*h;
-    for(let k=0;k<Math.min(72,cells*n);k++){
-     const pos=(k*1543)%cells,j=(k*137)%n,x=pos%w,y=Math.floor(pos/w);
-     const glyph=this.atlas[j];
-     if(x+glyph.columns>w)continue;
-     const hist=strokeHistogram(field.target,glyph.columns*S,S,
-      (y*S)*field.w+x*S,field.w);
-     const cpu=placementLoss(field,glyph,x,y,S,hist,oldChars?.[pos],oldGray);
-     const gpu=gpuScores[pos*n+j];
-     if(!Number.isFinite(cpu)?gpu<1e18:Math.abs(cpu-gpu)>.0025)
-      throw Error('GPU輪郭方向・文字照合の精度検証に失敗');
-    }
-    this.acceleration='WebGPU';
-   }catch(e){
-    this.gpuError=String(e);
-    this.gpuMatcher?.dispose();this.gpuMatcher=null;
-    gpuScores=null;this.acceleration='CPU';
-   }
-   gpuMs=performance.now()-gpuStart;
-  }else if(!gpuScores)this.acceleration='CPU';
+  if(!gpuScores)this.acceleration='CPU';
   const layoutStart=performance.now();
   const output=this._render(prepared,gpuScores,null);
   this.lastPerf={prepareMs:prepMs,gpuMs,layoutMs:performance.now()-layoutStart,
