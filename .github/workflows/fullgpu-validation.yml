@@ -6,6 +6,22 @@ on:
 permissions:
   contents: read
 jobs:
+  models:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install tensorflow-cpu==2.19.1 tf2onnx==1.16.1 numpy==1.26.4
+      - run: python native-boost/build_vision_models.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Source-models-for-DirectML
+          path: |
+            native-boost/models/*-directml.onnx
+            native-boost/models/metadata.json
+          retention-days: 7
   windows:
     runs-on: windows-latest
     timeout-minutes: 45

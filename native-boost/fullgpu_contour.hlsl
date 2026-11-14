@@ -115,3 +115,5 @@ void thin(uint3 id:SV_DispatchThreadID){
 }
 
 #include "fullgpu_topology.hlsl"
+
+#include "fullgpu_faces.hlsl"

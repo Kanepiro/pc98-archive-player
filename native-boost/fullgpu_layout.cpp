@@ -147,6 +147,7 @@ int main(int argc,char** argv){
     auto code=fullShader(name);std::cout<<name<<" "<<code->GetBufferSize()<<" bytes\n";
    }return 0;
   }
+  if(argc==2&&std::string(argv[1])=="--adapter-index"){NativeDirectCompute gpu;std::cout<<gpu.adapterIndex<<"\n";return 0;}
   FullGPU engine;
   if(argc==2&&std::string(argv[1])=="--probe"){std::cout<<"DIRECTCOMPUTE_LAYOUT "<<engine.gpu.gpuName<<"\n";return 0;}
   if(argc!=2||std::string(argv[1])!="--stream")throw std::runtime_error("expected --stream");

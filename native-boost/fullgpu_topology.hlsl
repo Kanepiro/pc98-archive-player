@@ -5,7 +5,7 @@ void semanticPriority(uint3 id:SV_DispatchThreadID){
  uint i=id.x+id.y*65535*128;if(i>=w*h)return;
  uint x=i%w,y=i/w;bool hasFace=false,hasSubject=false;int mainFace=-1;float confidence=-1;
  for(uint r=0;r<count;r++){
-  uint kind=(uint)region(r,0);hasFace|=kind==1;hasSubject|=kind==1||kind==2;
+  uint kind=(uint)region(r,0);hasFace=hasFace||kind==1;hasSubject=hasSubject||kind==1||kind==2;
   if(kind==1&&region(r,5)>=.6&&region(r,5)>confidence){mainFace=r;confidence=region(r,5);}
  }
  float value=v(10,i),priority=hasSubject?.24:.70;

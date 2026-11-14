@@ -664,7 +664,7 @@ export class ArtisanComposer {
     for(let i=0;i<field.gray.length;i+=step){change+=Math.abs(field.gray[i]-old[i]);count++;}}
    field.cut=count>0&&change/count>.18;
    const structure=await this.nativeContour.run(4,field.w,field.h,field.target,options);
-   const guided=guideArtisanFaces(field,structure,options.semantic);
+   const guided=await this.nativeContour.faces(field,structure,options.semantic);
    guided.dist=await this.nativeContour.run(2,field.w,field.h,guided.target);
    return this._prepare(pixels,width,height,options,field,guided);
   }catch(e){this.gpuError=String(e);this.nativeContour=null;return this._prepare(pixels,width,height,options);}

@@ -4,7 +4,7 @@
 #include <cstring>
 struct ContourGPU {
  NativeDirectCompute gpu;
- std::array<ComPtr<ID3D11ComputeShader>,16> shaders;
+ std::array<ComPtr<ID3D11ComputeShader>,19> shaders;
  ComPtr<ID3D11Buffer> buffer,readback,counterReadback,constants;
  ComPtr<ID3D11UnorderedAccessView> uav;
  std::vector<uint32_t> host;
@@ -19,8 +19,8 @@ struct ContourGPU {
   return code;
  }
  ContourGPU(){
-  const char* entries[]={"normalize","blur","grayCopy","gradient","peaks","connect","compress","componentStats","target","distanceField","thin","thin","semanticPriority","topologyStats","pruneTopology","junctionPriority"};
-  for(size_t i=0;i<16;i++){auto c=compile(entries[i]);checked(gpu.device->CreateComputeShader(c->GetBufferPointer(),c->GetBufferSize(),nullptr,&shaders[i]),"contour shader");}
+  const char* entries[]={"normalize","blur","grayCopy","gradient","peaks","connect","compress","componentStats","target","distanceField","thin","thin","semanticPriority","topologyStats","pruneTopology","junctionPriority","clearFace","drawFace","visionPreprocess"};
+  for(size_t i=0;i<19;i++){auto c=compile(entries[i]);checked(gpu.device->CreateComputeShader(c->GetBufferPointer(),c->GetBufferSize(),nullptr,&shaders[i]),"contour shader");}
   D3D11_BUFFER_DESC d={};d.ByteWidth=sizeof(Params);d.BindFlags=D3D11_BIND_CONSTANT_BUFFER;d.Usage=D3D11_USAGE_DEFAULT;
   checked(gpu.device->CreateBuffer(&d,nullptr,&constants),"contour constants");
   d.ByteWidth=16;d.Usage=D3D11_USAGE_STAGING;d.BindFlags=0;d.CPUAccessFlags=D3D11_CPU_ACCESS_READ;
@@ -44,16 +44,18 @@ struct ContourGPU {
  void compute(){
   auto begin=std::chrono::steady_clock::now();
   uint32_t head[8];std::cin.read((char*)head,sizeof(head));if(!std::cin)throw std::runtime_error("contour header");
-  if(head[0]!=0x43504754||head[1]<1||head[1]>4||head[2]<4||head[3]<4||uint64_t(head[2])*head[3]>3000000)throw std::runtime_error("contour bounds");
+  if(head[0]!=0x43504754||head[1]<1||head[1]>6||head[2]<4||head[3]<4||uint64_t(head[2])*head[3]>3000000)throw std::runtime_error("contour bounds");
   Params p={head[2],head[3],head[1],0,0,0,0,1,0,1,1,0};
   std::memcpy(&p.brightness,head+4,12);
   if(!std::isfinite(p.brightness)||!std::isfinite(p.contrast)||!std::isfinite(p.gamma)||p.gamma<=0)throw std::runtime_error("contour settings");
+  if(p.op==5&&head[7]>100000)throw std::runtime_error("face point bounds");
   uint32_t n=p.w*p.h;host.assign(64,0);
   auto allocate=[&](uint32_t index,uint32_t count){offsets[index]=(uint32_t)host.size();host.resize(host.size()+count,0);};
-  for(uint32_t k=0;k<24;k++)allocate(k,k==21?8*24:k==1||k==2?4*n:k==13?4:n);
+  for(uint32_t k=0;k<24;k++)allocate(k,p.op==6?(k==0?n:k==3?128*128*3:k==10?320*320:1):k==21?(p.op==5?8+head[7]*4:8*24):k==1||k==2?4*n:k==13?4:n);
   std::copy(offsets,offsets+24,host.begin());
-  uint32_t input=p.op==1?0:p.op==2||p.op==4?10:7;
+  uint32_t input=p.op==1||p.op==6?0:p.op==2||p.op==4||p.op==5?10:7;
   std::cin.read((char*)(host.data()+offsets[input]),n*4);if(!std::cin)throw std::runtime_error("contour pixels");
+  if(p.op==5){p.count=head[7];if(p.count>100000)throw std::runtime_error("face points limit");std::cin.read((char*)(host.data()+offsets[15]),n*4);std::cin.read((char*)(host.data()+offsets[21]),(8+p.count*4)*4);if(!std::cin)throw std::runtime_error("face command input");}
   if(p.op==4){p.count=head[7];if(p.count>8)throw std::runtime_error("semantic region count");std::cin.read((char*)(host.data()+offsets[21]),p.count*24*4);if(!std::cin)throw std::runtime_error("semantic region input");}
   if(p.op==3)for(uint32_t i=0;i<n;i++)if(host[offsets[7]+i]>1)throw std::runtime_error("skeleton mask not binary");
   buffer.Reset();readback.Reset();uav.Reset();
@@ -81,6 +83,8 @@ struct ContourGPU {
    if(!converged)throw std::runtime_error("GPU contour connectivity did not converge; CPU retry required");
    launch(7,p,n);launch(8,p,n);launch(9,p,n);
   }else if(p.op==2){launch(9,p,n);}
+  else if(p.op==5){launch(16,p,n);launch(17,p,p.count);}
+  else if(p.op==6){launch(18,p,320*320);}
   else if(p.op==4){
    launch(12,p,n);bool converged=false;
    for(int iter=0;iter<64;iter++){
@@ -110,7 +114,9 @@ struct ContourGPU {
   D3D11_MAPPED_SUBRESOURCE mapped={};checked(gpu.context->Map(readback.Get(),0,D3D11_MAP_READ,0,&mapped),"contour result");
   auto* result=(uint32_t*)mapped.pData;
   uint32_t outputHeader[]={0x43524754,p.op,n,p.op==4?result[offsets[13]+2]:0};std::cout.write((char*)outputHeader,16);
-  if(p.op==4){for(auto k:{10,15,7})std::cout.write((char*)(result+offsets[k]),n*4);}
+  if(p.op==6){std::cout.write((char*)(result+offsets[3]),128*128*3*4);std::cout.write((char*)(result+offsets[10]),320*320*4);}
+  else if(p.op==5){for(auto k:{10,15})std::cout.write((char*)(result+offsets[k]),n*4);}
+  else if(p.op==4){for(auto k:{10,15,7})std::cout.write((char*)(result+offsets[k]),n*4);}
   else if(p.op==1){for(auto k:{10,3,11})std::cout.write((char*)(result+offsets[k]),n*4);}
   else std::cout.write((char*)(result+offsets[p.op==2?11:7]),n*4);
   gpu.context->Unmap(readback.Get(),0);
@@ -122,7 +128,7 @@ int main(int argc,char** argv){
  try{
   _setmode(_fileno(stdin),_O_BINARY);_setmode(_fileno(stdout),_O_BINARY);
   if(argc==2&&std::string(argv[1])=="--check-shader"){
-   for(auto e:{"normalize","blur","grayCopy","gradient","peaks","connect","compress","componentStats","target","distanceField","thin","semanticPriority","topologyStats","pruneTopology","junctionPriority"}){
+   for(auto e:{"normalize","blur","grayCopy","gradient","peaks","connect","compress","componentStats","target","distanceField","thin","semanticPriority","topologyStats","pruneTopology","junctionPriority","clearFace","drawFace","visionPreprocess"}){
     auto c=ContourGPU::compile(e);std::cout<<e<<" "<<c->GetBufferSize()<<" bytes\n";
    }return 0;
   }

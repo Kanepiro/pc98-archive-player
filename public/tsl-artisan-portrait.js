@@ -3,7 +3,7 @@
 // but regularize tiny features into legible strokes at the TEXT GRID resolution.
 // Not generative AI: only deterministic geometry, no paid calls or uploads.
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
-const path=(target,priority,w,h,points,strength,importance)=>{
+const strokePath=(target,priority,w,h,points,strength,importance)=>{
  for(let i=1;i<points.length;i++){
   const [ax,ay]=points[i-1],[bx,by]=points[i];
   const length=Math.max(1,Math.ceil(Math.hypot(bx-ax,by-ay)*2));
@@ -30,10 +30,11 @@ const ellipse=(cx,cy,rx,ry,a=0,b=Math.PI*2,segments=44)=>{
  return points;
 };
 const arc=(cx,cy,rx,ry,start,end,segments=14)=>ellipse(cx,cy,rx,ry,start,end,segments);
-export function guideArtisanFaces(field,structure,regions){
+export function guideArtisanFaces(field,structure,regions,ops=null){
+ const path=ops?.path||strokePath;
  const {w,h}=field;if(!Array.isArray(regions)||!regions.length)return {...structure,faceGuides:0};
- const target=Float32Array.from(structure.target),
-  importance=Float32Array.from(structure.importance);
+ const target=ops?structure.target:Float32Array.from(structure.target),
+  importance=ops?structure.importance:Float32Array.from(structure.importance);
  let faceGuides=0;
  for(const face of regions){
   if(face.kind!=='face'||face.confidence<.6||!Array.isArray(face.landmarks)||face.landmarks.length<4)continue;
@@ -45,7 +46,8 @@ export function guideArtisanFaces(field,structure,regions){
   // texture with a compact sketch anchored to detected features.
   const ellipseX=bx+bw*.5,ellipseY=by+bh*.48;
   const erx=Math.max(3,bw*.52),ery=Math.max(3,bh*.57);
-  for(let y=Math.max(0,Math.floor(by-bh*.10));y<Math.min(h,Math.ceil(by+bh*1.13));y++)
+  if(ops)ops.clear(bx,by,bw,bh,ellipseX,ellipseY,erx,ery);
+  else for(let y=Math.max(0,Math.floor(by-bh*.10));y<Math.min(h,Math.ceil(by+bh*1.13));y++)
    for(let x=Math.max(0,Math.floor(bx-bw*.10));x<Math.min(w,Math.ceil(bx+bw*1.1));x++){
     const d=((x-ellipseX)/erx)**2+((y-ellipseY)/ery)**2;
     if(d<.77){
@@ -97,4 +99,18 @@ export function guideArtisanFaces(field,structure,regions){
   faceGuides++;
  }
  return {...structure,target,importance,faceGuides};
+}
+
+export function artisanFaceGpuCommands(field,structure,regions){
+ const commands=[];let current=null;
+ const result=guideArtisanFaces(field,structure,regions,{
+  clear(...ellipse){current={ellipse,points:[]};commands.push(current);},
+  path(target,priority,w,h,points,strength,importance){
+   for(let i=1;i<points.length;i++){
+    const [ax,ay]=points[i-1],[bx,by]=points[i];const length=Math.max(1,Math.ceil(Math.hypot(bx-ax,by-ay)*2));
+    for(let k=0;k<=length;k++){const t=k/length;current.points.push(ax+(bx-ax)*t,ay+(by-ay)*t,strength,importance);}
+   }
+  }
+ });
+ return {commands,faceGuides:result.faceGuides};
 }

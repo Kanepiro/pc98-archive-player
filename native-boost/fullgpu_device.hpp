@@ -74,6 +74,7 @@ struct InputView {
 };
 
 struct NativeDirectCompute {
+ UINT adapterIndex=0;
  ComPtr<ID3D11Device> device;
  ComPtr<ID3D11DeviceContext> context;
  ComPtr<ID3D11ComputeShader> shader;
@@ -99,7 +100,7 @@ struct NativeDirectCompute {
    if(!preferred|| (desc.VendorId==0x10de&&bestVendor!=0x10de) ||
       ((desc.VendorId==0x10de)==(bestVendor==0x10de)&&
        desc.DedicatedVideoMemory>bestVram)){
-    preferred=item;bestVram=desc.DedicatedVideoMemory;
+    preferred=item;adapterIndex=index;bestVram=desc.DedicatedVideoMemory;
     bestVendor=desc.VendorId;
     gpuName=utf8Name(desc.Description);
    }
