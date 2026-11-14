@@ -37,6 +37,8 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  const metricsLink=document.createElement('a');metricsLink.id='gpu-metrics-download';metricsLink.hidden=true;
  metricsLink.textContent='工程別時間・GPU使用状況を保存';metricsLink.download='TASL-GPU-measurements.json';
  $('tsl-result').append(metricsLink);
+ const mp4MetricsLink=document.createElement('a');mp4MetricsLink.hidden=true;mp4MetricsLink.textContent='MP4の処理時間・GPU使用状況を保存';
+ mp4MetricsLink.download='TASL-MP4-measurements.json';$('tsl-result').append(mp4MetricsLink);
  const compatibleCheckpoint=job=>{
   const native16=job?.config?.['video-font-render']==='native16';
   const mode=job?.config?.['video-style'];
@@ -72,7 +74,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   $('preview-tsl-full').disabled=value||!result;
  }
  function clearResult(){
-  result=null;metricsLink.hidden=true;$('tsl-result').hidden=true;
+  result=null;metricsLink.hidden=true;mp4MetricsLink.hidden=true;$('tsl-result').hidden=true;
   if(downloadUrl)URL.revokeObjectURL(downloadUrl);downloadUrl=null;
   if(directMp4Url?.startsWith('blob:'))URL.revokeObjectURL(directMp4Url);directMp4Url=null;$('direct-mp4-download').hidden=true;
  }
@@ -212,6 +214,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
       }
      });
      directMp4Url=exported.url;
+     if(exported.reportUrl){mp4MetricsLink.href=exported.reportUrl;mp4MetricsLink.hidden=false;}
      fileSize=exported.size;
      encoder=exported.encoder;
     }else{

@@ -137,7 +137,7 @@ jobs:
       - name: Build portable application with native DirectML runtime
         shell: pwsh
         run: |
-          pip install pyinstaller==6.16.0 onnxruntime-directml==1.23.2 numpy==1.26.4 opencv-python-headless==4.11.0.86
+          pip install pyinstaller==6.16.0 onnxruntime-directml==1.23.0 numpy==1.26.4 opencv-python-headless==4.11.0.86
           if ($LASTEXITCODE -ne 0) { throw 'Python runtime installation failed' }
           npm ci
           npm run build
