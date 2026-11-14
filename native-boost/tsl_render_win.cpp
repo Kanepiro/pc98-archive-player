@@ -2,6 +2,7 @@
 // Streams video frames to stdout for FFmpeg NVENC/CPU encoding.
 // Built against stock Win32 GDI. No extra runtime, fonts, or assets.
 #define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <windows.h>
 #include <algorithm>
 #include <cstdint>
