@@ -1,0 +1,38 @@
+name: Publish verified Windows rc2
+on:
+  push:
+    branches: [work/publish-windows-rc2-20261114]
+    paths:
+      - .github/workflows/publish-windows-rc2.yml
+      - verification/windows-v0.3.42-rc2-published.md
+permissions:
+  contents: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify the tested build and promote the identical ZIP
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GH_REPO" = "Kanepiro/pc98-archive-player"
+          test "$(gh api repos/"$GH_REPO"/actions/runs/43595846366 --jq '.conclusion')" = success
+          test "$(gh api repos/"$GH_REPO"/actions/runs/43595846366 --jq '.head_sha')" = 520e21ea7106ec3aa7891f79eaecf897c389d1d1
+          tag=windows-v0.3.42-rc2
+          asset=TASL-PC-Boost-v0.3.42-rc2-NativeGPU-Windows-x64.zip
+          test "$(gh api repos/"$GH_REPO"/releases/tags/"$tag" --jq '.target_commitish')" = 520e21ea7106ec3aa7891f79eaecf897c389d1d1
+          gh release download "$tag" --pattern "$asset" --dir verified-release
+          printf '%s  %s\n' 15f3bb7c3f785f76d03a145f1ee89514426b48f46e6e93d0741fd9c1ba76029b "verified-release/$asset" | sha256sum --check -
+          gh release edit "$tag" --prerelease=false --latest --title "Windows native v0.3.42-rc2 — GPU常駐・公開版" --notes-file verification/windows-v0.3.42-rc2-published.md
+          test "$(gh api repos/"$GH_REPO"/releases/latest --jq '.tag_name')" = "$tag"
+          test "$(gh api repos/"$GH_REPO"/releases/tags/"$tag" --jq '.prerelease')" = false
+          gh api repos/"$GH_REPO"/releases/tags/"$tag" --jq '{tag_name,prerelease,html_url,assets:[.assets[]|{name,size,digest}]}'
