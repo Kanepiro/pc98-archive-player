@@ -2,7 +2,6 @@ import {makePlan,fitRect,densityRamp,TSLWriter,optionsFor,pc98GridFromPixels,pc9
 import {drawTSL} from './tsl.js';
 import {makeGlyphAtlas} from './tsl-quality.js';
 import {makeArtisanGlyphAtlas} from './tsl-artisan.js';
-import {artisanFocusRect,remapArtisanRegions} from './tsl-artisan-focus.js';
 import {fileIdentity,fingerprint,readCheckpoint,beginCheckpoint,appendCheckpoint} from './tsl-checkpoint.js';
 
 const aborted=()=>new DOMException('変換を中止しました','AbortError');
@@ -88,7 +87,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   // The video itself is deliberately NOT persisted.
   try{
    const identity=fileIdentity(file);
-   const baseEngineVersion=options.conversionMode==='artisan'?19:options.conversionMode==='quality'?(options.native16?8:7):options.conversionMode==='halftone'?(options.native16?15:14):(options.native16?3:2);
+   const baseEngineVersion=options.conversionMode==='artisan'?21:options.conversionMode==='quality'?(options.native16?8:7):options.conversionMode==='halftone'?(options.native16?15:14):(options.native16?3:2);
    const engineVersion=baseEngineVersion+(sourceGrid?20:0);
    const signature=JSON.stringify([engineVersion,identity,await fingerprint(file),
     [options.width,options.height,options.fps,options.brightness,options.contrast,options.gamma,options.edge,options.conversionMode,options.native16,sourceGrid,fit,positionX,positionY],
@@ -118,7 +117,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   check(signal);
   if(resumeStart>0)onProgress({phase:'resumed',done:resumeStart,total:plan.count,plan,saved});
   const started=performance.now();
-  let pending=[],startIndex=resumeStart,acceleration='CPU',focusRect=null;
+  let pending=[],startIndex=resumeStart,acceleration='CPU';
   if(resumeStart<plan.count){
    worker=new Worker(new URL('./tsl-converter-worker.js',import.meta.url),{type:'module'});
    {
@@ -157,9 +156,8 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
    if(i>0||time!==video.currentTime)await mediaEvent(video,'seeked',signal,()=>{video.currentTime=time;});
    check(signal);
    const detections=vision?.detect(video,rect,canvas.width,canvas.height,time)||[];
-   const frameRect=vision?artisanFocusRect(rect,detections,canvas.width,canvas.height,focusRect):rect;
-   if(vision)focusRect=frameRect;
-   const semantic=vision?remapArtisanRegions(detections,rect,frameRect,canvas.width,canvas.height):[];
+   // Recognition affects importance, never the user-selected framing.
+   const frameRect=rect,semantic=detections;
    ctx.fillStyle='#000';ctx.fillRect(0,0,canvas.width,canvas.height);
    ctx.drawImage(video,frameRect.x,frameRect.y,frameRect.width,frameRect.height);
    const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data;

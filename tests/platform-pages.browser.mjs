@@ -8,7 +8,7 @@ try{
  const page=await context.newPage(),errors=[],requests=[];
  page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>requests.push(r.url()));
  await page.goto(base+'/mobile/');
- assert.match(await page.locator('header').innerText(),/スマホ WebGPU版 · v0.3.39/);
+ assert.match(await page.locator('header').innerText(),/スマホ WebGPU版 · v0.3.40/);
  assert.equal(await page.locator('#video-style option').count(),4);
  assert.equal(await page.locator('#video-pc-boost').count(),0);
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
@@ -16,9 +16,9 @@ try{
  await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
  const identity=await page.evaluate(async()=>({manifest:await(await fetch('/manifest.webmanifest')).json(),palette:(await import('/mode4-allowed.js')).MODE4_ALLOWED_CHARS.length}));
  assert.equal(identity.manifest.start_url,'/mobile/');assert.equal(identity.palette,272);
- await page.goto(base+'/windows/');assert.match(await page.locator('header').innerText(),/Windows ネイティブ版 · v0.3.40/);
+ await page.goto(base+'/windows/');assert.match(await page.locator('header').innerText(),/Windows ネイティブ版 · v0.3.41/);
  assert.equal(await page.locator('#video-file').count(),0);
- assert.match(await page.locator('#windows-download').getAttribute('href'),/releases\/download\/windows-v0\.3\.40\//);
+ assert.match(await page.locator('#windows-download').getAttribute('href'),/releases\/download\/windows-v0\.3\.41\//);
  await mkdir('verification/private/platform-split',{recursive:true});
  await page.screenshot({path:'verification/private/platform-split/windows-mobile-size.png',fullPage:true});
  await context.setOffline(true);
