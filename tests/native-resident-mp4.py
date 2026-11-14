@@ -6,7 +6,7 @@ root=Path(__file__).resolve().parents[1];sys.path.insert(0,str(root/'native-boos
 import mp4_native
 os.environ['TASL_TEST_WARP']='1'
 def exe(name):return str(root/'native-boost'/(name+'.exe'))
-report=json.loads((root/'gpu-validation/resident-report.json').read_text())
+report=json.loads((root/'gpu-validation/resident-report.json').read_text(encoding='utf-8'))
 runs=[]
 for index,name in enumerate(['before','after']):
  tsl=root/'gpu-validation'/('resident-'+name+'.TSL')
@@ -48,7 +48,7 @@ lines=['# v0.3.42-rc1 GPU常駐 検証結果','','Windows CIのWARPソフトウ�
  '| 組版計測（23フレーム） | 旧経路 | 常駐経路 |','|---|---:|---:|']
 for key in ['nativeWallMs','frameMeanMs','h2dCalls','h2dBytes','d2hCalls','d2hBytes','gpuWaitMs','bufferAllocations','bufferReleases','staticUploads','ringBytes','arenaBytes','processVramBytes','processVramBudgetBytes']:
  lines.append(f'| {key} | {summaries[0][key]:.3f} | {summaries[1][key]:.3f} |')
-lines+=['','| 同じ動画・同じ設定 | 旧経路 | 常駐経路 |','|---|---:|---:|',
+lines+=['','| 同じ動画・同じ設定 | v0.3.41 | v0.3.42-rc1 |','|---|---:|---:|',
  f"| 文字変換全体 ms | {report['video'][0]['wallMs']:.3f} | {report['video'][1]['wallMs']:.3f} |",
  f"| 変換＋MP4 秒 | {runs[0]['conversionPlusMp4Seconds']:.3f} | {runs[1]['conversionPlusMp4Seconds']:.3f} |",'',
  '転送・確保回数は組版プロセスの計測値。DXGI値もそのプロセスの使用量です。デバイス全体の使用量とは異なります。',

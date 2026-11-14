@@ -14,7 +14,8 @@ for name in ['raster-report','preprocess-report','nms-report','native-modes','pl
  value=json.loads((validation/(name+'.json')).read_text(encoding='utf-8'))
  lines+=['- '+name+': '+json.dumps(value,ensure_ascii=False)]
 lines+=['- 梱包済みEXEの起動、モデル同梱、前処理・NMSのソフトウェア実行を確認。','- GPU使用率: Windows検証環境にNVIDIA実GPUなし。測定不可。','- 追加の制約と未検証範囲: VALIDATION-NOTES.md。','','ビルドコミット: '+os.getenv('GITHUB_SHA','unknown')]
-(root/'VALIDATION-REPORT.md').write_text('\n'.join(lines)+'\n',encoding='utf-8')
+resident=(validation/'RESIDENT-VALIDATION-JA.md').read_text(encoding='utf-8')
+(root/'VALIDATION-REPORT.md').write_text(resident+'\n\n---\n\n## 既存の全GPU化に関する回帰検証\n\n'+'\n'.join(lines)+'\n',encoding='utf-8')
 manifest={}
 for p in root.rglob('*'):
  if p.is_file() and p.name!='SHA256SUMS.json':manifest[p.relative_to(root).as_posix()]=hashlib.sha256(p.read_bytes()).hexdigest()
