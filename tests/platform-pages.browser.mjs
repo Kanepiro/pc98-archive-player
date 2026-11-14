@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import {chromium} from '@playwright/test';
+import {mkdir,writeFile} from 'node:fs/promises';
+const base=process.env.PLAYER_ORIGIN||'http://127.0.0.1:4492';
+const browser=await chromium.launch({channel:'chrome',headless:true,args:['--no-sandbox']});
+try{
+ const context=await browser.newContext({viewport:{width:390,height:844}});
+ const page=await context.newPage(),errors=[],requests=[];
+ page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>requests.push(r.url()));
+ await page.goto(base+'/mobile/');
+ assert.match(await page.locator('header').innerText(),/スマホ WebGPU版 · v0.3.39/);
+ assert.equal(await page.locator('#video-style option').count(),4);
+ assert.equal(await page.locator('#video-pc-boost').count(),0);
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ await page.locator('#offline').filter({hasText:'準備済み'}).waitFor({timeout:60000});
+ await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
+ const identity=await page.evaluate(async()=>({manifest:await(await fetch('/manifest.webmanifest')).json(),palette:(await import('/mode4-allowed.js')).MODE4_ALLOWED_CHARS.length}));
+ assert.equal(identity.manifest.start_url,'/mobile/');assert.equal(identity.palette,272);
+ await page.goto(base+'/windows/');assert.match(await page.locator('header').innerText(),/Windows ネイティブ版 · v0.3.39/);
+ assert.equal(await page.locator('#video-file').count(),0);
+ assert.match(await page.locator('#windows-download').getAttribute('href'),/releases\/download\/windows-v0\.3\.39\//);
+ await mkdir('verification/private/platform-split',{recursive:true});
+ await page.screenshot({path:'verification/private/platform-split/windows-mobile-size.png',fullPage:true});
+ await context.setOffline(true);
+ await page.goto(base+'/mobile/');assert.equal(await page.locator('#video-style option').count(),4);
+ await page.goto(base+'/windows/');assert.equal(await page.locator('#windows-download').count(),1);
+ await context.setOffline(false);
+ await page.goto(base+'/mobile/changelog.html');assert.match(await page.locator('h1').innerText(),/スマホ/);
+ assert.deepEqual(errors,[]);assert.equal(requests.some(x=>/127\.0\.0\.1:3908|pc-boost\.js|tsl-native/.test(x)),false);
+ await writeFile('verification/private/platform-split/pages.json',JSON.stringify({base,viewport:'390x844 Chrome emulation, not Android/iOS hardware',identity,errors,checks:['dedicated entries','offline separation','native bridge absent on mobile','272 palette','download destination']},null,2));
+ console.log('PASS platform URLs, mobile UI, offline separation, palette, no native requests');
+}finally{await browser.close();}

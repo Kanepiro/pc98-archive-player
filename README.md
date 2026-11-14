@@ -1,8 +1,12 @@
-# PC-98 Archive Player
+# TASL Archive Player
 
-MAG画像・TSLテキストアニメ・M-MASL (.MMS) を、AndroidのChromeから開く統合プレーヤーです。バージョン0.3.35は検証版です。APKではなく、ホーム画面に追加できるPWAです。
+Windowsネイティブ版とスマホWebGPU版を専用URLで提供します。現在の表示版はそれぞれv0.3.39です。
 
-**起動URL:** https://pc98-archive-player-seven.vercel.app/
+**スマホ版:** https://pc98-archive-player-seven.vercel.app/mobile/
+
+**Windows版:** https://pc98-archive-player-seven.vercel.app/windows/
+
+Windows版の実機未検証範囲・CPU処理工程は配布ページに明記しています。2系統とも素材の変換は端末内で行います。
 
 **GitHub:** https://github.com/Kanepiro/pc98-archive-player （公開）
 

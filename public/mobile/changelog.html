@@ -1,0 +1,7 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><title>TASL スマホ版 — 変更履歴</title></head><body><main>
+<header><div><h1>TASL スマホ WebGPU版</h1><p>v0.3.39 · 2026-11-14</p></div></header>
+<section class="controls"><h2>対応環境・処理方式</h2><p>Android Chrome・iOS Safariなど、必要なブラウザー機能に対応する環境で動作します。WebGPUを優先し、利用不可・初期化失敗・処理異常時はCPUへ切り替えます。画像認識と並列化に適さない組版工程はCPUです。</p><p>動画→TSL、TSL再生、MP4保存は端末内で行います。MP4出力には対応コーデックが必要です。初回はアプリ・認識モデルのダウンロード通信が発生しますが、素材を変換サーバーへ送信しません。</p><p>Android・iOS実機のGPU性能と互換性は未検証です。ブラウザー試験・画面サイズ再現は実機検証と区別しています。</p></section>
+<section class="controls"><h2>v0.3.39</h2><ul><li>スマホ専用入口 /mobile/ を追加。直接Webアプリが起動します。</li><li>Windowsダウンロード入口 /windows/ を分離。</li><li>PWAの起動先とオフライン時のページ選択を分離。</li><li>スマホ WebGPU版のバージョンを画面・診断ログに明記。</li><li>モード1〜4、272文字パレット、画像認識・輪郭・字形照合・全体組版、TSLとMP4を維持。変換アルゴリズムの変更はありません。</li></ul><p>スマホ公開版 v0.3.37から継承。Windows全面GPU版 v0.3.38の専用ライブラリは読み込みません。</p></section>
+<footer><p><a href="/mobile/">スマホ版へ戻る</a> · <a href="/windows/">Windows版</a></p></footer>
+</main></body></html>

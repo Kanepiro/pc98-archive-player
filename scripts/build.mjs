@@ -6,6 +6,7 @@ const hash=createHash('sha256');for(const f of sources)hash.update(await readFil
 const expected=(await readFile('src/mms/wasm-source.sha256','utf8')).trim();
 if(hash.digest('hex')!==expected)throw Error('MMS sources changed: run npm run build:wasm with Emscripten 3.1.69 before committing.');
 await mkdir('dist',{recursive:true});await cp('public','dist',{recursive:true});
+await mkdir('dist/mobile',{recursive:true});await cp('public/index.html','dist/mobile/index.html');
 await cp('licenses','dist/licenses',{recursive:true});await cp('LICENSE','dist/LICENSE');
 // Bundle the exporter and its AAC fallback locally for offline use; keep license notices.
 await build({entryPoints:['public/mp4-export.js'],outfile:'dist/mp4-export.js',platform:'browser',format:'esm',bundle:true,minify:true,legalComments:'eof'});
@@ -16,7 +17,7 @@ async function walk(dir,prefix=''){const a=[];for(const e of await readdir(dir,{
 const names=(await walk('dist')).sort();
 const digest=createHash('sha256');for(const name of names)digest.update(await readFile('dist/'+name));
 const version=digest.digest('hex').slice(0,16);
-await writeFile('dist/sw.js',`const CACHE='pc98-${version}',ASSETS=${JSON.stringify(['/',...names.map(n=>'/'+n)])};
+await writeFile('dist/sw.js',`const CACHE='pc98-${version}',ASSETS=${JSON.stringify(['/', '/mobile/', '/windows/', ...names.map(n=>'/'+n)])};
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS.map(asset=>asset+'?__pc98=${version}'))).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('pc98-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('message',event=>{if(event.data?.type==='activate')self.skipWaiting();});
@@ -26,7 +27,9 @@ self.addEventListener('fetch',event=>{
   const cache=await caches.open(CACHE);
   if(event.request.mode==='navigate'){
    try{const response=await fetch(event.request);if(response.ok)cache.put(event.request,response.clone());return response;}
-   catch(e){const cached=await cache.match(event.request,{ignoreSearch:true})||await cache.match('/');if(cached)return cached;throw e;}
+   catch(e){const pathname=new URL(event.request.url).pathname;
+    const fallback=pathname.startsWith('/windows')?'/windows/index.html':pathname.startsWith('/mobile')?'/mobile/index.html':'/index.html';
+    const cached=await cache.match(event.request,{ignoreSearch:true})||await cache.match(fallback,{ignoreSearch:true});if(cached)return cached;throw e;}
   }
   // Installed assets are versioned; query-free requests use that exact build.
   // Query-bearing requests prefer network to avoid mixing old/new entry modules.

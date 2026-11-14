@@ -1,10 +1,10 @@
 {
   "id": "/",
-  "name": "PC-98 Archive Player",
-  "short_name": "98 Player",
+  "name": "TASL Archive Player スマホ版",
+  "short_name": "TASL スマホ",
   "description": "MAG・TSL・M-MASLの統合プレーヤー",
   "lang": "ja",
-  "start_url": "/",
+  "start_url": "/mobile/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#101b22",
