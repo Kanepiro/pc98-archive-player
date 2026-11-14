@@ -2,7 +2,6 @@ import {makePlan,fitRect,densityRamp,TSLWriter,optionsFor,pc98GridFromPixels,pc9
 import {drawTSL} from './tsl.js';
 import {makeGlyphAtlas} from './tsl-quality.js';
 import {makeArtisanGlyphAtlas} from './tsl-artisan.js';
-import {artisanFocusRect,remapArtisanRegions} from './tsl-artisan-focus.js';
 import {fileIdentity,fingerprint,readCheckpoint,beginCheckpoint,appendCheckpoint} from './tsl-checkpoint.js';
 
 const aborted=()=>new DOMException('変換を中止しました','AbortError');
@@ -89,7 +88,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   // The video itself is deliberately NOT persisted.
   try{
    const identity=fileIdentity(file);
-   const baseEngineVersion=options.conversionMode==='artisan'?20:options.conversionMode==='quality'?(options.native16?48:47):options.conversionMode==='halftone'?(options.native16?55:54):(options.native16?43:42);
+   const baseEngineVersion=options.conversionMode==='artisan'?21:options.conversionMode==='quality'?(options.native16?48:47):options.conversionMode==='halftone'?(options.native16?55:54):(options.native16?43:42);
    const engineVersion=baseEngineVersion+(sourceGrid?20:0);
    const signature=JSON.stringify([engineVersion,identity,await fingerprint(file),
     [options.width,options.height,options.fps,options.brightness,options.contrast,options.gamma,options.edge,options.conversionMode,options.native16,sourceGrid,fit,positionX,positionY],
@@ -119,7 +118,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   check(signal);
   if(resumeStart>0)onProgress({phase:'resumed',done:resumeStart,total:plan.count,plan,saved});
   const started=performance.now();
-  let pending=[],startIndex=resumeStart,acceleration='CPU',focusRect=null;
+  let pending=[],startIndex=resumeStart,acceleration='CPU';
   if(resumeStart<plan.count){
    worker=new Worker(new URL('./tsl-converter-worker.js',import.meta.url),{type:'module'});
    {
@@ -163,9 +162,8 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
    if(i>0||time!==video.currentTime)await mediaEvent(video,'seeked',signal,()=>{video.currentTime=time;});
    check(signal);
    const detections=await vision?.detect(video,rect,canvas.width,canvas.height,time)||[];
-   const frameRect=vision?artisanFocusRect(rect,detections,canvas.width,canvas.height,focusRect):rect;
-   if(vision)focusRect=frameRect;
-   const semantic=vision?remapArtisanRegions(detections,rect,frameRect,canvas.width,canvas.height):[];
+   // Recognition affects importance, never the user-selected framing.
+   const frameRect=rect,semantic=detections;
    ctx.fillStyle='#000';ctx.fillRect(0,0,canvas.width,canvas.height);
    ctx.drawImage(video,frameRect.x,frameRect.y,frameRect.width,frameRect.height);
    const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data;
@@ -198,12 +196,12 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   let metricsUrl=null;
   if(metricsId)try{
    const r=await fetch('/api/metrics/'+metricsId+'/finish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-    appVersion:'0.3.40',source:{name:file.name,bytes:file.size,width:video.videoWidth,height:video.videoHeight,duration:video.duration},
+    appVersion:'0.3.41',source:{name:file.name,bytes:file.size,width:video.videoWidth,height:video.videoHeight,duration:video.duration},
     settings:options,plan,resumedFrom:resumeStart,totalConversionSeconds:(performance.now()-taskStarted)/1000,frames:metricFrames,status:'completed'})});
    if(r.ok){metricsUrl=(await r.json()).url;metricsId=null;}
   }catch{}
   return {blob,plan,ramp,metricsUrl,source:{width:video.videoWidth,height:video.videoHeight,duration:video.duration},elapsed:(performance.now()-started)/1000};
  } finally {
-  if(metricsId)fetch('/api/metrics/'+metricsId+'/finish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({appVersion:'0.3.40',status:'interrupted',frames:metricFrames}),keepalive:true}).catch(()=>{});
+  if(metricsId)fetch('/api/metrics/'+metricsId+'/finish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({appVersion:'0.3.41',status:'interrupted',frames:metricFrames}),keepalive:true}).catch(()=>{});
   worker?.terminate();vision?.close();video.pause();video.removeAttribute('src');video.load();URL.revokeObjectURL(url);}
 }

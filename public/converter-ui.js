@@ -42,7 +42,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  const compatibleCheckpoint=job=>{
   const native16=job?.config?.['video-font-render']==='native16';
   const mode=job?.config?.['video-style'];
-  const version=mode==='artisan'?20:mode==='quality'?(native16?48:47):mode==='halftone'?(native16?55:54):(native16?43:42);
+  const version=mode==='artisan'?21:mode==='quality'?(native16?48:47):mode==='halftone'?(native16?55:54):(native16?43:42);
   return mode!=='outline'&&job?.engineVersion===version+(job?.config?.['video-mode']==='pc98'?20:0);
  };
  function show(which){

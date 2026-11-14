@@ -3,18 +3,12 @@ float region(uint r,uint k){return v(21,r*24+k);}
 [numthreads(128,1,1)]
 void semanticPriority(uint3 id:SV_DispatchThreadID){
  uint i=id.x+id.y*65535*128;if(i>=w*h)return;
- uint x=i%w,y=i/w;bool hasFace=false,hasSubject=false;int mainFace=-1;float confidence=-1;
+ uint x=i%w,y=i/w;bool hasFace=false,hasSubject=false;
  for(uint r=0;r<count;r++){
   uint kind=(uint)region(r,0);hasFace=hasFace||kind==1;hasSubject=hasSubject||kind==1||kind==2;
-  if(kind==1&&region(r,5)>=.6&&region(r,5)>confidence){mainFace=r;confidence=region(r,5);}
  }
- float value=v(10,i),priority=hasSubject?.24:.70;
- if(mainFace>=0){
-  uint r=mainFace;float cx=(region(r,1)+region(r,3)*.5)*w,cy=(region(r,2)+region(r,4)*.71)*h;
-  float rx=max(4,region(r,3)*w*1.02),ry=max(4,region(r,4)*h*1.52);
-  float d=pow((x-cx)/rx,2)+pow((y-cy)/ry,2);
-  if(d>1.4){value*=.06;priority=min(priority,.22);}else if(d>1){value*=.30;priority*=.60;}
- }
+ // Preserve observed contours throughout the source frame.
+ float value=v(10,i),priority=.70;
  for(uint r=0;r<count;r++){
   uint kind=(uint)region(r,0);if(hasSubject&&kind==0)continue;
   float bx=region(r,1),by=region(r,2),bw=region(r,3),bh=region(r,4);

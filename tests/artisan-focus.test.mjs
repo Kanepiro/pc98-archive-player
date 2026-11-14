@@ -1,21 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {artisanFocusRect,remapArtisanRegions} from '../public/tsl-artisan-focus.js';
-test('small detected face is brought into the frame with matching remapped eye landmarks',()=>{
- const base={x:0,y:0,width:640,height:360};
- const face={kind:'face',confidence:.94,x:.4,y:.2,w:.2,h:.18,
-  landmarks:[{x:.46,y:.27,label:'left_eye'},{x:.55,y:.27,label:'right_eye'}]};
- const focused=artisanFocusRect(base,[face],640,360);
- assert.ok(focused.zoom>2);
- const [updated]=remapArtisanRegions([face],base,focused,640,360);
- assert.ok(updated.h>face.h*2);
- assert.ok(updated.x>=0&&updated.x+updated.w<=1);
- assert.ok(updated.landmarks[0].x<updated.landmarks[1].x);
- const smooth=artisanFocusRect(base,[{...face,x:.41}],640,360,focused);
- assert.ok(Math.abs(smooth.x-focused.x)<Math.abs(artisanFocusRect(base,[{...face,x:.41}],640,360).x-focused.x));
-});
-test('large subject or no detection preserves original composition',()=>{
- const base={x:10,y:20,width:630,height:340};
+test('Small and moving detections retain the user-selected source composition',()=>{
+ const base={x:-100,y:20,width:840,height:472.5};
+ for(const face of [
+  {kind:'face',confidence:.94,x:.05,y:.1,w:.08,h:.1},
+  {kind:'face',confidence:.99,x:.8,y:.2,w:.06,h:.07},
+  {kind:'person',confidence:.9,x:.4,y:.15,w:.1,h:.3}
+ ]){
+  const previous={x:-400,y:-100,width:1568,height:882,zoom:2.45};
+  assert.deepEqual(artisanFocusRect(base,[face],640,360,previous),{...base,zoom:1});
+ }
  assert.deepEqual(artisanFocusRect(base,[],640,360),{...base,zoom:1});
- assert.deepEqual(artisanFocusRect(base,[{kind:'cat',confidence:.8,x:.1,y:.02,w:.8,h:.9}],640,360),{...base,zoom:1});
+});
+test('Recognition boxes and landmarks remain aligned with the unchanged frame',()=>{
+ const base={x:0,y:0,width:640,height:360};
+ const face={kind:'face',confidence:.94,x:.4,y:.2,w:.2,h:.18,landmarks:[{x:.46,y:.27},{x:.55,y:.27}]};
+ const [r]=remapArtisanRegions([face],base,artisanFocusRect(base,[face],640,360),640,360);
+ for(const k of ['x','y','w','h'])assert.ok(Math.abs(r[k]-face[k])<1e-12);
+ for(let i=0;i<face.landmarks.length;i++)for(const k of ['x','y'])assert.ok(Math.abs(r.landmarks[i][k]-face.landmarks[i][k])<1e-12);
 });
