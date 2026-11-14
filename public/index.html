@@ -41,6 +41,7 @@
 </div><p id="layout-hint" class="muted"></p></fieldset>
 <div class="auto-tune-control"><button id="auto-tune" type="button" disabled>おまかせ設定（無料・端末内）</button><p id="auto-tune-status" role="status" aria-live="polite" class="muted">動画を選ぶと利用できます。明るさ・コントラスト・ガンマを数場面から簡易推定します。AIは使用せず、最適画質の保証はありません。</p></div>
 </details>
+<label class="direct-mp4-choice" id="pc-boost-setting" hidden><input id="video-pc-boost" type="checkbox"> PCブースト（FFmpeg＋C++ネイティブ高速変換）<small class="muted">Windows完成版EXEから起動すると自動ON。動画はPC内のみで変換します。モード3・4は通常版と別アルゴリズムです。16画面ごとの途中保存・中断再開に対応。</small></label>
 <label class="direct-mp4-choice"><input id="video-direct-mp4" type="checkbox"> MP4へ直接変換（元動画の音声付き）</label>
 <button id="convert-tsl" class="primary convert-action" disabled>変換</button>
 <div class="conversion-state"><progress id="tsl-progress" max="100" value="0" aria-label="TSL変換の進捗" hidden></progress>
