@@ -28,6 +28,8 @@ jobs:
           Copy-Item native-boost/*.hlsl gpu-build/Release/
           & gpu-build/Release/fullgpu_layout.exe --check-shader
           if ($LASTEXITCODE -ne 0) { throw 'HLSL compilation failed' }
+          & gpu-build/Release/fullgpu_contour.exe --check-shader
+          if ($LASTEXITCODE -ne 0) { throw 'Contour HLSL compilation failed' }
       - name: Verify native shader execution using explicit software test adapter
         shell: pwsh
         run: |

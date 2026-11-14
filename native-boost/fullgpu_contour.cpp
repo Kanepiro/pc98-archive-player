@@ -5,7 +5,7 @@
 struct ContourGPU {
  NativeDirectCompute gpu;
  std::array<ComPtr<ID3D11ComputeShader>,12> shaders;
- ComPtr<ID3D11Buffer> buffer,readback,small,constants;
+ ComPtr<ID3D11Buffer> buffer,readback,counterReadback,constants;
  ComPtr<ID3D11UnorderedAccessView> uav;
  std::vector<uint32_t> host;
  uint32_t offsets[15]={};
@@ -24,7 +24,7 @@ struct ContourGPU {
   D3D11_BUFFER_DESC d={};d.ByteWidth=sizeof(Params);d.BindFlags=D3D11_BIND_CONSTANT_BUFFER;d.Usage=D3D11_USAGE_DEFAULT;
   checked(gpu.device->CreateBuffer(&d,nullptr,&constants),"contour constants");
   d.ByteWidth=16;d.Usage=D3D11_USAGE_STAGING;d.BindFlags=0;d.CPUAccessFlags=D3D11_CPU_ACCESS_READ;
-  checked(gpu.device->CreateBuffer(&d,nullptr,&small),"contour counter readback");
+  checked(gpu.device->CreateBuffer(&d,nullptr,&counterReadback),"contour counter readback");
  }
  void launch(int entry,Params& p,uint32_t count){
   gpu.context->UpdateSubresource(constants.Get(),0,nullptr,&p,0,0);
@@ -37,9 +37,9 @@ struct ContourGPU {
  void unbind(){ID3D11UnorderedAccessView* empty[]={nullptr};gpu.context->CSSetUnorderedAccessViews(0,1,empty,nullptr);}
  uint32_t changed(){
   unbind();D3D11_BOX box={offsets[13]*4,0,0,offsets[13]*4+16,1,1};
-  gpu.context->CopySubresourceRegion(small.Get(),0,0,0,0,buffer.Get(),0,&box);
-  D3D11_MAPPED_SUBRESOURCE mapped={};checked(gpu.context->Map(small.Get(),0,D3D11_MAP_READ,0,&mapped),"contour convergence");
-  uint32_t value=((uint32_t*)mapped.pData)[1];gpu.context->Unmap(small.Get(),0);return value;
+  gpu.context->CopySubresourceRegion(counterReadback.Get(),0,0,0,0,buffer.Get(),0,&box);
+  D3D11_MAPPED_SUBRESOURCE mapped={};checked(gpu.context->Map(counterReadback.Get(),0,D3D11_MAP_READ,0,&mapped),"contour convergence");
+  uint32_t value=((uint32_t*)mapped.pData)[1];gpu.context->Unmap(counterReadback.Get(),0);return value;
  }
  void compute(){
   auto begin=std::chrono::steady_clock::now();
