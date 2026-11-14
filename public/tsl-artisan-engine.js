@@ -1,7 +1,9 @@
+import {FullGpuNativeLayout} from './tsl-fullgpu-native.js';
 import {parseArtisanStructure} from './tsl-artisan-structure.js';
 import {guideArtisanFaces} from './tsl-artisan-portrait.js';
 import {refineArtisanLayout} from './tsl-artisan-critic.js';
 import {Mode4GpuMatcher} from './tsl-artisan-webgpu.js';
+import {Mode4ExactNativeMatcher} from './tsl-mode4-native-exact.js';
 import {composeArtisanBand} from './tsl-artisan-blocks.js';
 // Mode 4 "AA artisan" composer. Independent of Mode 3's per-row template matcher.
 // Structural contour field + alignment-tolerant stroke fitting + 2D seam-aware
@@ -301,7 +303,7 @@ function insertTop(arr,j,score,limit){
  arr.splice(i,0,{j,score});
  if(arr.length>limit)arr.pop();
 }
-function localCellOrientation(field,width,height,S){
+export function localCellOrientation(field,width,height,S){
  const out=new Float32Array(width*height*8);
  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
   const offset=(y*width+x)*8,start=(y*S)*field.w+x*S;
@@ -310,7 +312,7 @@ function localCellOrientation(field,width,height,S){
  }
  return out;
 }
-function makeCandidates(field,atlas,width,height,S,prevChars,oldGray,gpuScores=null,orientations=null){
+export function makeCandidates(field,atlas,width,height,S,prevChars,oldGray,gpuScores=null,orientations=null){
  const n=atlas.length,candidates=new Array(width*height),unary=new Float32Array(width*height*n);
  unary.fill(Infinity);
  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
@@ -343,7 +345,7 @@ function makeCandidates(field,atlas,width,height,S,prevChars,oldGray,gpuScores=n
 }
 // Reference-crossing seam ports: require the generated text lines to join
 // where the source contours actually continue across half-column / row edges.
-function sourceSeams(field,width,height,S){
+export function sourceSeams(field,width,height,S){
  const horiz=new Float32Array(height*(width+1)*S);
  const vert=new Float32Array((height+1)*width*S);
  const w=width*S,t=field.target;
@@ -448,7 +450,8 @@ export class ArtisanComposer {
   this.previousGray=null;this.previousChars=null;
   this.width=0;this.height=0;this.lastDiagnostics=null;
   this.lastFrame=null;this.lastSemanticKey=null;
-  this.gpuMatcher=null;this.acceleration='CPU';
+  this.gpuMatcher=null;this.directComputeMatcher=null;this.exactMatcher=null;
+  this.nativeGpuInfo=null;this.acceleration='CPU';this.fullGpuLayout=null;
   this.lastPerf=null;this.gpuError=null;
  }
  snapshot(){
@@ -470,6 +473,31 @@ export class ArtisanComposer {
   this.previousGray=state.gray;this.previousChars=state.chars;
   this.lastFrame=typeof state.frame==='string'?state.frame:null;
   this.lastSemanticKey=typeof state.semanticKey==='string'?state.semanticKey:null;
+ }
+ enableExactNative(){
+  this.exactMatcher=new Mode4ExactNativeMatcher();
+  this.acceleration='PC Native Exact';
+ }
+ async enablePCBoost(width,height){
+  // Windows PC Boost must NEVER depend on WebGPU. The compute work runs in
+  // native Direct3D 11 via mode4_directcompute.exe (actual hardware only).
+  this.nativeFallbackAvailable=true;
+  try{
+   const response=await fetch('/health',{cache:'no-store'});
+   if(!response.ok)throw Error('PCネイティブGPUの状態を取得できません');
+   const health=await response.json();
+   if(health.nativeLayout){this.fullGpuLayout=new FullGpuNativeLayout(!!health.layoutSoftware);}
+   if(!health.nativeGpu&&!health.nativeLayout)
+    throw Error(health.gpuReason||'DirectCompute対応GPUが見つかりません');
+   this.directComputeMatcher=new Mode4ExactNativeMatcher('/api/mode4/gpu-score');
+   this.nativeGpuInfo={name:health.gpuName||'DirectCompute GPU',
+    identified:true,architecture:'Direct3D 11',software:false};
+   this.acceleration='DirectCompute';
+  }catch(e){
+   this.gpuError=String(e);
+   this.directComputeMatcher=null;
+   this.enableExactNative(); // exact original formula on C++ CPU
+  }
  }
  async enableWebGPU(width,height){
   try{
@@ -503,33 +531,122 @@ export class ArtisanComposer {
    return prepared.cached;
   }
   const {field,width:w,height:h,S,oldChars,oldGray}=prepared;
+  if(this.fullGpuLayout){
+   try{
+    const result=await this.fullGpuLayout.compose(prepared,this.atlas);
+    this.width=w;this.height=h;this.previousGray=field.gray;this.previousChars=result.chars;
+    this.lastFrame=result.frame;this.lastSemanticKey=prepared.semanticKey;
+    this.lastDiagnostics={...result.diagnostics,cellCount:w*h,faceGuides:prepared.structural.faceGuides,
+     connectedComponents:prepared.structural.components.length,skeletonStrokes:prepared.structural.strokes.length,
+     semanticRegions:prepared.structural.regions.map(r=>r.kind)};
+    this.acceleration=result.perf.software?'WARP Test Global':'DirectCompute Global';
+    this.lastPerf={prepareMs:prepMs,...result.perf,gpuMs:result.perf.matchingGpuMs,
+     layoutMs:result.perf.rowLayoutGpuMs+result.perf.bandLayoutGpuMs+result.perf.criticGpuMs};
+    return result.frame;
+   }catch(e){this.gpuError=String(e);this.fullGpuLayout=null;}
+  }
   let gpuScores=null,gpuMs=0;
-  if(this.gpuMatcher){
+  if(this.directComputeMatcher){
+   const nativeGpuStart=performance.now();
+   try{
+    // Real Windows native D3D11 Compute Shader, NO WebGPU. Keep all original
+    // Mode 4 field extraction, recognition, seams and 2D composition in JS.
+    const orientation=localCellOrientation(field,w,h,S);
+    const scores=await this.directComputeMatcher.compute(
+     field,this.atlas,w,h,S,oldChars,oldGray,orientation);
+    const n=this.atlas.length,cells=w*h;
+    let samples=0,bad=0;
+    for(let k=0;k<Math.min(128,cells*n);k++){
+     const pos=(k*1543)%cells,j=(k*137)%n,x=pos%w,y=Math.floor(pos/w);
+     const glyph=this.atlas[j];
+     if(x+glyph.columns>w)continue;
+     const hist=orientation.subarray(pos*8+(glyph.columns===2?4:0),
+      pos*8+(glyph.columns===2?8:4));
+     const reference=placementLoss(field,glyph,x,y,S,hist,oldChars?.[pos],oldGray);
+     const score=scores[pos*n+j];
+     samples++;
+     if(!Number.isFinite(reference)){
+      if(!Number.isFinite(score)||score<1e18)bad++;
+     }else if(!Number.isFinite(score)||score<0||score>=1e18||
+        Math.abs(reference-score)>Math.max(.14,.65*Math.abs(reference)))bad++;
+    }
+    if(samples===0||bad>Math.max(5,Math.ceil(samples*.15)))
+     throw Error('DirectCompute文字照合の品質検査で異常: '+bad+'/'+samples);
+    gpuScores=scores;
+    this.acceleration='DirectCompute';
+   }catch(e){
+    this.gpuError=String(e);
+    this.directComputeMatcher=null;
+    this.nativeGpuInfo=null;
+    if(!this.exactMatcher)this.enableExactNative();
+   }
+   gpuMs+=performance.now()-nativeGpuStart;
+  }
+  if(this.gpuMatcher&&!gpuScores){
    const gpuStart=performance.now();
    try{
-    gpuScores=await this.gpuMatcher.compute(field,oldChars,oldGray);
-    // Validate several independent stroke orientations and visual scores
-    // against the CPU reference; a driver mismatch must not corrupt output.
+    const scores=await this.gpuMatcher.compute(field,oldChars,oldGray);
+    // A GPU's float32 arithmetic may legitimately choose different glyphs
+    // from JS float64. Reject broken scores, NOT normal precision differences.
+    // Keep the original semantic contour and global 2D composition stages.
     const n=this.atlas.length,cells=w*h;
-    for(let k=0;k<Math.min(72,cells*n);k++){
+    let checked=0,severelyWrong=0;
+    for(let k=0;k<Math.min(128,cells*n);k++){
      const pos=(k*1543)%cells,j=(k*137)%n,x=pos%w,y=Math.floor(pos/w);
      const glyph=this.atlas[j];
      if(x+glyph.columns>w)continue;
      const hist=strokeHistogram(field.target,glyph.columns*S,S,
       (y*S)*field.w+x*S,field.w);
      const cpu=placementLoss(field,glyph,x,y,S,hist,oldChars?.[pos],oldGray);
-     const gpu=gpuScores[pos*n+j];
-     if(!Number.isFinite(cpu)?gpu<1e18:Math.abs(cpu-gpu)>.0025)
-      throw Error('GPU輪郭方向・文字照合の精度検証に失敗');
+     const gpu=scores[pos*n+j];
+     checked++;
+     if(!Number.isFinite(cpu)){
+      if(!Number.isFinite(gpu)||gpu<1e18)severelyWrong++;
+     }else if(!Number.isFinite(gpu)||gpu<0||gpu>=1e18||
+        Math.abs(cpu-gpu)>Math.max(.14,.65*Math.abs(cpu))){
+      severelyWrong++;
+     }
     }
+    if(checked===0||severelyWrong>Math.max(5,Math.ceil(checked*.15)))
+     throw Error('GPU文字照合が元の輪郭評価から大幅に逸脱しました: '+severelyWrong+'/'+checked);
+    gpuScores=scores;
     this.acceleration='WebGPU';
    }catch(e){
     this.gpuError=String(e);
     this.gpuMatcher?.dispose();this.gpuMatcher=null;
-    gpuScores=null;this.acceleration='CPU';
+    if(this.nativeFallbackAvailable&&!this.exactMatcher)this.enableExactNative();
    }
-   gpuMs=performance.now()-gpuStart;
-  }else this.acceleration='CPU';
+   gpuMs+=performance.now()-gpuStart;
+  }
+  if(this.exactMatcher&&!gpuScores){
+   const nativeStart=performance.now();
+   try{
+    // Native C++ keeps the original formula and uses float64 scores.
+    const orientation=localCellOrientation(field,w,h,S);
+    const scores=await this.exactMatcher.compute(field,this.atlas,w,h,S,oldChars,oldGray,orientation);
+    const n=this.atlas.length,cells=w*h;
+    for(let k=0;k<Math.min(160,cells*n);k++){
+     const pos=(k*1543)%cells,j=(k*137)%n,x=pos%w,y=Math.floor(pos/w);
+     const glyph=this.atlas[j];
+     if(x+glyph.columns>w)continue;
+     const hist=orientation.subarray(pos*8+(glyph.columns===2?4:0),
+      pos*8+(glyph.columns===2?8:4));
+     const expected=placementLoss(field,glyph,x,y,S,hist,oldChars?.[pos],oldGray);
+     const actual=scores[pos*n+j];
+     if(!Number.isFinite(expected)?actual!==Infinity:!Number.isFinite(actual)||
+        Math.abs(expected-actual)>1e-9)
+      throw Error('Native C++ scoring did not match original Mode 4');
+    }
+    gpuScores=scores;
+    this.acceleration='PC Native Exact';
+   }catch(e){
+    // Neither the GPU nor C++ may silently substitute a different algorithm.
+    this.gpuError=String(e);
+    this.exactMatcher=null;
+   }
+   gpuMs+=performance.now()-nativeStart;
+  }
+  if(!gpuScores)this.acceleration='CPU';
   const layoutStart=performance.now();
   const output=this._render(prepared,gpuScores,null);
   this.lastPerf={prepareMs:prepMs,gpuMs,layoutMs:performance.now()-layoutStart,

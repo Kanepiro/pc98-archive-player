@@ -58,8 +58,8 @@ float bandEnergy(uint y){
  float v=rowEnergy(y,15)+rowEnergy(y+1,15);
  // rowEnergy counts the internal join twice; the full-frame objective counts once.
  for(uint x=0;x<W;x++){
-  uint g=ui(15,(y+1)*W+x);if(g==0xffffffff)continue;
-  v-=.33*cols(g)*vjoin(g,2,y,3,x,y+1);
+  uint g=ui(15,y*W+x);if(g==0xffffffff)continue;
+  v-=.33*cols(g)*vjoin(g,3,y+1,2,x,y+1);
  }
  return v;
 }
@@ -72,11 +72,11 @@ void solveBands(uint3 group:SV_GroupID,uint tid:SV_GroupIndex){
   if(tid==0){makeOptions(y*W+x,true);makeOptions((y+1)*W+x,false);}
   GroupMemoryBarrierWithGroupSync();
   uint total=live*topCount*bottomCount;
-  for(uint i=tid;i<total;i+=128)pairScores[i]=pairCost(i,y,x);
+  for(uint task=tid;task<total;task+=128)pairScores[task]=pairCost(task,y,x);
   GroupMemoryBarrierWithGroupSync();
   for(uint rank=0;rank<beamWidth;rank++){
    float best=INF;uint bestIndex=0xffffffff;
-   for(uint i=tid;i<total;i+=128)if(pairScores[i]<best){best=pairScores[i];bestIndex=i;}
+   for(uint scan=tid;scan<total;scan+=128)if(pairScores[scan]<best){best=pairScores[scan];bestIndex=scan;}
    reduction[tid]=best;argmin[tid]=bestIndex;
    GroupMemoryBarrierWithGroupSync();
    for(uint stride=64;stride>0;stride/=2){
@@ -97,7 +97,7 @@ void solveBands(uint3 group:SV_GroupID,uint tid:SV_GroupIndex){
    GroupMemoryBarrierWithGroupSync();
    if(chosenIndex!=0xffffffff){
     uint4 key=pairKey(chosenIndex,x);
-    for(uint i=tid;i<total;i+=128)if(all(pairKey(i,x)==key))pairScores[i]=INF;
+    for(uint duplicate=tid;duplicate<total;duplicate+=128)if(all(pairKey(duplicate,x)==key))pairScores[duplicate]=INF;
    }
    GroupMemoryBarrierWithGroupSync();
   }
@@ -106,21 +106,21 @@ void solveBands(uint3 group:SV_GroupID,uint tid:SV_GroupIndex){
   GroupMemoryBarrierWithGroupSync();
  }
  if(tid==0&&live>0){
-  for(uint x=0;x<W;x++){M[base(16)+y*W+x]=0xffffffff;M[base(16)+(y+1)*W+x]=0xffffffff;}
+  for(uint clear=0;clear<W;clear++){M[base(16)+y*W+clear]=0xffffffff;M[base(16)+(y+1)*W+clear]=0xffffffff;}
   uint state=0;
-  for(int x=int(W)-1;x>=0;x--){
-   uint at=base(21)+(y*W+x)*14*3+state*3;
-   if(M[at+1]!=0xffffffff)M[base(16)+y*W+x]=M[at+1];
-   if(M[at+2]!=0xffffffff)M[base(16)+(y+1)*W+x]=M[at+2];
+  for(int trace=int(W)-1;trace>=0;trace--){
+   uint at=base(21)+(y*W+trace)*14*3+state*3;
+   if(M[at+1]!=0xffffffff)M[base(16)+y*W+trace]=M[at+1];
+   if(M[at+2]!=0xffffffff)M[base(16)+(y+1)*W+trace]=M[at+2];
    state=M[at];
   }
   float old=bandEnergy(y);
-  for(uint x=0;x<2*W;x++){
-   uint at=y*W+x,tmp=ui(15,at);M[base(15)+at]=ui(16,at);M[base(16)+at]=tmp;
+  for(uint swap=0;swap<2*W;swap++){
+   uint at=y*W+swap,tmp=ui(15,at);M[base(15)+at]=ui(16,at);M[base(16)+at]=tmp;
   }
   float revised=bandEnergy(y);
   if(!(revised+.00001<old))
-   for(uint x=0;x<2*W;x++)M[base(15)+y*W+x]=ui(16,y*W+x);
+   for(uint restore=0;restore<2*W;restore++)M[base(15)+y*W+restore]=ui(16,y*W+restore);
   else InterlockedAdd(M[base(22)+1],1);
   InterlockedAdd(M[base(22)],1);
  }

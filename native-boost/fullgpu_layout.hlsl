@@ -204,8 +204,8 @@ void solveRows(uint3 group:SV_GroupID,uint tid:SV_GroupIndex){
  }
  float best=INF;uint key=0xffffffff;
  if(tid<40)for(uint step=1;step<=2;step++){
-  uint x=W-step,p=y*W+x,g=ui(14,p*40+tid);
-  if(g<G&&cols(g)==step&&dpScore[(x%3)*40+tid]<best){best=dpScore[(x%3)*40+tid];key=x*40+tid;}
+  uint terminalX=W-step,p=y*W+terminalX,g=ui(14,p*40+tid);
+  if(g<G&&cols(g)==step&&dpScore[(terminalX%3)*40+tid]<best){best=dpScore[(terminalX%3)*40+tid];key=terminalX*40+tid;}
  }
  reduction[tid]=best;argmin[tid]=key;
  GroupMemoryBarrierWithGroupSync();
@@ -214,14 +214,14 @@ void solveRows(uint3 group:SV_GroupID,uint tid:SV_GroupIndex){
   GroupMemoryBarrierWithGroupSync();
  }
  if(tid==0){
-  for(uint x=0;x<W;x++)M[base(16)+y*W+x]=0xffffffff;
+  for(uint clear=0;clear<W;clear++)M[base(16)+y*W+clear]=0xffffffff;
   uint k=argmin[0];
   for(uint guard=0;k!=0xffffffff&&guard<W;guard++){
-   uint x=k/40,ci=k%40,p=y*W+x;
+   uint traceX=k/40,ci=k%40,p=y*W+traceX;
    M[base(16)+p]=ui(14,p*40+ci);k=ui(17,p*40+ci);
   }
   if(passKind==0||rowEnergy(y,16)<=rowEnergy(y,15)+.00001)
-   for(uint x=0;x<W;x++)M[base(15)+y*W+x]=ui(16,y*W+x);
+   for(uint copy=0;copy<W;copy++)M[base(15)+y*W+copy]=ui(16,y*W+copy);
  }
 }
 // Two-row beam search is defined in the companion include.
