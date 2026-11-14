@@ -5,3 +5,13 @@ tools/
 verification/private/
 *.log
 .vercel/
+
+# Local exact-scoring builds, test fixtures and temporary files
+node_modules
+native-boost/mode4_score_exact
+native-boost/mode4_score_exact.exe
+native-boost/tsl_render.exe
+native-boost/__pycache__/
+bench-*.mjs
+public/bench-mode4.rgba
+boost-build/

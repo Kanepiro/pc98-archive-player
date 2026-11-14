@@ -137,7 +137,8 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
      signal?.addEventListener('abort',cancel,{once:true});
      worker.onerror=e=>finish(Error(e.message||'変換ワーカーを開始できませんでした'));
      worker.onmessage=({data:d})=>finish(d.error?Error(d.error):null);
-     worker.postMessage({type:'init',atlas,sample,state:resumeState,width:plan.width,height:plan.height,mode:options.conversionMode});
+     worker.postMessage({type:'init',atlas,sample,state:resumeState,width:plan.width,height:plan.height,mode:options.conversionMode,
+      exactNative:input.exactNative===true});
     });
    }
    if(options.conversionMode==='artisan'){

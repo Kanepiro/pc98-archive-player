@@ -2,6 +2,7 @@ import {parseArtisanStructure} from './tsl-artisan-structure.js';
 import {guideArtisanFaces} from './tsl-artisan-portrait.js';
 import {refineArtisanLayout} from './tsl-artisan-critic.js';
 import {Mode4GpuMatcher} from './tsl-artisan-webgpu.js';
+import {Mode4ExactNativeMatcher} from './tsl-mode4-native-exact.js';
 import {composeArtisanBand} from './tsl-artisan-blocks.js';
 // Mode 4 "AA artisan" composer. Independent of Mode 3's per-row template matcher.
 // Structural contour field + alignment-tolerant stroke fitting + 2D seam-aware
@@ -301,7 +302,7 @@ function insertTop(arr,j,score,limit){
  arr.splice(i,0,{j,score});
  if(arr.length>limit)arr.pop();
 }
-function localCellOrientation(field,width,height,S){
+export function localCellOrientation(field,width,height,S){
  const out=new Float32Array(width*height*8);
  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
   const offset=(y*width+x)*8,start=(y*S)*field.w+x*S;
@@ -448,7 +449,7 @@ export class ArtisanComposer {
   this.previousGray=null;this.previousChars=null;
   this.width=0;this.height=0;this.lastDiagnostics=null;
   this.lastFrame=null;this.lastSemanticKey=null;
-  this.gpuMatcher=null;this.acceleration='CPU';
+  this.gpuMatcher=null;this.exactMatcher=null;this.acceleration='CPU';
   this.lastPerf=null;this.gpuError=null;
  }
  snapshot(){
@@ -470,6 +471,10 @@ export class ArtisanComposer {
   this.previousGray=state.gray;this.previousChars=state.chars;
   this.lastFrame=typeof state.frame==='string'?state.frame:null;
   this.lastSemanticKey=typeof state.semanticKey==='string'?state.semanticKey:null;
+ }
+ enableExactNative(){
+  this.exactMatcher=new Mode4ExactNativeMatcher();
+  this.acceleration='PC Native Exact';
  }
  async enableWebGPU(width,height){
   try{
@@ -504,7 +509,39 @@ export class ArtisanComposer {
   }
   const {field,width:w,height:h,S,oldChars,oldGray}=prepared;
   let gpuScores=null,gpuMs=0;
-  if(this.gpuMatcher){
+  if(this.exactMatcher){
+   const nativeStart=performance.now();
+   try{
+    // Exact offload of the ORIGINAL placementLoss only. The rest of Mode 4
+    // (semantic regions, skeleton, geometry, whole-frame layout and critic)
+    // runs unchanged. Float64 native results avoid tie-breaking artifacts.
+    const orientation=localCellOrientation(field,w,h,S);
+    const scores=await this.exactMatcher.compute(field,this.atlas,w,h,S,oldChars,oldGray,orientation);
+    const n=this.atlas.length,cells=w*h;
+    for(let k=0;k<Math.min(160,cells*n);k++){
+     const pos=(k*1543)%cells,j=(k*137)%n,x=pos%w,y=Math.floor(pos/w);
+     const glyph=this.atlas[j];
+     if(x+glyph.columns>w)continue;
+     const hist=orientation.subarray(pos*8+(glyph.columns===2?4:0),
+      pos*8+(glyph.columns===2?8:4));
+     const expected=placementLoss(field,glyph,x,y,S,hist,oldChars?.[pos],oldGray);
+     const actual=scores[pos*n+j];
+     if(!Number.isFinite(expected)?actual!==Infinity:!Number.isFinite(actual)||
+        Math.abs(expected-actual)>1e-9)
+      throw Error('PC native score did not match original Mode 4');
+    }
+    gpuScores=scores;
+    this.acceleration='PC Native Exact';
+   }catch(e){
+    // Never substitute a different AA algorithm or accept corrupt scores.
+    // The fallback below is the unmodified original placementLoss() code.
+    this.gpuError=String(e);
+    this.exactMatcher=null;
+    this.acceleration='CPU';
+   }
+   gpuMs=performance.now()-nativeStart;
+  }
+  if(this.gpuMatcher&&!gpuScores){
    const gpuStart=performance.now();
    try{
     gpuScores=await this.gpuMatcher.compute(field,oldChars,oldGray);
@@ -529,7 +566,7 @@ export class ArtisanComposer {
     gpuScores=null;this.acceleration='CPU';
    }
    gpuMs=performance.now()-gpuStart;
-  }else this.acceleration='CPU';
+  }else if(!gpuScores)this.acceleration='CPU';
   const layoutStart=performance.now();
   const output=this._render(prepared,gpuScores,null);
   this.lastPerf={prepareMs:prepMs,gpuMs,layoutMs:performance.now()-layoutStart,

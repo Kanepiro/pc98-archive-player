@@ -13,7 +13,8 @@ self.onmessage=async({data:d})=>{
    }else{
     quality=d.mode==='artisan'?new ArtisanComposer(d.atlas,d.sample):new QualityConverter(d.atlas,d.sample);
     quality.restore(d.state);
-    await quality.enableWebGPU(d.width,d.height);
+    if(d.mode==='artisan'&&d.exactNative)quality.enableExactNative();
+    else await quality.enableWebGPU(d.width,d.height);
    }
    self.postMessage({ready:true,gpuAvailable:!!quality?.gpuMatcher||!!tones});return;
   }
