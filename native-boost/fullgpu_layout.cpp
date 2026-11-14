@@ -2,6 +2,7 @@
 #include <chrono>
 #include <array>
 #include <cstring>
+#include "fullgpu_resident.hpp"
 using Clock=std::chrono::steady_clock;
 static ComPtr<ID3DBlob> fullShader(const char* entry){
  auto path=shaderFilename();path=path.substr(0,path.find_last_of(L"\\/")+1)+L"fullgpu_layout.hlsl";
@@ -14,18 +15,84 @@ static ComPtr<ID3DBlob> fullShader(const char* entry){
 }
 struct FullGPU {
  NativeDirectCompute gpu;
- std::array<ComPtr<ID3D11ComputeShader>,8> shaders;
+ std::array<ComPtr<ID3D11ComputeShader>,9> shaders;
  ComPtr<ID3D11Buffer> memory,staging,constants,counterReadback;
- ComPtr<ID3D11UnorderedAccessView> uav;
+ ComPtr<ID3D11UnorderedAccessView> uav,scratchA,scratchB;
+ bool residentEnabled=false;
+ size_t ringWords=0,baseWords=0;
+ std::vector<uint32_t> frameInput;
+ std::array<double,16> metrics{};
+ uint32_t fallbackReason=0;
+ void videoMemory(){
+  ComPtr<IDXGIDevice> dx;ComPtr<IDXGIAdapter> adapter;ComPtr<IDXGIAdapter3> adapter3;
+  DXGI_QUERY_VIDEO_MEMORY_INFO info={};
+  if(SUCCEEDED(gpu.device.As(&dx))&&SUCCEEDED(dx->GetAdapter(&adapter))&&
+     SUCCEEDED(adapter.As(&adapter3))&&SUCCEEDED(adapter3->QueryVideoMemoryInfo(0,DXGI_MEMORY_SEGMENT_GROUP_LOCAL,&info))){
+   metrics[12]=double(info.CurrentUsage);metrics[13]=double(info.Budget);
+  }else{metrics[12]=-1;metrics[13]=-1;}
+ }
+ void upload(UINT first,UINT bytes,const void* data){
+  D3D11_BOX box={first,0,0,first+bytes,1,1};
+  gpu.context->UpdateSubresource(memory.Get(),0,&box,data,0,0);
+  metrics[2]++;metrics[3]+=bytes;
+ }
+ void releaseArena(){
+  if(memory)metrics[8]++;if(staging)metrics[8]++;
+  scratchA.Reset();scratchB.Reset();uav.Reset();memory.Reset();staging.Reset();
+ }
+ void allocateArena(size_t words,size_t cells){
+  D3D11_BUFFER_DESC desc={};desc.ByteWidth=(UINT)(words*4);desc.Usage=D3D11_USAGE_DEFAULT;
+  desc.BindFlags=D3D11_BIND_UNORDERED_ACCESS;desc.MiscFlags=D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;desc.StructureByteStride=4;
+  checked(gpu.device->CreateBuffer(&desc,nullptr,&memory),"GPU arena");metrics[7]++;
+  D3D11_UNORDERED_ACCESS_VIEW_DESC vd={};vd.ViewDimension=D3D11_UAV_DIMENSION_BUFFER;vd.Buffer.NumElements=(UINT)words;
+  checked(gpu.device->CreateUnorderedAccessView(memory.Get(),&vd,&uav),"GPU arena view");
+  if(residentEnabled){
+   vd.Buffer.FirstElement=offsets[13];vd.Buffer.NumElements=offsets[20]-offsets[13];
+   checked(gpu.device->CreateUnorderedAccessView(memory.Get(),&vd,&scratchA),"scratch A");
+   vd.Buffer.FirstElement=offsets[21];vd.Buffer.NumElements=(UINT)baseWords-offsets[21];
+   checked(gpu.device->CreateUnorderedAccessView(memory.Get(),&vd,&scratchB),"scratch B");
+  }
+  desc.BindFlags=0;desc.Usage=D3D11_USAGE_STAGING;desc.CPUAccessFlags=D3D11_CPU_ACCESS_READ;desc.MiscFlags=0;desc.StructureByteStride=0;
+  desc.ByteWidth=(UINT)(cells+16)*4;
+  checked(gpu.device->CreateBuffer(&desc,nullptr,&staging),"layout readback");metrics[7]++;
+ }
+ void uploadResident(const Payload& p,uint32_t sequence,bool reusePrevious){
+  size_t pos=0;
+  auto append=[&](const void* data,size_t n){std::memcpy(frameInput.data()+pos,data,n*4);pos+=n;};
+  append(p.target.data(),p.n);append(p.importance.data(),p.n);append(p.dist.data(),p.n);
+  append(p.gray.data(),p.n);
+  if(!reusePrevious){append(p.oldGray.data(),p.n);append(p.oldIndex.data(),p.cells);}
+  else pos+=p.n+p.cells;
+  std::fill(frameInput.begin()+pos,frameInput.end(),0);append(p.face.data(),p.F*4);
+  const UINT start=(UINT)(baseWords+(sequence%10)*ringWords);
+  for(UINT k=0;k<5;k++)offsets[k]=start+(UINT)(k*p.n);
+  offsets[5]=start+(UINT)(5*p.n);offsets[12]=start+(UINT)(5*p.n+p.cells);
+  const UINT retainAt=start+(UINT)(5*p.n);
+  if(reusePrevious){
+   const UINT prior=(UINT)(baseWords+((sequence-1)%10)*ringWords);
+   offsets[4]=prior+(UINT)(3*p.n);offsets[5]=prior+(UINT)(5*p.n);
+  }
+  std::copy(offsets.begin(),offsets.end(),host.begin());host[26]=retainAt;
+  const UINT zero[4]={};
+  gpu.context->ClearUnorderedAccessViewUint(scratchA.Get(),zero);
+  gpu.context->ClearUnorderedAccessViewUint(scratchB.Get(),zero);
+  upload(0,64*4,host.data());
+  if(reusePrevious){
+   upload(start*4,(UINT)p.n*16,frameInput.data());
+   upload(offsets[12]*4,32*4,frameInput.data()+5*p.n+p.cells);
+  }else upload(start*4,(UINT)ringWords*4,frameInput.data());
+  metrics[10]=sequence%10;
+ }
  struct alignas(16) Params {uint32_t W,H,S,G,kind,first,stride,count,x,y,beam,options,faces,old,cut,budget;};
+ Params lastParams{};bool paramsValid=false;
  std::vector<uint32_t> host;
  std::array<uint32_t,26> offsets{};
  struct Stamp {ComPtr<ID3D11Query> start,end;};
  std::array<Stamp,6> stamps;
  ComPtr<ID3D11Query> disjoint;
  FullGPU(){
-  const char* names[]={"prepare","score","candidates","solveRows","solveBands","criticPropose","evaluate","reduceCritic"};
-  for(size_t i=0;i<8;i++){auto code=fullShader(names[i]);checked(gpu.device->CreateComputeShader(code->GetBufferPointer(),code->GetBufferSize(),nullptr,&shaders[i]),"create layout shader");}
+  const char* names[]={"prepare","score","candidates","solveRows","solveBands","criticPropose","evaluate","reduceCritic","retain"};
+  for(size_t i=0;i<9;i++){auto code=fullShader(names[i]);checked(gpu.device->CreateComputeShader(code->GetBufferPointer(),code->GetBufferSize(),nullptr,&shaders[i]),"create layout shader");}
   D3D11_BUFFER_DESC cd={};cd.ByteWidth=sizeof(Params);cd.Usage=D3D11_USAGE_DEFAULT;cd.BindFlags=D3D11_BIND_CONSTANT_BUFFER;
   checked(gpu.device->CreateBuffer(&cd,nullptr,&constants),"layout constants");
   cd.ByteWidth=16;cd.Usage=D3D11_USAGE_STAGING;cd.BindFlags=0;cd.CPUAccessFlags=D3D11_CPU_ACCESS_READ;
@@ -40,7 +107,7 @@ struct FullGPU {
   return offset;
  }
  uint32_t zeros(size_t n){return add<float>(n);}
- void prepareArena(const Payload& p){
+ void prepareArena(const Payload& p,bool wantResident=false){
   host.assign(64,0);size_t C=p.cells,N=p.n,G=p.G,S=p.S;
   offsets[0]=add(N,&p.target);offsets[1]=add(N,&p.importance);offsets[2]=add(N,&p.dist);
   offsets[3]=add(N,&p.gray);offsets[4]=add(N,&p.oldGray);offsets[5]=add(C,&p.oldIndex);
@@ -61,40 +128,64 @@ struct FullGPU {
   }
   std::copy(offsets.begin(),offsets.end(),host.begin());
   if(host.size()*4>512ull*1024*1024)throw std::runtime_error("layout arena exceeds 512 MiB");
-  if(memory){D3D11_BUFFER_DESC prior={};memory->GetDesc(&prior);
-   if(prior.ByteWidth==host.size()*4){uploadInputs(p);return;}
+  baseWords=host.size();ringWords=5*p.n+p.cells+32;
+  residentEnabled=wantResident;fallbackReason=0;
+  if(residentEnabled&&ringWords*4*10>256ull*1024*1024){residentEnabled=false;fallbackReason=1;}
+  // A single job-start check. Never resize/tune based on per-frame load.
+  videoMemory();
+  if(residentEnabled&&metrics[13]>=0&&metrics[13]>0&&
+     metrics[12]+double((baseWords+ringWords*10)*4)+256.0*1024*1024>metrics[13]){
+   residentEnabled=false;fallbackReason=2;
   }
-  memory.Reset();uav.Reset();staging.Reset();
-  D3D11_BUFFER_DESC desc={};desc.ByteWidth=(UINT)host.size()*4;desc.Usage=D3D11_USAGE_DEFAULT;
-  desc.BindFlags=D3D11_BIND_UNORDERED_ACCESS;desc.MiscFlags=D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;desc.StructureByteStride=4;
-  checked(gpu.device->CreateBuffer(&desc,nullptr,&memory),"GPU arena");
-  D3D11_UNORDERED_ACCESS_VIEW_DESC vd={};vd.ViewDimension=D3D11_UAV_DIMENSION_BUFFER;vd.Buffer.NumElements=(UINT)host.size();
-  checked(gpu.device->CreateUnorderedAccessView(memory.Get(),&vd,&uav),"GPU arena view");
-  desc.BindFlags=0;desc.Usage=D3D11_USAGE_STAGING;desc.CPUAccessFlags=D3D11_CPU_ACCESS_READ;desc.MiscFlags=0;desc.StructureByteStride=0;
-  desc.ByteWidth=(UINT)(p.cells+16)*4;
-  checked(gpu.device->CreateBuffer(&desc,nullptr,&staging),"layout readback");
+  const size_t desired=baseWords+(residentEnabled?ringWords*10:0);
+  bool reuse=false;
+  if(memory){D3D11_BUFFER_DESC prior={};memory->GetDesc(&prior);
+   reuse=prior.ByteWidth==desired*4&&(!residentEnabled||scratchA);
+  }
+  if(!reuse){
+   releaseArena();
+   try{allocateArena(desired,p.cells);}
+   catch(...){
+    if(!residentEnabled)throw;
+    releaseArena();residentEnabled=false;fallbackReason=3;allocateArena(baseWords,p.cells);
+   }
+  }
+  if(residentEnabled)frameInput.resize(ringWords);
+
   uploadInputs(p);
  }
  void uploadInputs(const Payload& p){
   // Scratch is initialized on the GPU; only actual input data crosses PCIe.
   const UINT zero[4]={0,0,0,0};
   gpu.context->ClearUnorderedAccessViewUint(uav.Get(),zero);
-  D3D11_BOX inputBox={0,0,0,offsets[13]*4,1,1};
-  gpu.context->UpdateSubresource(memory.Get(),0,&inputBox,host.data(),0,0);
-  D3D11_BOX portBox={offsets[20]*4,0,0,(UINT)(offsets[20]+p.G*8*p.S)*4,1,1};
-  gpu.context->UpdateSubresource(memory.Get(),0,&portBox,host.data()+offsets[20],0,0);
+  upload(0,offsets[13]*4,host.data());
+  upload(offsets[20]*4,(UINT)(p.G*8*p.S)*4,host.data()+offsets[20]);
+  metrics[9]++;
  }
  void dispatch(int which,Params& p,UINT x,UINT y=1){
   if(!x)return;
-  gpu.context->UpdateSubresource(constants.Get(),0,nullptr,&p,0,0);
+  if(!residentEnabled||!paramsValid||std::memcmp(&lastParams,&p,sizeof(p))!=0){
+   gpu.context->UpdateSubresource(constants.Get(),0,nullptr,&p,0,0);
+   lastParams=p;paramsValid=true;metrics[2]++;metrics[3]+=sizeof(Params);
+  }
+  metrics[11]++;
   ID3D11Buffer* cb[]={constants.Get()};ID3D11UnorderedAccessView* uv[]={uav.Get()};
   gpu.context->CSSetConstantBuffers(0,1,cb);gpu.context->CSSetUnorderedAccessViews(0,1,uv,nullptr);
   gpu.context->CSSetShader(shaders[which].Get(),nullptr,0);gpu.context->Dispatch(x,y,1);
  }
  void start(int k){gpu.context->End(stamps[k].start.Get());}
  void end(int k){gpu.context->End(stamps[k].end.Get());}
- void compute(const Payload& src){
-  auto begin=Clock::now();prepareArena(src);
+ void compute(const LayoutRequest& request){
+  const auto& src=*request.value;
+  metrics.fill(0);metrics[10]=-1;metrics[12]=-1;metrics[13]=-1;
+  auto begin=Clock::now();
+  const auto priorFallback=fallbackReason;
+  if(request.initial||!residentEnabled)prepareArena(src,request.initial&&request.resident);
+  if(!request.initial&&!residentEnabled)fallbackReason=priorFallback;
+  if(request.reusePrevious&&!residentEnabled)throw std::runtime_error("resident temporal state unavailable");
+  if(residentEnabled)uploadResident(src,request.sequence,request.reusePrevious);
+  metrics[0]=residentEnabled?1:0;metrics[1]=residentEnabled?ringWords*4*10:0;
+  metrics[14]=fallbackReason;metrics[15]=request.sequence;
   Params p={(uint32_t)src.W,(uint32_t)src.H,(uint32_t)src.S,(uint32_t)src.G,0,0,1,(uint32_t)src.H,0,0,
    src.cells>3000?7u:14u,src.cells>3000?7u:12u,(uint32_t)src.F,(uint32_t)src.hasOld,(uint32_t)src.cut,src.cells>3000?16u:src.cells>1000?28u:36u};
   UINT cellGroups=(UINT)(src.cells+63)/64;
@@ -125,18 +216,26 @@ struct FullGPU {
     ID3D11UnorderedAccessView* empty[]={nullptr};gpu.context->CSSetUnorderedAccessViews(0,1,empty,nullptr);
     D3D11_BOX box={offsets[22]*4,0,0,offsets[22]*4+16,1,1};
     gpu.context->CopySubresourceRegion(counterReadback.Get(),0,0,0,0,memory.Get(),0,&box);
+    metrics[4]++;metrics[5]+=16;
+    auto waitBegin=Clock::now();
     D3D11_MAPPED_SUBRESOURCE m={};checked(gpu.context->Map(counterReadback.Get(),0,D3D11_MAP_READ,0,&m),"critic budget");
+    metrics[6]+=std::chrono::duration<double,std::milli>(Clock::now()-waitBegin).count();
     budgetReached=((uint32_t*)m.pData)[2]>=p.budget;gpu.context->Unmap(counterReadback.Get(),0);
     if(budgetReached)break;
    }
   }
-  end(5);gpu.context->End(disjoint.Get());
+  end(5);
+  if(residentEnabled)dispatch(8,p,cellGroups); // Retain IDs; does not change layout or evaluation.
+  gpu.context->End(disjoint.Get());
   ID3D11UnorderedAccessView* none[]={nullptr};gpu.context->CSSetUnorderedAccessViews(0,1,none,nullptr);
   D3D11_BOX rowsBox={offsets[15]*4,0,0,(UINT)(offsets[15]+src.cells)*4,1,1};
   D3D11_BOX diagBox={offsets[22]*4,0,0,(offsets[22]+16)*4,1,1};
   gpu.context->CopySubresourceRegion(staging.Get(),0,0,0,0,memory.Get(),0,&rowsBox);
   gpu.context->CopySubresourceRegion(staging.Get(),0,(UINT)src.cells*4,0,0,memory.Get(),0,&diagBox);
+  metrics[4]+=2;metrics[5]+=(src.cells+16)*4;
+  auto waitBegin=Clock::now();
   D3D11_MAPPED_SUBRESOURCE mapped={};checked(gpu.context->Map(staging.Get(),0,D3D11_MAP_READ,0,&mapped),"layout readback");
+  metrics[6]+=std::chrono::duration<double,std::milli>(Clock::now()-waitBegin).count();
   const auto* result=(const uint32_t*)mapped.pData;
   uint32_t header[]={0x344c4746,p.W,p.H,p.G};
   std::cout.write((char*)header,sizeof(header));
@@ -152,7 +251,9 @@ struct FullGPU {
   }
   timings[6]=std::chrono::duration<double,std::milli>(Clock::now()-begin).count();
   timings[7]=host.size()*4.0;
-  std::cout.write((char*)timings.data(),sizeof(timings));std::cout.flush();
+  std::cout.write((char*)timings.data(),sizeof(timings));
+  if(request.extended){videoMemory();std::cout.write((char*)metrics.data(),sizeof(metrics));}
+  std::cout.flush();
   if(!std::cout)throw std::runtime_error("layout response pipe broken");
  }
 };
@@ -160,7 +261,7 @@ int main(int argc,char** argv){
  try{
   _setmode(_fileno(stdin),_O_BINARY);_setmode(_fileno(stdout),_O_BINARY);
   if(argc==2&&std::string(argv[1])=="--check-shader"){
-   for(auto name:{"prepare","score","candidates","solveRows","solveBands","criticPropose","evaluate","reduceCritic"}){
+   for(auto name:{"prepare","score","candidates","solveRows","solveBands","criticPropose","evaluate","reduceCritic","retain"}){
     auto code=fullShader(name);std::cout<<name<<" "<<code->GetBufferSize()<<" bytes\n";
    }return 0;
   }
@@ -168,7 +269,8 @@ int main(int argc,char** argv){
   FullGPU engine;
   if(argc==2&&std::string(argv[1])=="--probe"){std::cout<<"DIRECTCOMPUTE_LAYOUT "<<engine.gpu.gpuName<<"\n";return 0;}
   if(argc!=2||std::string(argv[1])!="--stream")throw std::runtime_error("expected --stream");
-  while(std::cin.peek()!=std::char_traits<char>::eof()){Payload p;engine.compute(p);}
+  LayoutRequest request;
+  while(std::cin.peek()!=std::char_traits<char>::eof()){request.read();engine.compute(request);}
   return 0;
  }catch(const std::exception& e){std::cerr<<"FULLGPU_ERROR "<<e.what()<<"\n";return 1;}
 }

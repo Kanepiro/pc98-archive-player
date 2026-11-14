@@ -23,7 +23,8 @@ from urllib.parse import urlsplit, unquote
 from base64 import urlsafe_b64decode
 import mp4_native
 from gpu_metrics import RunMetrics
-from fullgpu_bridge import FullGpuClient, ContourGpuClient, ModesGpuClient
+from fullgpu_bridge import ContourGpuClient, ModesGpuClient
+from resident_bridge import ResidentFullGpuClient
 
 HOST = "127.0.0.1"
 PORT = int(os.getenv("TASL_BOOST_PORT", "39083"))
@@ -190,7 +191,7 @@ class NativeGpuClient:
 
 
 GPU = NativeGpuClient()
-LAYOUT = FullGpuClient(executable)
+LAYOUT = ResidentFullGpuClient(executable)
 CONTOUR = ContourGpuClient(executable)
 MODES = ModesGpuClient(executable)
 VISION = None
@@ -212,7 +213,7 @@ atexit.register(GPU.close)
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TASL-FullGPU-Boost/0.3.41"
+    server_version = "TASL-FullGPU-Boost/0.3.42-rc1"
 
     def allowed(self):
         origin = self.headers.get("Origin", "")
@@ -305,7 +306,7 @@ class Handler(BaseHTTPRequestHandler):
         if route == "/health":
             return self.response(200, {
                 "name": "TASL Native GPU PC Boost",
-                "version": "0.3.41", "originalMode4": True,
+                "version": "0.3.42-rc1", "originalMode4": True,
                 "nativeExact": bool(executable("mode4_score_exact")),
                 "nativeGpu": GPU.probe(),
                 "nativeModes": MODES.probe(), "modesName": MODES.name,

@@ -227,3 +227,10 @@ void solveRows(uint3 group:SV_GroupID,uint tid:SV_GroupIndex){
 // Two-row beam search is defined in the companion include.
 #include "fullgpu_band.hlsl"
 #include "fullgpu_critic.hlsl"
+
+// Copy only completed glyph IDs into this input slot for the next ordered frame.
+// All evaluation/search kernels above are unchanged.
+[numthreads(64,1,1)]
+void retain(uint3 id:SV_DispatchThreadID){
+ if(id.x<W*H)M[M[26]+id.x]=M[base(15)+id.x];
+}
