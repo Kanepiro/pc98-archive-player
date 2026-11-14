@@ -23,7 +23,7 @@ from urllib.parse import urlsplit, unquote
 from base64 import urlsafe_b64decode
 import mp4_native
 from gpu_metrics import RunMetrics
-from fullgpu_bridge import FullGpuClient, ContourGpuClient
+from fullgpu_bridge import FullGpuClient, ContourGpuClient, ModesGpuClient
 
 HOST = "127.0.0.1"
 PORT = int(os.getenv("TASL_BOOST_PORT", "39083"))
@@ -192,6 +192,7 @@ class NativeGpuClient:
 GPU = NativeGpuClient()
 LAYOUT = FullGpuClient(executable)
 CONTOUR = ContourGpuClient(executable)
+MODES = ModesGpuClient(executable)
 VISION = None
 VISION_REASON = ""
 def native_vision():
@@ -204,13 +205,14 @@ def native_vision():
         except Exception as exc:
             VISION_REASON = str(exc)
     return VISION
+atexit.register(MODES.close)
 atexit.register(CONTOUR.close)
 atexit.register(LAYOUT.close)
 atexit.register(GPU.close)
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TASL-FullGPU-Boost/0.3.39"
+    server_version = "TASL-FullGPU-Boost/0.3.40"
 
     def allowed(self):
         origin = self.headers.get("Origin", "")
@@ -303,9 +305,11 @@ class Handler(BaseHTTPRequestHandler):
         if route == "/health":
             return self.response(200, {
                 "name": "TASL Native GPU PC Boost",
-                "version": "0.3.39", "originalMode4": True,
+                "version": "0.3.40", "originalMode4": True,
                 "nativeExact": bool(executable("mode4_score_exact")),
                 "nativeGpu": GPU.probe(),
+                "nativeModes": MODES.probe(), "modesName": MODES.name,
+                "modesSoftware": MODES.software, "modesReason": MODES.reason,
                 "nativeContour": CONTOUR.probe(), "contourReason": CONTOUR.reason,
                 "nativeLayout": LAYOUT.probe(), "layoutName": LAYOUT.name,
                 "layoutSoftware": LAYOUT.software, "layoutReason": LAYOUT.reason,
@@ -372,8 +376,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.response(200, v.detect(payload,w,h))
             except Exception as e:
                 return self.response(503, {"error": str(e)[:450]})
-        if route in ("/api/mode4/gpu-layout", "/api/mode4/gpu-contour"):
-            client = CONTOUR if route.endswith("gpu-contour") else LAYOUT
+        if route in ("/api/modes/convert", "/api/mode4/gpu-layout", "/api/mode4/gpu-contour"):
+            client = MODES if route == "/api/modes/convert" else CONTOUR if route.endswith("gpu-contour") else LAYOUT
             try:
                 if self.headers.get("Content-Type", "").split(";")[0] != "application/octet-stream":
                     return self.response(415, {"error": "Binary layout payload required"})
@@ -383,7 +387,7 @@ class Handler(BaseHTTPRequestHandler):
                 payload = self.rfile.read(length)
                 result = client.compute(payload)
                 return self.response(200, result, "application/octet-stream", {
-                    "X-TASL-Compute-Backend": "WARP-Test" if client.software else "DirectCompute-Global"})
+                    "X-TASL-Compute-Backend": "WARP-Test" if client.software else "DirectCompute-Modes" if client is MODES else "DirectCompute-Global"})
             except (ValueError, OSError, RuntimeError) as e:
                 return self.response(503, {"error": str(e)[:450]})
         if route == "/api/mode4/gpu-score":

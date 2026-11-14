@@ -182,6 +182,7 @@ export function qualityCpuDots(target,width,height,S,atlas){
  }
  return out;
 }
+import {NativeModeConverter} from './tsl-native-modes.js';
 export class QualityConverter{
  constructor(atlas,sample=6,{artisan=false}={}){
   if(!Array.isArray(atlas)||!atlas.length)throw Error('文字マスクがありません');
@@ -211,6 +212,12 @@ export class QualityConverter{
   this.previous={target:state.target,gray:state.gray,cut:false};
   this.prevGlyphs=state.prevGlyphs;
  }
+ async enableNativeGPU(width,height){
+  try{
+   this.nativeMode=await NativeModeConverter.create(3,this.sample,width,height,this.atlas);
+   this.nativeGpuInfo=this.nativeMode.adapterInfo;
+  }catch(e){this.gpuError=String(e);this.nativeMode=null;}
+ }
  async enableWebGPU(width,height){
   try{
    this.gpuMatcher=await Mode3GpuMatcher.create(this.atlas,this.sample,width,height);
@@ -224,6 +231,17 @@ export class QualityConverter{
   }
  }
  async convertAccelerated(pixels,width,height,options={}){
+  if(this.nativeMode){
+   try{
+    const result=await this.nativeMode.convert(pixels,options,this.previous,this.prevGlyphs);
+    this.previous=result.state;this.prevGlyphs=result.chars;
+    this.acceleration=this.nativeMode.acceleration;this.lastPerf=this.nativeMode.lastPerf;
+    return result.frame;
+   }catch(e){
+    this.gpuError=String(e);this.nativeMode.dispose();this.nativeMode=null;
+    this.acceleration='CPU';this.lastPerf=null;
+   }
+  }
   if(!this.gpuMatcher)return this.convert(pixels,width,height,options);
   const {brightness=0,contrast=1,gamma=1}=options,S=this.sample;
   if(pixels.length!==width*height*S*S*4)throw Error('画素数が一致しません');

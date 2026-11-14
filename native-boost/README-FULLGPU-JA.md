@@ -1,6 +1,6 @@
-# TASL PC Boost v0.3.39 — Windows ネイティブGPU版
+# TASL PC Boost v0.3.40 — Windows ネイティブGPU版
 
-ZIPを展開して「TASL-PC-Boost.exe」を起動してください。PythonやNode.jsの別途インストールは不要です。モード4ではネイティブGPU処理を自動選択します。モード1〜3は専用ネイティブGPU計算が未実装のためCPU処理です。WebGPUはどのモードでも使用しません。
+ZIPを展開して「TASL-PC-Boost.exe」を起動してください。PythonやNode.jsの別途インストールは不要です。モード1〜4のすべてでネイティブGPU処理を自動選択します。モード1・2の画素集約・濃淡・輪郭強調、モード3の色補正・ぼかし・輪郭連結・字形照合・ちらつき抑制・文字配置をDirectComputeで計算します。WebGPUはどのモードでも使用しません。
 
 モード4の輪郭解析、被写体優先度、輪郭の連結・細線化、顔の線画補正、字形照合、候補選択、行組版、2行同時最適化、全画面評価による修正をDirectComputeで実行します。顔・物体の認識は元のMediaPipeモデルの重みを保持したONNXモデルをDirectMLで実行し、前処理と重複検出の除去にもDirectComputeを使います。WebGPUに依存しません。
 

@@ -130,3 +130,21 @@ class NmsGpuClient(FullGpuClient):
         magic,nf,no,_=struct.unpack_from("<4I",payload)
         if magic!=0x534d4e54 or not 1<=nf<=896 or not 1<=no<=19206 or len(payload)!=16+4*(nf*17+no*6):raise ValueError("NMS bounds")
         return (2+nf*17+36)*4
+
+class ModesGpuClient(FullGpuClient):
+    program_name = "native_modes"
+    marker = b"DIRECTCOMPUTE_MODES "
+
+    def validate(self, payload):
+        if len(payload) < 64:
+            raise ValueError("Incomplete native modes header")
+        magic, version, mode, w, h, s, g, old = struct.unpack_from("<8I", payload)
+        if magic != 0x4d475354 or version != 1 or mode not in (1, 2, 3) or not (1 <= w <= 480 and 1 <= h <= 240 and 1 <= s <= 10 and old <= 1):
+            raise ValueError("Invalid native mode dimensions")
+        n, cells = w*h*s*s, w*h
+        if n > 3000000 or (mode == 3 and not (2 <= g <= 128 and cells*g <= 10000000 and struct.unpack_from("<I", payload, 48)[0] < g)) or (mode != 3 and (g or old)):
+            raise ValueError("Native mode capacity")
+        expected = 64+4*n+(4*g*(2+2*s*s) if mode == 3 else 0)+(4*(2*n+cells) if old else 0)
+        if len(payload) != expected:
+            raise ValueError("Native mode payload length")
+        return 48+4*cells+(8*n if mode == 3 else 0)

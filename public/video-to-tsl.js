@@ -89,7 +89,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   // The video itself is deliberately NOT persisted.
   try{
    const identity=fileIdentity(file);
-   const baseEngineVersion=options.conversionMode==='artisan'?20:options.conversionMode==='quality'?(options.native16?8:7):options.conversionMode==='halftone'?(options.native16?15:14):(options.native16?3:2);
+   const baseEngineVersion=options.conversionMode==='artisan'?20:options.conversionMode==='quality'?(options.native16?48:47):options.conversionMode==='halftone'?(options.native16?55:54):(options.native16?43:42);
    const engineVersion=baseEngineVersion+(sourceGrid?20:0);
    const signature=JSON.stringify([engineVersion,identity,await fingerprint(file),
     [options.width,options.height,options.fps,options.brightness,options.contrast,options.gamma,options.edge,options.conversionMode,options.native16,sourceGrid,fit,positionX,positionY],
@@ -198,12 +198,12 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   let metricsUrl=null;
   if(metricsId)try{
    const r=await fetch('/api/metrics/'+metricsId+'/finish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-    appVersion:'0.3.39',source:{name:file.name,bytes:file.size,width:video.videoWidth,height:video.videoHeight,duration:video.duration},
+    appVersion:'0.3.40',source:{name:file.name,bytes:file.size,width:video.videoWidth,height:video.videoHeight,duration:video.duration},
     settings:options,plan,resumedFrom:resumeStart,totalConversionSeconds:(performance.now()-taskStarted)/1000,frames:metricFrames,status:'completed'})});
    if(r.ok){metricsUrl=(await r.json()).url;metricsId=null;}
   }catch{}
   return {blob,plan,ramp,metricsUrl,source:{width:video.videoWidth,height:video.videoHeight,duration:video.duration},elapsed:(performance.now()-started)/1000};
  } finally {
-  if(metricsId)fetch('/api/metrics/'+metricsId+'/finish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({appVersion:'0.3.39',status:'interrupted',frames:metricFrames}),keepalive:true}).catch(()=>{});
+  if(metricsId)fetch('/api/metrics/'+metricsId+'/finish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({appVersion:'0.3.40',status:'interrupted',frames:metricFrames}),keepalive:true}).catch(()=>{});
   worker?.terminate();vision?.close();video.pause();video.removeAttribute('src');video.load();URL.revokeObjectURL(url);}
 }

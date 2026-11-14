@@ -3,7 +3,7 @@ import hashlib,json,os,sys
 root=Path(sys.argv[1]);validation=root/'VALIDATION'
 layout=json.loads((validation/'layout-report.json').read_text(encoding='utf-8'))
 mp4=json.loads((validation/'mp4-report.json').read_text(encoding='utf-8'))
-lines=['# 検証結果 — TASL PC Boost v0.3.39','','検証環境: Windows / 明示的なWARPソフトウェア実行。GTX 1050 Tiの速度・DirectML・NVENC実機動作は未検証。','','## 組版と画質','','元のJavaScript全画面評価式による独立再計算。値は小さいほど良好。','','| 半角マス | 旧経路 ms | 新経路 ms | 元CPU評価値 | 新評価値 | 差 |','|---|---:|---:|---:|---:|---:|']
+lines=['# 検証結果 — TASL PC Boost v0.3.40','','検証環境: Windows / 明示的なWARPソフトウェア実行。GTX 1050 Tiの速度・DirectML・NVENC実機動作は未検証。','','## 組版と画質','','元のJavaScript全画面評価式による独立再計算。値は小さいほど良好。','','| 半角マス | 旧経路 ms | 新経路 ms | 元CPU評価値 | 新評価値 | 差 |','|---|---:|---:|---:|---:|---:|']
 for r in layout:
  old=r['reference']['total'];new=r['independent']['total']
  lines.append(f"| {r['W']}×{r['H']} | {r['oldNativeMs']:.1f} | {r['nativeMs']:.1f} | {old:.4f} | {new:.4f} | {(new/old-1)*100:+.3f}% |")

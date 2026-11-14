@@ -5,7 +5,7 @@ const browser=await chromium.launch({channel:'chrome',headless:true,args:['--no-
 try{
  const page=await browser.newPage();
  await page.goto(process.env.BOOST_URL||'http://127.0.0.1:39085/');
- assert.match(await page.locator('header').innerText(),/Windows ネイティブ版 · v0.3.39/);
+ assert.match(await page.locator('header').innerText(),/Windows ネイティブ版 · v0.3.40/);
  const results=await page.evaluate(async()=>{
   const {makeArtisanGlyphAtlas}=await import('/tsl-artisan.js');
   const {makeGlyphAtlas}=await import('/tsl-quality.js');
@@ -22,7 +22,7 @@ try{
     const pixels=new Uint8ClampedArray(width*height*sample*sample*4);
     for(let y=0;y<height*sample;y++)for(let x=0;x<width*sample;x++){const i=(y*width*sample+x)*4;const v=(x>18&&x<50&&y>10&&y<40)?30:210;pixels[i]=pixels[i+1]=pixels[i+2]=v;pixels[i+3]=255;}
     const out=await ask({pixels:pixels.buffer,width,height,options:{conversionMode:mode,sample,ramp:' .:|/(%YVO8D@0#$',gamma:1,contrast:1,edge:.6}});
-    if(!out.frame||out.acceleration==='WebGPU')throw Error('Native isolation failed '+mode);
+    if(!out.frame||!out.acceleration.startsWith('WARP Test'))throw Error('Native isolation failed '+mode);
     if(mode==='artisan')for(const ch of out.frame)if(![' ','\r','\n',...MODE4_ALLOWED_CHARS].includes(ch))throw Error('Invalid glyph '+ch);
     results.push({mode,backend:out.acceleration,reason:out.gpuReason,characters:out.frame.length});
    }finally{worker.terminate();}

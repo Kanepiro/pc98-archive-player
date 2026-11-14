@@ -13,7 +13,7 @@ try:
    if p.poll() is not None:raise RuntimeError('Packaged application exited')
    time.sleep(1)
  else:raise RuntimeError('Packaged application startup timeout')
- assert health['nativeLayout'] and health['nativeContour'],health
+ assert health['nativeLayout'] and health['nativeContour'] and health['nativeModes'],health
  vision=get('/api/vision/health');assert vision['ready'] and vision['backend']=='CPU-Test',vision
  req=urllib.request.Request(base+'/api/vision/detect',data=bytes([80,140,180,255])*64*64,
   headers={'Content-Type':'application/octet-stream','X-TASL-Width':'64','X-TASL-Height':'64'})

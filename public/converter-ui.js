@@ -42,7 +42,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  const compatibleCheckpoint=job=>{
   const native16=job?.config?.['video-font-render']==='native16';
   const mode=job?.config?.['video-style'];
-  const version=mode==='artisan'?20:mode==='quality'?(native16?8:7):mode==='halftone'?(native16?15:14):(native16?3:2);
+  const version=mode==='artisan'?20:mode==='quality'?(native16?48:47):mode==='halftone'?(native16?55:54):(native16?43:42);
   return mode!=='outline'&&job?.engineVersion===version+(job?.config?.['video-mode']==='pc98'?20:0);
  };
  function show(which){
@@ -180,7 +180,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
       ?p.perf.backend?' · 前処理 '+Math.round(p.perf.prepareMs)+'ms / 照合GPU '+Math.round(p.perf.matchingGpuMs)+'ms / 全体組版GPU '+Math.round(p.perf.layoutMs)+'ms':' · 前処理 '+Math.round(p.perf.prepareMs)+'ms / 字形照合 '+Math.round(p.perf.gpuMs)+'ms / 組版CPU '+Math.round(p.perf.layoutMs)+'ms'
       :'';
      const fallback=p.gpuReason?' · フォールバック: '+p.gpuReason:'';
-     $('converter-detail').textContent=(p.plan.reduced?'長尺のため自動調整 · ':'')+p.plan.effectiveFps.toFixed(2)+' fps · '+(p.acceleration==='DirectCompute Global'?'WindowsネイティブGPU 全体組版':p.acceleration==='WARP Test Global'?'ソフトウェア検証 WARP（実GPUではありません）':p.acceleration==='DirectCompute'?'WindowsネイティブGPU文字照合（DirectCompute）':p.acceleration==='PC Native Exact'?'正規アルゴリズム C++文字照合':p.acceleration==='WebGPU'?'GPU文字照合（WebGPU）':p.acceleration==='CPU（GPU精度照合）'?'CPU処理（GPUとの精度差）':'CPU処理')+(gpuName?' · '+gpuName:'')+perf+(p.visionBackend?' · 認識 '+p.visionBackend:'')+fallback+' · 残り約'+Math.ceil(p.remaining)+'秒 · 途中保存済み '+p.saved.toLocaleString()+'画面';
+     $('converter-detail').textContent=(p.plan.reduced?'長尺のため自動調整 · ':'')+p.plan.effectiveFps.toFixed(2)+' fps · '+(p.acceleration==='DirectCompute Modes'?'WindowsネイティブGPU変換（DirectCompute）':p.acceleration==='WARP Test Modes'?'ソフトウェア検証 WARP（実GPUではありません）':p.acceleration==='DirectCompute Global'?'WindowsネイティブGPU 全体組版':p.acceleration==='WARP Test Global'?'ソフトウェア検証 WARP（実GPUではありません）':p.acceleration==='DirectCompute'?'WindowsネイティブGPU文字照合（DirectCompute）':p.acceleration==='PC Native Exact'?'正規アルゴリズム C++文字照合':p.acceleration==='WebGPU'?'GPU文字照合（WebGPU）':p.acceleration==='CPU（GPU精度照合）'?'CPU処理（GPUとの精度差）':'CPU処理')+(gpuName?' · '+gpuName:'')+perf+(p.visionBackend?' · 認識 '+p.visionBackend:'')+fallback+' · 残り約'+Math.ceil(p.remaining)+'秒 · 途中保存済み '+p.saved.toLocaleString()+'画面';
     }});
    downloadUrl=URL.createObjectURL(result.blob);
    const a=$('tsl-download');a.href=downloadUrl;a.download=tslName(file.name,result.plan.conversionMode);

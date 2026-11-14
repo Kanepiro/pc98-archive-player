@@ -2,12 +2,14 @@ import {rgbaToASCII} from './tsl-converter-core.js';
 import {QualityConverter} from './tsl-quality.js';
 import {ArtisanComposer} from './tsl-artisan-engine.js';
 import {rgbaToHalftone} from './tsl-halftone.js';
+import {NativeModeConverter} from './tsl-native-modes.js';
 let quality=null,tones=null,gpuUnavailableReason='';
 self.onmessage=async({data:d})=>{
  try{
   if(d.type==='init'){
    if(d.mode==='legacy'||d.mode==='halftone'){
-    tones=null;gpuUnavailableReason='Windowsネイティブ版: モード1・2の専用GPU計算は未実装のためCPU処理';
+    tones=null;gpuUnavailableReason='';
+    try{tones=await NativeModeConverter.create(d.mode==='legacy'?1:2,d.sample,d.width,d.height);}catch(e){gpuUnavailableReason=String(e);}
    }else{
     quality=d.mode==='artisan'?new ArtisanComposer(d.atlas,d.sample):new QualityConverter(d.atlas,d.sample);
     quality.restore(d.state);
@@ -15,10 +17,10 @@ self.onmessage=async({data:d})=>{
     // Fall back to exact C++ CPU when the native GPU is unavailable.
     if(d.mode==='artisan')
      await quality.enablePCBoost(d.width,d.height);
-    else quality.gpuError='Windowsネイティブ版: モード3の専用GPU計算は未実装のためCPU処理';
+    else await quality.enableNativeGPU(d.width,d.height);
     if(d.mode==='artisan'&&d.exactNative&&d.legacyLayout){quality.fullGpuLayout=null;quality.nativeContour=null;}
    }
-   self.postMessage({ready:true,gpuAvailable:!!quality?.gpuMatcher||!!tones});return;
+   self.postMessage({ready:true,gpuAvailable:!!quality?.nativeMode||!!quality?.gpuMatcher||!!tones});return;
   }
   if(d.type==='snapshot'){
    if(!quality)throw Error('モード3が初期化されていません');
@@ -34,14 +36,14 @@ self.onmessage=async({data:d})=>{
     try{
      frame=await tones.convert(pixels,d.options);
      acceleration=tones.acceleration;
-    }catch{tones.dispose();tones=null;}
+    }catch(e){gpuUnavailableReason=String(e);tones.dispose();tones=null;}
    }
    if(frame===undefined)frame=d.options.conversionMode==='halftone'
     ?rgbaToHalftone(pixels,d.width,d.height,d.options)
     :rgbaToASCII(pixels,d.width,d.height,d.options);
   }
   self.postMessage({frame,acceleration,
-   perf:d.options.conversionMode==='artisan'?quality.lastPerf:null,
+   perf:quality?.lastPerf||tones?.lastPerf||null,
    adapterInfo:quality?.nativeGpuInfo||quality?.gpuMatcher?.adapterInfo||tones?.adapterInfo||null,
    gpuReason:quality?.gpuError||gpuUnavailableReason||''});
  }catch(e){self.postMessage({error:e.message});}
