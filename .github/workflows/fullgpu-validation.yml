@@ -198,5 +198,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RELEASE_COMMIT: ${{ github.sha }}
         run: |
+          branch_head=$(gh api repos/"$GH_REPO"/git/ref/heads/work/native-allmodes-20261114 --jq .object.sha)
+          if [ "$branch_head" != "$RELEASE_COMMIT" ]; then echo "A newer commit exists; skip superseded release"; exit 0; fi
           sha256sum release-assets/*.zip > release-assets/SHA256SUMS.txt
           gh release create windows-v0.3.40 release-assets/* --target "$RELEASE_COMMIT" --title "Windows native v0.3.40 — 全モード DirectCompute" --notes-file native-boost/RELEASE-v0.3.40.md

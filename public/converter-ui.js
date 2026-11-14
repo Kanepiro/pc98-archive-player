@@ -176,7 +176,9 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
       :/ソフトウェアWebGPU/.test(p.gpuReason||'')
        ?'SwiftShader等のソフトウェアGPUを除外しCPU処理'
        :'';
-     const perf=p.plan.conversionMode==='artisan'&&p.perf
+     const perf=p.perf?.nativeWallMs!==undefined
+      ?' · ネイティブ変換 '+Math.round(p.perf.nativeWallMs)+'ms'+(p.perf.gpuTimestampMs>=0?' / GPU実行 '+Math.round(p.perf.gpuTimestampMs)+'ms':'')
+      :p.plan.conversionMode==='artisan'&&p.perf
       ?p.perf.backend?' · 前処理 '+Math.round(p.perf.prepareMs)+'ms / 照合GPU '+Math.round(p.perf.matchingGpuMs)+'ms / 全体組版GPU '+Math.round(p.perf.layoutMs)+'ms':' · 前処理 '+Math.round(p.perf.prepareMs)+'ms / 字形照合 '+Math.round(p.perf.gpuMs)+'ms / 組版CPU '+Math.round(p.perf.layoutMs)+'ms'
       :'';
      const fallback=p.gpuReason?' · フォールバック: '+p.gpuReason:'';

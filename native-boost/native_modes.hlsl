@@ -9,11 +9,11 @@ cbuffer Params : register(b0) {
 uint O(uint slot){return A[slot];}
 float F(uint slot,uint i){return asfloat(A[O(slot)+i]);}
 void SF(uint slot,uint i,float value){A[O(slot)+i]=asuint(value);}
-uint linear(uint3 id){return id.x+id.y*65535*128;}
+uint threadIndex(uint3 id){return id.x+id.y*65535*128;}
 static const float Bayer[16]={0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5};
 [numthreads(128,1,1)]
 void average(uint3 id:SV_DispatchThreadID){
- uint i=linear(id),C=W*H;if(i>=C)return;
+ uint i=threadIndex(id),C=W*H;if(i>=C)return;
  uint x=i%W,y=i/W,w=W*S;float3 rgb=0;
  for(uint py=0;py<S;py++)for(uint px=0;px<S;px++){
   uint p=A[O(0)+(y*S+py)*w+x*S+px];
@@ -24,7 +24,7 @@ void average(uint3 id:SV_DispatchThreadID){
 }
 [numthreads(128,1,1)]
 void tones(uint3 id:SV_DispatchThreadID){
- uint i=linear(id),C=W*H;if(i>=C)return;
+ uint i=threadIndex(id),C=W*H;if(i>=C)return;
  if(Mode==2){
   uint D=W/2;if(i>=D*H)return;uint x=i%D,y=i/D;
   float lum=(F(1,(y*W+x*2)*4+3)+F(1,(y*W+x*2+1)*4+3))/510;
@@ -45,14 +45,14 @@ void tones(uint3 id:SV_DispatchThreadID){
 }
 [numthreads(128,1,1)]
 void normalizeQuality(uint3 id:SV_DispatchThreadID){
- uint i=linear(id),N=W*H*S*S;if(i>=N)return;uint p=A[O(0)+i];
+ uint i=threadIndex(id),N=W*H*S*S;if(i>=N)return;uint p=A[O(0)+i];
  float3 rgb=pow(saturate((float3(p&255,(p>>8)&255,(p>>16)&255)/255-.5)*contrast+.5+brightness/100),gamma.xxx);
  float gray=dot(rgb,float3(.2126,.7152,.0722));
  SF(1,i,rgb.r);SF(1,N+i,rgb.g);SF(1,N*2+i,rgb.b);SF(1,N*3+i,gray);SF(14,i,gray);
 }
 [numthreads(128,1,1)]
 void gaussianQuality(uint3 id:SV_DispatchThreadID){
- uint i=linear(id),w=W*S,h=H*S,N=w*h;if(i>=N*channels)return;
+ uint i=threadIndex(id),w=W*S,h=H*S,N=w*h;if(i>=N*channels)return;
  uint c=i/N,p=i%N,x=p%w,y=p/w;float sigma=K==0?.75:K==1?.8:1.85;
  int radius=(int)ceil(2.4*sigma);float sum=0,total=0;
  for(int k=-radius;k<=radius;k++){
@@ -64,7 +64,7 @@ void gaussianQuality(uint3 id:SV_DispatchThreadID){
 }
 [numthreads(128,1,1)]
 void gradientQuality(uint3 id:SV_DispatchThreadID){
- uint i=linear(id),w=W*S,h=H*S,N=w*h;if(i>=N)return;uint x=i%w,y=i/w;
+ uint i=threadIndex(id),w=W*S,h=H*S,N=w*h;if(i>=N)return;uint x=i%w,y=i/w;
  if(x==0||y==0||x+1==w||y+1==h){SF(7,i,0);return;}
  float best=0;float2 direction=0;
  for(uint k=0;k<4;k++){
@@ -77,7 +77,7 @@ void gradientQuality(uint3 id:SV_DispatchThreadID){
 }
 [numthreads(128,1,1)]
 void peaksQuality(uint3 id:SV_DispatchThreadID){
- uint i=linear(id),w=W*S,h=H*S,N=w*h;if(i>=N)return;uint x=i%w,y=i/w;
+ uint i=threadIndex(id),w=W*S,h=H*S,N=w*h;if(i>=N)return;uint x=i%w,y=i/w;
  bool peak=false;float m=F(7,i);
  if(x>0&&y>0&&x+1<w&&y+1<h&&m>=.10){uint d=A[O(8)+i];uint delta=d==0?1:d==1?w+1:d==2?w:w-1;peak=m>=F(7,i-delta)&&m>=F(7,i+delta);}
  A[O(9)+i]=peak?i:0xffffffff;A[O(10)+i]=0;A[O(11)+i]=0;
@@ -85,7 +85,7 @@ void peaksQuality(uint3 id:SV_DispatchThreadID){
 uint rootQuality(uint i){for(uint k=0;k<64;k++){uint p=A[O(9)+i];if(p==i||p==0xffffffff)return p;i=p;}return i;}
 [numthreads(128,1,1)]
 void connectQuality(uint3 id:SV_DispatchThreadID){
- uint i=linear(id),w=W*S,h=H*S,N=w*h;if(i>=N||A[O(9)+i]==0xffffffff)return;uint x=i%w,y=i/w;
+ uint i=threadIndex(id),w=W*S,h=H*S,N=w*h;if(i>=N||A[O(9)+i]==0xffffffff)return;uint x=i%w,y=i/w;
  for(int dy=-1;dy<=1;dy++)for(int dx=-1;dx<=1;dx++){
   int xx=int(x)+dx,yy=int(y)+dy;if(xx<=0||yy<=0||xx>=int(w)-1||yy>=int(h)-1)continue;
   uint j=yy*w+xx;if(A[O(9)+j]==0xffffffff)continue;
@@ -94,22 +94,22 @@ void connectQuality(uint3 id:SV_DispatchThreadID){
 }
 [numthreads(128,1,1)]
 void compressQuality(uint3 id:SV_DispatchThreadID){
- uint i=linear(id),N=W*H*S*S;if(i>=N||A[O(9)+i]==0xffffffff)return;
+ uint i=threadIndex(id),N=W*H*S*S;if(i>=N||A[O(9)+i]==0xffffffff)return;
  uint r=rootQuality(i),before;InterlockedMin(A[O(9)+i],r,before);if(before>r)InterlockedOr(A[O(26)],1);
 }
 [numthreads(128,1,1)]
 void componentsQuality(uint3 id:SV_DispatchThreadID){
- uint i=linear(id),N=W*H*S*S;if(i>=N)return;uint r=A[O(9)+i];if(r==0xffffffff)return;
+ uint i=threadIndex(id),N=W*H*S*S;if(i>=N)return;uint r=A[O(9)+i];if(r==0xffffffff)return;
  InterlockedAdd(A[O(10)+r],1);if(F(7,i)>=.24)InterlockedOr(A[O(11)+r],1);
 }
 [numthreads(128,1,1)]
 void connectedQuality(uint3 id:SV_DispatchThreadID){
- uint i=linear(id),N=W*H*S*S;if(i>=N)return;uint r=A[O(9)+i];
+ uint i=threadIndex(id),N=W*H*S*S;if(i>=N)return;uint r=A[O(9)+i];
  A[O(12)+i]=r!=0xffffffff&&A[O(10)+r]>=3&&A[O(11)+r]!=0?1:0;
 }
 [numthreads(128,1,1)]
 void targetQuality(uint3 id:SV_DispatchThreadID){
- uint i=linear(id),w=W*S,h=H*S,N=w*h;if(i>=N)return;uint x=i%w,y=i/w;bool connected=A[O(12)+i]!=0;
+ uint i=threadIndex(id),w=W*S,h=H*S,N=w*h;if(i>=N)return;uint x=i%w,y=i/w;bool connected=A[O(12)+i]!=0;
  if(!connected&&x>=2&&y>=2&&x+2<w&&y+2<h&&F(7,i)>=.06){
   connected=(A[O(12)+i-1]&&A[O(12)+i+1])||(A[O(12)+i-w]&&A[O(12)+i+w])||
    (A[O(12)+i-w-1]&&A[O(12)+i+w+1])||(A[O(12)+i-w+1]&&A[O(12)+i+w-1]);
@@ -125,7 +125,7 @@ void sceneQuality(uint3 id:SV_DispatchThreadID){
 }
 [numthreads(128,1,1)]
 void cellsQuality(uint3 id:SV_DispatchThreadID){
- uint i=linear(id),C=W*H;if(i>=C)return;uint x=i%W,y=i/W,w=W*S;
+ uint i=threadIndex(id),C=W*H;if(i>=C)return;uint x=i%W,y=i/W,w=W*S;
  float energy=0,change=0,cur=0,prior=0,both=0;
  for(uint py=0;py<S;py++)for(uint px=0;px<S;px++){
   uint j=(y*S+py)*w+x*S+px;float v=F(13,j);energy+=v*v;
@@ -135,7 +135,7 @@ void cellsQuality(uint3 id:SV_DispatchThreadID){
 }
 [numthreads(128,1,1)]
 void scoreQuality(uint3 id:SV_DispatchThreadID){
- uint i=linear(id),C=W*H;if(i>=C*G)return;uint cell=i/G,j=i%G,x=cell%W,y=cell/W,cols=A[O(17)+j];
+ uint i=threadIndex(id),C=W*H;if(i>=C*G)return;uint cell=i/G,j=i%G,x=cell%W,y=cell/W,cols=A[O(17)+j];
  float loss=1e20;if(x+cols<=W){
   float dotValue=0;uint total=cols*S*S,w=W*S;
   for(uint py=0;py<S;py++)for(uint px=0;px<cols*S;px++)dotValue+=F(13,(y*S+py)*w+x*S+px)*F(18,j*2*S*S+py*cols*S+px);
@@ -158,7 +158,7 @@ void scoreQuality(uint3 id:SV_DispatchThreadID){
 }
 [numthreads(128,1,1)]
 void rowsQuality(uint3 id:SV_DispatchThreadID){
- uint y=linear(id);if(y>=H)return;uint base=y*(W+1);
+ uint y=threadIndex(id);if(y>=H)return;uint base=y*(W+1);
  for(uint x=0;x<=W;x++){SF(23,base+x,x==0?0:1e20);A[O(24)+base+x]=0xffffffff;}
  for(uint x=0;x<W;x++){
   float prior=F(23,base+x);if(prior>=1e19)continue;

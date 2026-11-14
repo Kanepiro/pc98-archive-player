@@ -10,7 +10,7 @@ for r in layout:
 lines+=['','時間はWARP実行であり、GPU実機の高速化を示すものではありません。初回処理には初期化費用が含まれます。','','## 同じ元動画・同じ設定の全体比較','','入力: testsrc2 / 640×360 / 2秒 / 4fps。PC-98実寸、モード4。MP4は5fps。旧経路はv0.3.37と同じCPU輪郭・CPU組版＋DirectCompute照合。','','元動画 SHA-256: '+mp4['sameSourceSha256'],'','| 経路 | MP4出力 秒 | 変換＋MP4 秒 | 出力フレーム数 |','|---|---:|---:|---:|']
 for r in mp4['runs']:lines.append(f"| {r['variant']} | {r['mp4Seconds']:.3f} | {r['conversionPlusMp4Seconds']:.3f} | {r['frameCount']} |")
 lines+=['','NVENCは実機未検証のため、この動画比較は両方ともCPUエンコードです。新経路の文字描画・サイズ調整・色変換はWARP上のDirectComputeです。','','## その他の実行確認','']
-for name in ['raster-report','preprocess-report','nms-report']:
+for name in ['raster-report','preprocess-report','nms-report','native-modes','platform-isolation']:
  value=json.loads((validation/(name+'.json')).read_text(encoding='utf-8'))
  lines+=['- '+name+': '+json.dumps(value,ensure_ascii=False)]
 lines+=['- 梱包済みEXEの起動、モデル同梱、前処理・NMSのソフトウェア実行を確認。','- GPU使用率: Windows検証環境にNVIDIA実GPUなし。測定不可。','- 追加の制約と未検証範囲: VALIDATION-NOTES.md。','','ビルドコミット: '+os.getenv('GITHUB_SHA','unknown')]
