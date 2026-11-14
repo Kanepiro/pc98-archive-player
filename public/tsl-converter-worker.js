@@ -13,7 +13,11 @@ self.onmessage=async({data:d})=>{
    }else{
     quality=d.mode==='artisan'?new ArtisanComposer(d.atlas,d.sample):new QualityConverter(d.atlas,d.sample);
     quality.restore(d.state);
-    await quality.enableWebGPU(d.width,d.height);
+    // PC Boost: real Windows DirectCompute D3D11, NOT WebGPU.
+    // Fall back to exact C++ CPU when the native GPU is unavailable.
+    if(d.mode==='artisan'&&d.exactNative)
+     await quality.enablePCBoost(d.width,d.height);
+    else await quality.enableWebGPU(d.width,d.height);
    }
    self.postMessage({ready:true,gpuAvailable:!!quality?.gpuMatcher||!!tones});return;
   }
@@ -39,7 +43,7 @@ self.onmessage=async({data:d})=>{
   }
   self.postMessage({frame,acceleration,
    perf:d.options.conversionMode==='artisan'?quality.lastPerf:null,
-   adapterInfo:quality?.gpuMatcher?.adapterInfo||tones?.adapterInfo||null,
+   adapterInfo:quality?.nativeGpuInfo||quality?.gpuMatcher?.adapterInfo||tones?.adapterInfo||null,
    gpuReason:quality?.gpuError||gpuUnavailableReason||''});
  }catch(e){self.postMessage({error:e.message});}
 };

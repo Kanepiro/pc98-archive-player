@@ -31,7 +31,7 @@ test('Mode 2 offers only the user-selected period and round glyph five-tone pale
 
 test('Mode 2 maps all five levels including ideographic full stop',()=>{
  const w=8,h=4;
- for(const [gray,glyph] of [[255,'　'],[180,'。'],[128,'ｏ'],[76,'○'],[0,'◎']]){
+ for(const [gray,glyph] of [[0,'　'],[76,'。'],[128,'ｏ'],[180,'○'],[255,'◎']]){
   const result=rgbaToHalftone(solid(w,h,gray),w,h);
   assert.deepEqual(result.split('\r\n').slice(0,h),Array(h).fill(glyph.repeat(w/2)));
  }
@@ -69,7 +69,7 @@ test('Mode 2 round trips TSL with standard CP932 and exact column count',async()
 
 test('79-column PC-98 grids have only an invisible halfwidth padding column',async()=>{
  const w=79,h=25;
- const row=rgbaToHalftone(solid(w,h,0),w,h).split('\r\n')[0];
+ const row=rgbaToHalftone(solid(w,h,255),w,h).split('\r\n')[0];
  assert.equal(row,'◎'.repeat(39)+' ');
  assert.equal(halftoneColumns(row),w);
  const p=makePlan(1,{width:w,height:h,fps:5,conversionMode:'halftone'}),wr=new TSLWriter(p);
@@ -79,8 +79,11 @@ test('79-column PC-98 grids have only an invisible halfwidth padding column',asy
 });
 
 test('Mode 2 never accepts third-party symbols or malformed dimensions',()=>{
- const f=rgbaToHalftone(solid(4,4,0),4,4);
- assert.ok(f.includes('◎'));
+ const dark=rgbaToHalftone(solid(4,4,0),4,4);
+ const light=rgbaToHalftone(solid(4,4,255),4,4);
+ assert.ok(dark.includes('　'),'Black must render as a blank cell');
+ assert.ok(!dark.includes('◎'),'Black must not render as the whitest tone');
+ assert.ok(light.includes('◎'),'White must render as the brightest glyph');
  assert.throws(()=>rgbaToHalftone(new Uint8ClampedArray(3),4,4),/サイズ/);
  assert.throws(()=>encodeHalftoneFrame(['■']),/使用できない/);
  const p=makePlan(1,{width:8,height:4,fps:5,conversionMode:'halftone'}),wr=new TSLWriter(p);

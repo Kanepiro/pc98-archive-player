@@ -43,7 +43,7 @@ export function encodeHalftoneFrame(lines){
 }
 
 // Render a video frame to *visible* dots, not edge extraction.
-// Dark source = ◎ on black, bright source = blank black.
+// Dark source = fullwidth blank (black); bright source = ◎ (whitest dot).
 // Ordered spatial dithering softens the boundaries between five glyph tones
 // and is anchored to the grid, so identical frames never flicker.
 export function rgbaToHalftone(pixels,width,height,{brightness=0,contrast=1,gamma=1,sample=4}={}){
@@ -72,7 +72,7 @@ export function rgbaToHalftone(pixels,width,height,{brightness=0,contrast=1,gamm
    }
    const luminance=sum/(sample*sample*2*255);
    const adjusted=clamp((luminance-.5)*contrast+.5+brightness/100);
-   const tone=1-Math.pow(adjusted,gamma);
+   const tone=Math.pow(adjusted,gamma);
    // Fixed 4x4 Bayer matrix: deterministic, modest dithering avoids noise.
    const dither=(BAYER4[(y%4)*4+(x%4)]-7.5)/16*HALFTONE_DITHER_STRENGTH;
    const v=clamp(tone+dither);

@@ -1,0 +1,149 @@
+name: TASL Faithful PC Boost — Windows x64
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'native-boost/**'
+      - 'public/**'
+      - 'tests/exact-mode4-parity.browser.mjs'
+      - 'tests/faithful-video-parity.browser.mjs'
+      - 'tests/faithful-mp4.browser.mjs'
+      - 'tests/pc98-font-disabled.browser.mjs'
+      - 'tests/halftone-brightness.browser.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/faithful-pc-boost.yml'
+  push:
+    tags: ['faithful-boost-v*']
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: 'utf-8'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build original web player and run all original unit tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          npm ci
+          if ($LASTEXITCODE -ne 0) { throw 'npm ci failed' }
+          npm run build
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path 'dist/index.html')) { throw 'Original player build failed' }
+          npm test
+          if ($LASTEXITCODE -ne 0) { throw 'Original player tests failed' }
+      - name: Build exact native scoring and Windows text rasterizer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          cmake -S native-boost -B boost-build -A x64
+          if ($LASTEXITCODE -ne 0) { throw 'CMake configuration failed' }
+          cmake --build boost-build --config Release --parallel 2
+          if ($LASTEXITCODE -ne 0) { throw 'C++ native build failed' }
+          if (-not (Test-Path boost-build/Release/mode4_score_exact.exe)) { throw 'Exact Mode 4 scorer was not built' }
+          if (-not (Test-Path boost-build/Release/mode4_directcompute.exe)) { throw 'Native DirectCompute GPU engine was not built' }
+          Copy-Item 'native-boost/mode4_directcompute.hlsl' 'boost-build/Release/mode4_directcompute.hlsl'
+          & 'boost-build/Release/mode4_directcompute.exe' --check-shader
+          if ($LASTEXITCODE -ne 0) { throw 'Native DirectCompute HLSL shader did not compile' }
+          if (-not (Test-Path boost-build/Release/tsl_render.exe)) { throw 'Native MP4 renderer was not built' }
+      - name: Download and verify FFmpeg 8.1.2 for GTX 1050 Ti NVENC
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Invoke-WebRequest -Uri 'https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-8.1.2-essentials_build.zip' -OutFile 'ffmpeg.zip'
+          $expected = 'db580001caa24ac104c8cb856cd113a87b0a443f7bdf47d8c12b1d740584a2ec'
+          $actual = (Get-FileHash 'ffmpeg.zip' -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) { throw 'FFmpeg 8.1.2 checksum mismatch' }
+          Expand-Archive -Path 'ffmpeg.zip' -DestinationPath 'ffmpeg-unpacked'
+          $ffmpeg = Get-ChildItem ffmpeg-unpacked -Recurse -File -Filter ffmpeg.exe | Select-Object -First 1
+          $ffprobe = Get-ChildItem ffmpeg-unpacked -Recurse -File -Filter ffprobe.exe | Select-Object -First 1
+          if (-not $ffmpeg -or -not $ffprobe) { throw 'Missing FFmpeg/FFprobe' }
+          New-Item -Type Directory -Force -Path 'pc-boost-package' | Out-Null
+          Copy-Item $ffmpeg.FullName 'pc-boost-package/ffmpeg.exe'
+          Copy-Item $ffprobe.FullName 'pc-boost-package/ffprobe.exe'
+          $lic = Get-ChildItem ffmpeg-unpacked -Recurse -File | Where-Object { $_.Name -match '^(LICENSE|COPYING)' } | Select-Object -First 1
+          if ($lic) { Copy-Item $lic.FullName 'pc-boost-package/FFMPEG_LICENSE.txt' }
+          Copy-Item 'boost-build/Release/mode4_score_exact.exe' 'pc-boost-package/mode4_score_exact.exe'
+          Copy-Item 'boost-build/Release/mode4_directcompute.exe' 'pc-boost-package/mode4_directcompute.exe'
+          Copy-Item 'native-boost/mode4_directcompute.hlsl' 'pc-boost-package/mode4_directcompute.hlsl'
+          Copy-Item 'boost-build/Release/tsl_render.exe' 'pc-boost-package/tsl_render.exe'
+      - name: Build the one-click Windows player with original JS sources
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pip install --disable-pip-version-check pyinstaller
+          if ($LASTEXITCODE -ne 0) { throw 'PyInstaller installation failed' }
+          python -m PyInstaller --clean --onefile --name TASL-Faithful-PC-Boost --distpath boost-py-dist --workpath boost-py-build --specpath boost-spec native-boost/bridge.py
+          if ($LASTEXITCODE -ne 0) { throw 'PyInstaller build failed' }
+          Copy-Item 'boost-py-dist/TASL-Faithful-PC-Boost.exe' 'pc-boost-package/TASL-Faithful-PC-Boost.exe'
+          Copy-Item -Path 'dist' -Destination 'pc-boost-package/app' -Recurse
+          Copy-Item 'native-boost/README.md' 'pc-boost-package/README.md'
+          Copy-Item 'native-boost/FFMPEG_NOTICE.txt' 'pc-boost-package/FFMPEG_NOTICE.txt'
+          Copy-Item 'LICENSE' 'pc-boost-package/TASL_LICENSE.txt'
+      - name: Verify original Mode 4 parity and native H264/AAC MP4 in Windows Chrome
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:TASL_NO_BROWSER = '1'
+          $app = (Resolve-Path 'pc-boost-package/TASL-Faithful-PC-Boost.exe').Path
+          $process = Start-Process -FilePath $app -PassThru -WindowStyle Hidden
+          try {
+            $healthy = $false
+            for ($attempt=0; $attempt -lt 90; $attempt++) {
+              try {
+                $health = Invoke-RestMethod 'http://127.0.0.1:39083/health' -TimeoutSec 2
+                if ($health.originalMode4 -and $health.nativeExact -and $health.nativeMp4 -and $health.gpuEngine) {
+                  $healthy = $true
+                  break
+                }
+              } catch { }
+              Start-Sleep -Seconds 1
+            }
+            if (-not $healthy) { throw 'Original-algorithm local player did not start' }
+            $env:BOOST_URL = 'http://127.0.0.1:39083/'
+            $env:BOOST_UI_URL = 'http://127.0.0.1:39083/'
+            $env:FFMPEG_BIN = (Resolve-Path 'pc-boost-package/ffmpeg.exe').Path
+            $env:FFPROBE_BIN = (Resolve-Path 'pc-boost-package/ffprobe.exe').Path
+            $env:EXPECT_CPU_FALLBACK = '1'
+            node tests/pc98-font-disabled.browser.mjs
+            if ($LASTEXITCODE -ne 0) { throw 'PC-98 font size disabled/grayscale UI regression failed' }
+            node tests/halftone-brightness.browser.mjs
+            if ($LASTEXITCODE -ne 0) { throw 'Mode 2 white/black halftone mapping regression failed' }
+            node tests/directcompute-native.browser.mjs
+            if ($LASTEXITCODE -ne 0) { throw 'Windows native DirectCompute GPU/fallback regression failed' }
+            node tests/exact-mode4-parity.browser.mjs
+            if ($LASTEXITCODE -ne 0) { throw 'Exact scoring changed original Mode 4 output' }
+            node tests/faithful-video-parity.browser.mjs
+            if ($LASTEXITCODE -ne 0) { throw 'Original video-to-TSL regression failed' }
+            node tests/gpu-first-quality.browser.mjs
+            if ($LASTEXITCODE -ne 0) { throw 'GPU-first quality or CPU fallback regression failed' }
+            node tests/faithful-mp4.browser.mjs
+            if ($LASTEXITCODE -ne 0) { throw 'Original TSL -> native H264/AAC MP4 failed' }
+          } finally {
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+          }
+      - name: Package the validated portable Windows application
+        shell: pwsh
+        run: |
+          Compress-Archive -Path 'pc-boost-package/*' -DestinationPath 'TASL-Faithful-PC-Boost-v0.3.37-DirectCompute-Windows-x64.zip' -CompressionLevel Optimal
+          if (-not (Test-Path 'TASL-Faithful-PC-Boost-v0.3.37-DirectCompute-Windows-x64.zip')) { throw 'Final ZIP missing' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TASL-Faithful-PC-Boost-v0.3.37-DirectCompute-Windows-x64
+          path: TASL-Faithful-PC-Boost-v0.3.37-DirectCompute-Windows-x64.zip
+          retention-days: 30
