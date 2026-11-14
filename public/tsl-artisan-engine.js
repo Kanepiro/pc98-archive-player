@@ -449,7 +449,8 @@ export class ArtisanComposer {
   this.previousGray=null;this.previousChars=null;
   this.width=0;this.height=0;this.lastDiagnostics=null;
   this.lastFrame=null;this.lastSemanticKey=null;
-  this.gpuMatcher=null;this.exactMatcher=null;this.acceleration='CPU';
+  this.gpuMatcher=null;this.directComputeMatcher=null;this.exactMatcher=null;
+  this.nativeGpuInfo=null;this.acceleration='CPU';
   this.lastPerf=null;this.gpuError=null;
  }
  snapshot(){
@@ -477,14 +478,23 @@ export class ArtisanComposer {
   this.acceleration='PC Native Exact';
  }
  async enablePCBoost(width,height){
-  // Use the dedicated GPU to accelerate Mode 4 letter scoring first.
-  // All structural parsing, recognition and 2D AA composition remain original.
-  // When the real GPU cannot be used, retain C++ native CPU as a fallback.
+  // Windows PC Boost must NEVER depend on WebGPU. The compute work runs in
+  // native Direct3D 11 via mode4_directcompute.exe (actual hardware only).
   this.nativeFallbackAvailable=true;
-  await this.enableWebGPU(width,height);
-  if(!this.gpuMatcher){
-   if(!this.gpuError)this.gpuError='実GPUのWebGPUアダプターが利用できません';
-   this.enableExactNative();
+  try{
+   const response=await fetch('/health',{cache:'no-store'});
+   if(!response.ok)throw Error('PCネイティブGPUの状態を取得できません');
+   const health=await response.json();
+   if(!health.nativeGpu)
+    throw Error(health.gpuReason||'DirectCompute対応GPUが見つかりません');
+   this.directComputeMatcher=new Mode4ExactNativeMatcher('/api/mode4/gpu-score');
+   this.nativeGpuInfo={name:health.gpuName||'DirectCompute GPU',
+    identified:true,architecture:'Direct3D 11',software:false};
+   this.acceleration='DirectCompute';
+  }catch(e){
+   this.gpuError=String(e);
+   this.directComputeMatcher=null;
+   this.enableExactNative(); // exact original formula on C++ CPU
   }
  }
  async enableWebGPU(width,height){
@@ -520,7 +530,43 @@ export class ArtisanComposer {
   }
   const {field,width:w,height:h,S,oldChars,oldGray}=prepared;
   let gpuScores=null,gpuMs=0;
-  if(this.gpuMatcher){
+  if(this.directComputeMatcher){
+   const nativeGpuStart=performance.now();
+   try{
+    // Real Windows native D3D11 Compute Shader, NO WebGPU. Keep all original
+    // Mode 4 field extraction, recognition, seams and 2D composition in JS.
+    const orientation=localCellOrientation(field,w,h,S);
+    const scores=await this.directComputeMatcher.compute(
+     field,this.atlas,w,h,S,oldChars,oldGray,orientation);
+    const n=this.atlas.length,cells=w*h;
+    let samples=0,bad=0;
+    for(let k=0;k<Math.min(128,cells*n);k++){
+     const pos=(k*1543)%cells,j=(k*137)%n,x=pos%w,y=Math.floor(pos/w);
+     const glyph=this.atlas[j];
+     if(x+glyph.columns>w)continue;
+     const hist=orientation.subarray(pos*8+(glyph.columns===2?4:0),
+      pos*8+(glyph.columns===2?8:4));
+     const reference=placementLoss(field,glyph,x,y,S,hist,oldChars?.[pos],oldGray);
+     const score=scores[pos*n+j];
+     samples++;
+     if(!Number.isFinite(reference)){
+      if(!Number.isFinite(score)||score<1e18)bad++;
+     }else if(!Number.isFinite(score)||score<0||score>=1e18||
+        Math.abs(reference-score)>Math.max(.14,.65*Math.abs(reference)))bad++;
+    }
+    if(samples===0||bad>Math.max(5,Math.ceil(samples*.15)))
+     throw Error('DirectCompute文字照合の品質検査で異常: '+bad+'/'+samples);
+    gpuScores=scores;
+    this.acceleration='DirectCompute';
+   }catch(e){
+    this.gpuError=String(e);
+    this.directComputeMatcher=null;
+    this.nativeGpuInfo=null;
+    if(!this.exactMatcher)this.enableExactNative();
+   }
+   gpuMs+=performance.now()-nativeGpuStart;
+  }
+  if(this.gpuMatcher&&!gpuScores){
    const gpuStart=performance.now();
    try{
     const scores=await this.gpuMatcher.compute(field,oldChars,oldGray);

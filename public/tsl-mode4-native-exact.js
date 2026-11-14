@@ -66,7 +66,10 @@ export class Mode4ExactNativeMatcher{
   const packed=pack(field,atlas,width,height,S,oldChars,oldGray,orientations);
   const response=await fetch(this.endpoint,{method:'POST',body:packed.buffer,
    headers:{'Content-Type':'application/octet-stream'},cache:'no-store'});
-  if(!response.ok)throw Error('PC native exact score failed: HTTP '+response.status);
+  if(!response.ok)throw Error('PC native scorer failed: HTTP '+response.status);
+  if(this.endpoint.endsWith('/gpu-score')&&
+     response.headers.get('X-TASL-Compute-Backend')!=='DirectCompute')
+   throw Error('DirectCompute GPU execution was not confirmed');
   const bytes=await response.arrayBuffer();
   if(bytes.byteLength!==packed.cells*packed.G*8)
    throw Error('PC native score byte count mismatch');

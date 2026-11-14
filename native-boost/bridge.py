@@ -18,6 +18,8 @@ import shutil
 import subprocess
 import sys
 import threading
+import struct
+import atexit
 import webbrowser
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -102,6 +104,97 @@ def parse_mp4_plan(header):
         raise ValueError("MP4 job settings are invalid: " + str(exc)) from exc
 
 
+class NativeGpuClient:
+    """Keep one real D3D11 device/shader alive across video frames.
+
+    --probe rejects software DXGI adapters. The GPU endpoint never lies about
+    CPU fallback: it returns 503 and lets the original JS choose C++/CPU.
+    """
+    def __init__(self):
+        self.lock = threading.RLock()
+        self.process = None
+        self.name = ""
+        self.reason = ""
+        self.known = False
+        self.healthy = False
+
+    def probe(self):
+        with self.lock:
+            if self.known:
+                return self.healthy
+            self.known = True
+            program = executable("mode4_directcompute")
+            if os.name != "nt" or not program:
+                self.reason = "DirectComputeはWindows用です"
+                return False
+            try:
+                result = subprocess.run([program, "--probe"],
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    timeout=12, check=False)
+                self.healthy = (result.returncode == 0 and
+                    result.stdout.startswith(b"DIRECTCOMPUTE_GPU "))
+                if self.healthy:
+                    self.name = result.stdout.decode("utf-8", "replace").strip().split(
+                        "DIRECTCOMPUTE_GPU ", 1)[-1][:120]
+                else:
+                    self.reason = result.stderr.decode("utf-8", "replace")[-400:]
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                self.reason = str(exc)
+            return self.healthy
+
+    def close(self):
+        with self.lock:
+            proc = self.process
+            self.process = None
+            if proc and proc.poll() is None:
+                proc.kill()
+                try:
+                    proc.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    pass
+
+    def compute(self, payload):
+        with self.lock:
+            if not self.probe():
+                raise RuntimeError("DirectCompute GPU unavailable: " + self.reason)
+            # The CPU/native protocol already bounds dimensions and inputs.
+            if len(payload) < 36:
+                raise ValueError("Incomplete GPU scorer header")
+            magic, version, w, h, sample, glyphs, _, _, _ = struct.unpack_from(
+                "<9I", payload)
+            if magic != 0x4353344d or version != 1 or not (
+                4 <= w <= 480 and 4 <= h <= 240 and
+                4 <= sample <= 10 and 2 <= glyphs <= 512):
+                raise ValueError("Invalid DirectCompute scorer header")
+            size = w * h * glyphs * 8  # float64 scores, same as CPU wire format
+            if size > 48 * 1024 * 1024:
+                raise ValueError("GPU scorer output exceeds limit")
+            try:
+                if not self.process or self.process.poll() is not None:
+                    self.process = subprocess.Popen(
+                        [executable("mode4_directcompute"), "--stream"],
+                        stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                        stderr=subprocess.DEVNULL, bufsize=0)
+                self.process.stdin.write(payload)
+                self.process.stdin.flush()
+                result = bytearray()
+                while len(result) < size:
+                    part = self.process.stdout.read(min(1024 * 1024, size - len(result)))
+                    if not part:
+                        raise RuntimeError("DirectCompute process exited during GPU scoring")
+                    result.extend(part)
+                return bytes(result)
+            except (BrokenPipeError, OSError, RuntimeError, ValueError) as exc:
+                self.close()
+                self.healthy = False
+                self.reason = str(exc)[:400]
+                raise
+
+
+GPU = NativeGpuClient()
+atexit.register(GPU.close)
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "TASL-Faithful-Boost/1.0"
 
@@ -112,7 +205,7 @@ class Handler(BaseHTTPRequestHandler):
                 and origin in ("", f"http://127.0.0.1:{PORT}",
                                f"http://localhost:{PORT}"))
 
-    def response(self, code, payload, kind="application/json"):
+    def response(self, code, payload, kind="application/json", headers=None):
         if isinstance(payload, dict):
             payload = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         if isinstance(payload, str):
@@ -120,6 +213,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header("Content-Type", kind)
         self.send_header("Content-Length", str(len(payload)))
+        for key, value in (headers or {}).items():
+            self.send_header(key, value)
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
@@ -189,6 +284,10 @@ class Handler(BaseHTTPRequestHandler):
                 "name": "TASL Original Algorithm PC Boost",
                 "version": "1.0", "originalMode4": True,
                 "nativeExact": bool(executable("mode4_score_exact")),
+                "nativeGpu": GPU.probe(),
+                "gpuName": GPU.name,
+                "gpuReason": GPU.reason,
+                "gpuEngine": "DirectCompute D3D11" if GPU.healthy else "CPU fallback",
                 "nativeMp4": bool(executable("tsl_render")),
                 "ffmpeg": bool(executable("ffmpeg")),
                 "ffprobe": bool(executable("ffprobe"))})
@@ -222,6 +321,21 @@ class Handler(BaseHTTPRequestHandler):
         if not self.allowed():
             return self.response(403, {"error": "Origin denied"})
         route = urlsplit(self.path).path
+        if route == "/api/mode4/gpu-score":
+            if self.headers.get("Content-Type", "").split(";")[0] != "application/octet-stream":
+                return self.response(415, {"error": "GPU scorer expects a binary payload"})
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if not 36 <= length <= MAX_SCORE_REQUEST:
+                    raise ValueError("DirectCompute scorer payload out of range")
+                payload = self.rfile.read(length)
+                if len(payload) != length:
+                    raise ValueError("Incomplete DirectCompute request")
+                scores = GPU.compute(payload)
+                return self.response(200, scores, "application/octet-stream",
+                    {"X-TASL-Compute-Backend": "DirectCompute"})
+            except (ValueError, OSError, RuntimeError) as exc:
+                return self.response(503, {"error": str(exc)[:450]})
         if route == "/api/mode4/score":
             if self.headers.get("Content-Type", "").split(";")[0] != "application/octet-stream":
                 return self.response(415, {"error": "Binary request required"})

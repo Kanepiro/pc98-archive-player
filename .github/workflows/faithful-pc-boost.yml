@@ -52,6 +52,10 @@ jobs:
           cmake --build boost-build --config Release --parallel 2
           if ($LASTEXITCODE -ne 0) { throw 'C++ native build failed' }
           if (-not (Test-Path boost-build/Release/mode4_score_exact.exe)) { throw 'Exact Mode 4 scorer was not built' }
+          if (-not (Test-Path boost-build/Release/mode4_directcompute.exe)) { throw 'Native DirectCompute GPU engine was not built' }
+          Copy-Item 'native-boost/mode4_directcompute.hlsl' 'boost-build/Release/mode4_directcompute.hlsl'
+          & 'boost-build/Release/mode4_directcompute.exe' --check-shader
+          if ($LASTEXITCODE -ne 0) { throw 'Native DirectCompute HLSL shader did not compile' }
           if (-not (Test-Path boost-build/Release/tsl_render.exe)) { throw 'Native MP4 renderer was not built' }
       - name: Download and verify FFmpeg 8.1.2 for GTX 1050 Ti NVENC
         shell: pwsh
@@ -71,6 +75,8 @@ jobs:
           $lic = Get-ChildItem ffmpeg-unpacked -Recurse -File | Where-Object { $_.Name -match '^(LICENSE|COPYING)' } | Select-Object -First 1
           if ($lic) { Copy-Item $lic.FullName 'pc-boost-package/FFMPEG_LICENSE.txt' }
           Copy-Item 'boost-build/Release/mode4_score_exact.exe' 'pc-boost-package/mode4_score_exact.exe'
+          Copy-Item 'boost-build/Release/mode4_directcompute.exe' 'pc-boost-package/mode4_directcompute.exe'
+          Copy-Item 'native-boost/mode4_directcompute.hlsl' 'pc-boost-package/mode4_directcompute.hlsl'
           Copy-Item 'boost-build/Release/tsl_render.exe' 'pc-boost-package/tsl_render.exe'
       - name: Build the one-click Windows player with original JS sources
         shell: pwsh
@@ -97,7 +103,7 @@ jobs:
             for ($attempt=0; $attempt -lt 90; $attempt++) {
               try {
                 $health = Invoke-RestMethod 'http://127.0.0.1:39083/health' -TimeoutSec 2
-                if ($health.originalMode4 -and $health.nativeExact -and $health.nativeMp4) {
+                if ($health.originalMode4 -and $health.nativeExact -and $health.nativeMp4 -and $health.gpuEngine) {
                   $healthy = $true
                   break
                 }
@@ -110,6 +116,8 @@ jobs:
             $env:FFMPEG_BIN = (Resolve-Path 'pc-boost-package/ffmpeg.exe').Path
             $env:FFPROBE_BIN = (Resolve-Path 'pc-boost-package/ffprobe.exe').Path
             $env:EXPECT_CPU_FALLBACK = '1'
+            node tests/directcompute-native.browser.mjs
+            if ($LASTEXITCODE -ne 0) { throw 'Windows native DirectCompute GPU/fallback regression failed' }
             node tests/exact-mode4-parity.browser.mjs
             if ($LASTEXITCODE -ne 0) { throw 'Exact scoring changed original Mode 4 output' }
             node tests/faithful-video-parity.browser.mjs
@@ -124,10 +132,10 @@ jobs:
       - name: Package the validated portable Windows application
         shell: pwsh
         run: |
-          Compress-Archive -Path 'pc-boost-package/*' -DestinationPath 'TASL-Faithful-PC-Boost-GPU-Windows-x64.zip' -CompressionLevel Optimal
-          if (-not (Test-Path 'TASL-Faithful-PC-Boost-GPU-Windows-x64.zip')) { throw 'Final ZIP missing' }
+          Compress-Archive -Path 'pc-boost-package/*' -DestinationPath 'TASL-Faithful-PC-Boost-DirectCompute-Windows-x64.zip' -CompressionLevel Optimal
+          if (-not (Test-Path 'TASL-Faithful-PC-Boost-DirectCompute-Windows-x64.zip')) { throw 'Final ZIP missing' }
       - uses: actions/upload-artifact@v4
         with:
-          name: TASL-Faithful-PC-Boost-GPU-Windows-x64
-          path: TASL-Faithful-PC-Boost-GPU-Windows-x64.zip
+          name: TASL-Faithful-PC-Boost-DirectCompute-Windows-x64
+          path: TASL-Faithful-PC-Boost-DirectCompute-Windows-x64.zip
           retention-days: 30

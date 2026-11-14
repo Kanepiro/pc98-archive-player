@@ -170,11 +170,11 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
        ?'SwiftShader等のソフトウェアGPUを除外しCPU処理'
        :'';
      const perf=p.plan.conversionMode==='artisan'&&p.perf
-      ?' · 輪郭CPU '+Math.round(p.perf.prepareMs)+'ms / GPU・文字照合 '+Math.round(p.perf.gpuMs)+'ms / 組版CPU '+Math.round(p.perf.layoutMs)+'ms'
+      ?' · 輪郭CPU '+Math.round(p.perf.prepareMs)+'ms / 字形照合 '+Math.round(p.perf.gpuMs)+'ms / 組版CPU '+Math.round(p.perf.layoutMs)+'ms'
       :'';
      const fallback=p.acceleration==='PC Native Exact'&&p.gpuReason
       ?' · GPU不使用の理由: '+p.gpuReason.slice(0,125):'';
-     $('converter-detail').textContent=(p.plan.reduced?'長尺のため自動調整 · ':'')+p.plan.effectiveFps.toFixed(2)+' fps · '+(p.acceleration==='PC Native Exact'?'正規アルゴリズム C++文字照合':p.acceleration==='WebGPU'?'GPU文字照合（WebGPU）':p.acceleration==='CPU（GPU精度照合）'?'CPU処理（GPUとの精度差）':'CPU処理')+(gpuName?' · '+gpuName:'')+perf+fallback+' · 残り約'+Math.ceil(p.remaining)+'秒 · 途中保存済み '+p.saved.toLocaleString()+'画面';
+     $('converter-detail').textContent=(p.plan.reduced?'長尺のため自動調整 · ':'')+p.plan.effectiveFps.toFixed(2)+' fps · '+(p.acceleration==='DirectCompute'?'WindowsネイティブGPU文字照合（DirectCompute）':p.acceleration==='PC Native Exact'?'正規アルゴリズム C++文字照合':p.acceleration==='WebGPU'?'GPU文字照合（WebGPU）':p.acceleration==='CPU（GPU精度照合）'?'CPU処理（GPUとの精度差）':'CPU処理')+(gpuName?' · '+gpuName:'')+perf+fallback+' · 残り約'+Math.ceil(p.remaining)+'秒 · 途中保存済み '+p.saved.toLocaleString()+'画面';
     }});
    downloadUrl=URL.createObjectURL(result.blob);
    const a=$('tsl-download');a.href=downloadUrl;a.download=tslName(file.name,result.plan.conversionMode);
