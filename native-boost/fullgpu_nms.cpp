@@ -20,7 +20,7 @@ struct NMS {
   uint32_t header[4];std::cin.read((char*)header,16);
   uint32_t nf=header[1],no=header[2];if(!std::cin||header[0]!=0x534d4e54||nf>896||no>19206||nf==0||no==0)throw std::runtime_error("NMS bounds");
   uint32_t input=nf*17+no*6,output=2+nf*17+36;
-  host.resize(input);std::cin.read((char*)host.data(),input*4);if(!std::cin)throw std::runtime_error("NMS input");
+  host.resize(maxInput);std::cin.read((char*)host.data(),input*4);if(!std::cin)throw std::runtime_error("NMS input");
   if(!arena){
   D3D11_BUFFER_DESC d={};d.ByteWidth=(maxInput+maxOutput)*4;d.Usage=D3D11_USAGE_DEFAULT;d.BindFlags=D3D11_BIND_UNORDERED_ACCESS;
   d.MiscFlags=D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;d.StructureByteStride=4;

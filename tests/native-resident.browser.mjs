@@ -21,11 +21,13 @@ try{
    const p=composer._prepare(ctx.getImageData(0,0,144,72).data,24,12,{semantic:[]});
    if(p.cached)throw Error('Unexpected cached test frame');
    inputs.push(p);const r=await old.compose(p,atlas);baseline.push(r);
-   composer.previousGray=p.field.gray;composer.previousChars=r.chars;
+   composer.width=24;composer.height=12;composer.previousGray=p.field.gray;composer.previousChars=r.chars;
   }
   const next=new FullGpuNativeLayout(true);
   for(const p of inputs){
-   const prepared={...p,oldChars:resident.length?resident.at(-1).chars:p.oldChars};
+   const i=resident.length;
+   const oldChars=i&&p.oldChars===baseline[i-1].chars?resident[i-1].chars:p.oldChars;
+   const prepared={...p,oldChars};
    resident.push(await next.compose(prepared,atlas));
   }
   // Interleaving a second job must cause safe reinitialization, never stale input.
@@ -36,9 +38,10 @@ try{
   return {baseline,resident,resumed,expected:baseline[5].frame,fixture};
  });
  await writeFile('gpu-validation/resident-input.bin',Buffer.from(ring.fixture));delete ring.fixture;
+ await writeFile('gpu-validation/resident-ring.json',JSON.stringify(ring,null,2));
  for(let i=0;i<ring.baseline.length;i++){
   assert.equal(ring.resident[i].frame,ring.baseline[i].frame,'Exact glyph output frame '+i);
-  assert.deepEqual(ring.resident[i].diagnostics,ring.baseline[i].diagnostics);
+  assert.deepEqual(ring.resident[i].diagnostics,ring.baseline[i].diagnostics,'Exact evaluation frame '+i);
   const t=ring.resident[i].perf.transfer;
   assert.equal(t.residentEnabled,1);
   assert.equal(t.ringSlot,i%10);
@@ -48,11 +51,11 @@ try{
  assert.equal(ring.resumed.frame,ring.expected);
  const reports=[];
  for(const resident of [false,true]){
-  await page.reload();
+  await page.goto(resident?(process.env.BOOST_URL||'http://127.0.0.1:39085/'):(process.env.BASELINE_BOOST_URL||'http://127.0.0.1:39086/'));
   reports.push(await page.evaluate(async resident=>{
    const {FullGpuNativeLayout}=await import('/tsl-fullgpu-native.js');
    const original=FullGpuNativeLayout.prototype.compose;
-   FullGpuNativeLayout.prototype.compose=function(...args){this.transfer.enabled=resident;return original.apply(this,args);};
+   FullGpuNativeLayout.prototype.compose=function(...args){if(this.transfer)this.transfer.enabled=resident;return original.apply(this,args);};
    const {convertVideo}=await import('/video-to-tsl.js');
    const source=await(await fetch('/__validation.mp4')).arrayBuffer();
    const file=new File([source],'resident-comparison.mp4',{type:'video/mp4',lastModified:0});

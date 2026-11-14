@@ -61,6 +61,7 @@ jobs:
           cmake --build baseline-build --config Release --parallel 2 --target fullgpu_layout fullgpu_contour fullgpu_nms
           if ($LASTEXITCODE -ne 0) { throw 'Baseline compilation failed' }
           Copy-Item baseline-source/native-boost/*.hlsl baseline-build/Release/
+          Copy-Item baseline-build/Release/*.exe baseline-source/native-boost/
       - name: Verify native shader execution using explicit software test adapter
         shell: pwsh
         run: |
@@ -84,15 +85,25 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Unit tests failed' }
           npm run build
           if ($LASTEXITCODE -ne 0) { throw 'Web build failed' }
+          Push-Location baseline-source
+          npm ci
+          npm run build
+          if ($LASTEXITCODE -ne 0) { throw 'Original web UI build failed' }
+          Pop-Location
           Copy-Item gpu-build/Release/*.exe native-boost/
           Copy-Item gpu-build/Release/*.cso native-boost/
           & native-boost/ffmpeg.exe -hide_banner -loglevel error -f lavfi -i 'testsrc2=size=640x360:rate=4:duration=2' -c:v libx264 -pix_fmt yuv420p -y dist/__validation.mp4
           if ($LASTEXITCODE -ne 0) { throw 'Comparison video creation failed' }
+          Copy-Item dist/__validation.mp4 baseline-source/dist/
           $env:TASL_TEST_WARP = '1'
           $env:TASL_NO_BROWSER = '1'
           $env:TASL_BOOST_PORT = '39085'
           $env:BOOST_URL = 'http://127.0.0.1:39085/'
           $p = Start-Process python -ArgumentList 'native-boost/bridge.py' -PassThru -RedirectStandardError gpu-server.log
+          $env:TASL_BOOST_PORT = '39086'
+          $env:BASELINE_BOOST_URL = 'http://127.0.0.1:39086/'
+          $baseline = Start-Process python -ArgumentList 'baseline-source/native-boost/bridge.py' -PassThru -RedirectStandardError baseline-server.log
+          $env:TASL_BOOST_PORT = '39085'
           try {
             Start-Sleep -Seconds 3
             node tests/source-fidelity.browser.mjs
@@ -111,7 +122,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'Native layout regression failed' }
             node tests/video-comparison.browser.mjs
             if ($LASTEXITCODE -ne 0) { throw 'Whole video comparison failed' }
-          } finally { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+          } finally { Stop-Process -Id $p.Id,$baseline.Id -Force -ErrorAction SilentlyContinue }
       - name: Verify native GPU detection postprocessing
         shell: pwsh
         run: |
@@ -130,6 +141,8 @@ jobs:
         run: |
           python tests/mp4-comparison.py
           if ($LASTEXITCODE -ne 0) { throw 'Native MP4 comparison failed' }
+          python tests/native-resident-mp4.py
+          if ($LASTEXITCODE -ne 0) { throw 'Resident MP4 parity or measurement failed' }
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -51,8 +51,8 @@ struct ContourGPU {
   std::memcpy(&p.brightness,head+4,12);
   if(!std::isfinite(p.brightness)||!std::isfinite(p.contrast)||!std::isfinite(p.gamma)||p.gamma<=0)throw std::runtime_error("contour settings");
   if(p.op==5&&head[7]>100000)throw std::runtime_error("face point bounds");
-  uint32_t n=p.w*p.h;host.assign(64,0);
-  auto allocate=[&](uint32_t index,uint32_t count){offsets[index]=(uint32_t)host.size();host.resize(host.size()+count,0);};
+  uint32_t n=p.w*p.h,requiredWords=64;
+  auto allocate=[&](uint32_t index,uint32_t count){offsets[index]=requiredWords;requiredWords+=count;};
   // Allocate only buffers consumed by this operation, not every kernel's scratch.
   for(uint32_t k=0;k<24;k++){
    uint32_t words=1;
@@ -64,6 +64,7 @@ struct ContourGPU {
    else if(p.op==6){if(k==0)words=n;if(k==3)words=128*128*3;if(k==10)words=320*320;}
    allocate(k,words);
   }
+  if(host.size()<requiredWords)host.resize(requiredWords);
   std::copy(offsets,offsets+24,host.begin());
   uint32_t input=p.op==1||p.op==6?0:p.op==2||p.op==4||p.op==5?10:7;
   std::cin.read((char*)(host.data()+offsets[input]),n*4);if(!std::cin)throw std::runtime_error("contour pixels");
