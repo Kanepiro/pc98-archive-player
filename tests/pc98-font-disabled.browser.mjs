@@ -12,8 +12,8 @@ try{
   await page.goto(process.env.BOOST_URL||'http://127.0.0.1:39084/');
   await page.click('#tab-converter');
   const $=id=>page.locator('#'+id);
-  assert.match(await page.locator('header .brand p').textContent(),/v0\.3\.36/);
-  assert.match(await page.locator('footer').textContent(),/検証版 0\.3\.36/);
+  assert.match(await page.locator('header .brand p').textContent(),/v0\.3\.37/);
+  assert.match(await page.locator('footer').textContent(),/検証版 0\.3\.37/);
   await $('video-mode').selectOption('landscape');
   await $('video-font-render').selectOption('legacy');
   await $('video-font-px').fill('48');
@@ -66,5 +66,5 @@ try{
   assert.equal(await $('video-font-px').isDisabled(),true);
   await $('video-font-render').selectOption('legacy');
   assert.equal(await $('video-font-px').isDisabled(),false);
-  console.log('PASS PC-98 grays only font px, disables input, preserves grid, restores prior settings, version v0.3.36');
+  console.log('PASS PC-98 grays only font px, disables input, preserves grid, restores prior settings, version v0.3.37');
 }finally{await browser.close();}

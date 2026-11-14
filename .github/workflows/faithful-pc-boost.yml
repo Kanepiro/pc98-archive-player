@@ -10,6 +10,7 @@ on:
       - 'tests/faithful-video-parity.browser.mjs'
       - 'tests/faithful-mp4.browser.mjs'
       - 'tests/pc98-font-disabled.browser.mjs'
+      - 'tests/halftone-brightness.browser.mjs'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/faithful-pc-boost.yml'
@@ -121,6 +122,8 @@ jobs:
             $env:EXPECT_CPU_FALLBACK = '1'
             node tests/pc98-font-disabled.browser.mjs
             if ($LASTEXITCODE -ne 0) { throw 'PC-98 font size disabled/grayscale UI regression failed' }
+            node tests/halftone-brightness.browser.mjs
+            if ($LASTEXITCODE -ne 0) { throw 'Mode 2 white/black halftone mapping regression failed' }
             node tests/directcompute-native.browser.mjs
             if ($LASTEXITCODE -ne 0) { throw 'Windows native DirectCompute GPU/fallback regression failed' }
             node tests/exact-mode4-parity.browser.mjs
@@ -137,10 +140,10 @@ jobs:
       - name: Package the validated portable Windows application
         shell: pwsh
         run: |
-          Compress-Archive -Path 'pc-boost-package/*' -DestinationPath 'TASL-Faithful-PC-Boost-v0.3.36-DirectCompute-Windows-x64.zip' -CompressionLevel Optimal
-          if (-not (Test-Path 'TASL-Faithful-PC-Boost-v0.3.36-DirectCompute-Windows-x64.zip')) { throw 'Final ZIP missing' }
+          Compress-Archive -Path 'pc-boost-package/*' -DestinationPath 'TASL-Faithful-PC-Boost-v0.3.37-DirectCompute-Windows-x64.zip' -CompressionLevel Optimal
+          if (-not (Test-Path 'TASL-Faithful-PC-Boost-v0.3.37-DirectCompute-Windows-x64.zip')) { throw 'Final ZIP missing' }
       - uses: actions/upload-artifact@v4
         with:
-          name: TASL-Faithful-PC-Boost-v0.3.36-DirectCompute-Windows-x64
-          path: TASL-Faithful-PC-Boost-v0.3.36-DirectCompute-Windows-x64.zip
+          name: TASL-Faithful-PC-Boost-v0.3.37-DirectCompute-Windows-x64
+          path: TASL-Faithful-PC-Boost-v0.3.37-DirectCompute-Windows-x64.zip
           retention-days: 30
