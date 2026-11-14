@@ -44,7 +44,7 @@ result={'adapter':report['adapter'],'sameSourceSha256':report['sourceSha256'],'e
 (root/'gpu-validation/resident-summary.json').write_text(json.dumps(result,indent=2))
 print('RESIDENT_SUMMARY',json.dumps({**result,'video':[{'resident':r['resident'],'wallMs':r['wallMs']} for r in report['video']]}))
 lines=['# v0.3.42-rc1 GPU常駐 検証結果','','Windows CIのWARPソフトウェア実行。GTX 1050 Tiの実機性能ではありません。','',
- '文字列・全体評価値・TSL・MP4復号後のフレームが一致。容量確保失敗時も同じ文字列と評価値。','',
+ '文字列・全体評価値・TSL・MP4復号後のフレームが一致。容量確保失敗時も同じ文字列と評価値。','両方のアプリで同じ動画を1回予備実行した後、各1回を計測。測定時は途中保存を再利用せず全フレームを変換。','',
  '| 組版計測（23フレーム） | 旧経路 | 常駐経路 |','|---|---:|---:|']
 for key in ['nativeWallMs','frameMeanMs','h2dCalls','h2dBytes','d2hCalls','d2hBytes','gpuWaitMs','bufferAllocations','bufferReleases','staticUploads','ringBytes','arenaBytes','processVramBytes','processVramBudgetBytes']:
  lines.append(f'| {key} | {summaries[0][key]:.3f} | {summaries[1][key]:.3f} |')

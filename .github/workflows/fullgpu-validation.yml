@@ -61,7 +61,13 @@ jobs:
           cmake --build baseline-build --config Release --parallel 2 --target fullgpu_layout fullgpu_contour fullgpu_nms
           if ($LASTEXITCODE -ne 0) { throw 'Baseline compilation failed' }
           Copy-Item baseline-source/native-boost/*.hlsl baseline-build/Release/
+          $env:TASL_WRITE_SHADER_CACHE = '1'
+          & baseline-build/Release/fullgpu_layout.exe --check-shader
+          if ($LASTEXITCODE -ne 0) { throw 'Baseline layout cache failed' }
+          & baseline-build/Release/fullgpu_contour.exe --check-shader
+          if ($LASTEXITCODE -ne 0) { throw 'Baseline contour cache failed' }
           Copy-Item baseline-build/Release/*.exe baseline-source/native-boost/
+          Copy-Item baseline-build/Release/*.cso baseline-source/native-boost/
       - name: Verify native shader execution using explicit software test adapter
         shell: pwsh
         run: |

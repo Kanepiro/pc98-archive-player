@@ -59,11 +59,17 @@ try{
    const {convertVideo}=await import('/video-to-tsl.js');
    const source=await(await fetch('/__validation.mp4')).arrayBuffer();
    const file=new File([source],'resident-comparison.mp4',{type:'video/mp4',lastModified:0});
-   const progress=[],start=performance.now();
-   const result=await convertVideo(file,{sourceGrid:true,width:80,height:22,conversionMode:'artisan',native16:true,
-    exactNative:true,fps:4,brightness:0,contrast:1,gamma:1,edge:0,
+   const options={sourceGrid:true,width:80,height:22,conversionMode:'artisan',native16:true,
+    exactNative:true,fps:4,brightness:0,contrast:1,gamma:1,edge:0};
+   // Both programs get the same complete warm-up. A different file identity
+   // prevents the measured run from resuming the warm-up's saved TSL frames.
+   const warmupStart=performance.now();
+   await convertVideo(new File([source],'resident-warmup.mp4',{type:'video/mp4',lastModified:0}),options);
+   const warmupMs=performance.now()-warmupStart,progress=[],start=performance.now();
+   const result=await convertVideo(file,{...options,
     onProgress:p=>{if(p.phase==='converting')progress.push({frame:p.done,backend:p.acceleration,perf:p.perf,error:p.gpuReason});}});
-   return {resident,wallMs:performance.now()-start,plan:result.plan,progress,tsl:Array.from(new Uint8Array(await result.blob.arrayBuffer()))};
+   if(progress.length!==result.plan.count)throw Error('Measured conversion resumed or skipped frames');
+   return {resident,wallMs:performance.now()-start,warmupMs,measurement:'One full warm-up then one complete measured conversion',plan:result.plan,progress,tsl:Array.from(new Uint8Array(await result.blob.arrayBuffer()))};
   },resident));
  }
  assert.deepEqual(reports[0].tsl,reports[1].tsl,'Complete video TSL bytes');
