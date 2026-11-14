@@ -37,3 +37,12 @@ WARP is software execution of the native D3D11 shaders, not evidence of physical
 - Mobile: https://pc98-archive-player-seven.vercel.app/mobile/
 - Versioned native package: https://github.com/Kanepiro/pc98-archive-player/releases/tag/windows-v0.3.40
 - The existing Vercel project provides both entries. Conversion stays local.
+
+## Saved archive verification
+
+- ZIP: TASL-PC-Boost-v0.3.40-NativeGPU-Windows-x64.zip (182263523 bytes).
+- SHA-256: 3c2ace60044a64d0055cbd3319fee0c8b0d6d36f35c41fe3c503d79ba68c4e88.
+- Public release digest, downloaded ZIP and Google Drive digest matched. ZIP integrity and all 652 manifest file hashes passed.
+- Packaged health record identifies v0.3.40 and native modes support under explicit WARP testing.
+- Google Drive: https://drive.google.com/file/d/1LDSkhADkhLON0gKI-EDp8LRveSS-eIT0/view
+- Parent: PC9821Ap2/TASL (1ohqx44bfGLelUr8WIfjFnp6nDb2C-oXa). New immutable upload; older files were preserved.
