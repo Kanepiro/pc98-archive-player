@@ -1,0 +1,42 @@
+name: Full GPU Windows validation
+on:
+  push:
+    branches: [work/fullgpu-20261114]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile native shaders and applications
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          cmake -S native-boost -B gpu-build -A x64
+          if ($LASTEXITCODE -ne 0) { throw 'CMake failed' }
+          cmake --build gpu-build --config Release --parallel 2
+          if ($LASTEXITCODE -ne 0) { throw 'Native build failed' }
+          Copy-Item native-boost/*.hlsl gpu-build/Release/
+          & gpu-build/Release/fullgpu_layout.exe --check-shader
+          if ($LASTEXITCODE -ne 0) { throw 'HLSL compilation failed' }
+      - name: Verify native shader execution using explicit software test adapter
+        shell: pwsh
+        run: |
+          $env:TASL_TEST_WARP = '1'
+          & gpu-build/Release/fullgpu_layout.exe --probe
+          if ($LASTEXITCODE -ne 0) { throw 'WARP initialization failed' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: FullGPU-internal-validation
+          path: gpu-build/Release/
+          retention-days: 7
