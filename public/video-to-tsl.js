@@ -54,7 +54,7 @@ function readQualityState(worker,signal){
  });
 }
 export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIssue=()=>{},checkpointConfig={},...input}={}) {
- check(signal);let options=optionsFor(input);
+ check(signal);const taskStarted=performance.now();let options=optionsFor(input);
  const {fit='contain',positionX=.5,positionY=.5,sourceGrid=false}=input;
  if(!['contain','cover'].includes(fit)||![positionX,positionY].every(x=>Number.isFinite(x)&&x>=0&&x<=1))throw Error('切り抜き設定が不正です');
  if(!file||file.size===0)throw Error('空のファイルです');
@@ -62,7 +62,8 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
  if(!/\.(mp4|m4v|webm)$/i.test(file.name))throw Error('MP4を選んでください。WebMはこのブラウザーで読み取れる場合に利用できます。');
  const video=document.createElement('video'),url=URL.createObjectURL(file);
  video.muted=true;video.playsInline=true;video.preload='auto';
- let worker,vision;
+ let worker,vision,metricsId=null,metricFrames=[];
+ if(input.exactNative)try{const r=await fetch('/api/metrics/start',{method:'POST'});if(r.ok)metricsId=(await r.json()).id;}catch{}
  try {
   onProgress({phase:'loading'});
   await mediaEvent(video,'loadeddata',signal,()=>{video.src=url;video.load();});
@@ -88,11 +89,11 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   // The video itself is deliberately NOT persisted.
   try{
    const identity=fileIdentity(file);
-   const baseEngineVersion=options.conversionMode==='artisan'?19:options.conversionMode==='quality'?(options.native16?8:7):options.conversionMode==='halftone'?(options.native16?15:14):(options.native16?3:2);
+   const baseEngineVersion=options.conversionMode==='artisan'?20:options.conversionMode==='quality'?(options.native16?8:7):options.conversionMode==='halftone'?(options.native16?15:14):(options.native16?3:2);
    const engineVersion=baseEngineVersion+(sourceGrid?20:0);
    const signature=JSON.stringify([engineVersion,identity,await fingerprint(file),
     [options.width,options.height,options.fps,options.brightness,options.contrast,options.gamma,options.edge,options.conversionMode,options.native16,sourceGrid,fit,positionX,positionY],
-    [video.videoWidth,video.videoHeight,video.duration,plan.count]]);
+    [video.videoWidth,video.videoHeight,video.duration,plan.count],!!input.exactNative]);
    const previous=await readCheckpoint();
    if(previous?.job.signature===signature){
     try{
@@ -127,7 +128,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
      :options.conversionMode==='quality'?makeGlyphAtlas(sample):null;
     await new Promise((resolve,reject)=>{
      check(signal);
-     const timeout=setTimeout(()=>finish(Error('文字パレットの準備がタイムアウトしました')),30000);
+     const timeout=setTimeout(()=>finish(Error('文字パレットの準備がタイムアウトしました')),120000);
      const finish=error=>{
       clearTimeout(timeout);worker.onmessage=null;worker.onerror=null;
       signal?.removeEventListener('abort',cancel);
@@ -170,6 +171,8 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
    const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data;
    const converted=await convertFrame(worker,pixels,plan.width,plan.height,{...options,ramp,sample,semantic},signal);
    acceleration=converted.acceleration||'CPU';
+   if(metricsId)metricFrames.push({frame:i,sourceSecond:time,backend:acceleration,perf:converted.perf,
+    gpu:converted.adapterInfo,fallbackReason:converted.gpuReason,vision:vision?{backend:vision.backend||'MediaPipe CPU',timing:vision.timing}:null});
    pending.push(writer.append(converted.frame));
    // Commit small batches atomically; at most 15 latest frames are lost on an abrupt close.
    if(pending.length>=16||i===plan.count-1){
@@ -192,6 +195,15 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   }
   check(signal);
   const blob=writer.finish();
-  return {blob,plan,ramp,source:{width:video.videoWidth,height:video.videoHeight,duration:video.duration},elapsed:(performance.now()-started)/1000};
- } finally {worker?.terminate();vision?.close();video.pause();video.removeAttribute('src');video.load();URL.revokeObjectURL(url);}
+  let metricsUrl=null;
+  if(metricsId)try{
+   const r=await fetch('/api/metrics/'+metricsId+'/finish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    appVersion:'0.3.38',source:{name:file.name,bytes:file.size,width:video.videoWidth,height:video.videoHeight,duration:video.duration},
+    settings:options,plan,resumedFrom:resumeStart,totalConversionSeconds:(performance.now()-taskStarted)/1000,frames:metricFrames,status:'completed'})});
+   if(r.ok){metricsUrl=(await r.json()).url;metricsId=null;}
+  }catch{}
+  return {blob,plan,ramp,metricsUrl,source:{width:video.videoWidth,height:video.videoHeight,duration:video.duration},elapsed:(performance.now()-started)/1000};
+ } finally {
+  if(metricsId)fetch('/api/metrics/'+metricsId+'/finish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({appVersion:'0.3.38',status:'interrupted',frames:metricFrames}),keepalive:true}).catch(()=>{});
+  worker?.terminate();vision?.close();video.pause();video.removeAttribute('src');video.load();URL.revokeObjectURL(url);}
 }

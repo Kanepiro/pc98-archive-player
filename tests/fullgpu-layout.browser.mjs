@@ -11,7 +11,7 @@ try{
   const {makeArtisanGlyphAtlas}=await import('/tsl-artisan.js');
   const {criticizeArtisanRows}=await import('/tsl-artisan-critic.js');
   const cases=[];
-  for(const [W,H,S,face] of [[24,12,6,false],[31,9,6,false],[32,16,6,true]]){
+  for(const [W,H,S,face] of [[24,12,6,false],[31,9,6,false],[32,16,6,true],[240,67,6,true]]){
    const canvas=document.createElement('canvas');canvas.width=W*S;canvas.height=H*S;
    const c=canvas.getContext('2d');c.fillStyle='#eee';c.fillRect(0,0,canvas.width,canvas.height);
    c.strokeStyle='#222';c.lineWidth=3;c.beginPath();c.ellipse(W*S*.5,H*S*.5,W*S*.23,H*S*.38,0,0,Math.PI*2);c.stroke();
@@ -23,6 +23,9 @@ try{
     landmarks:[{x:.41,y:.4},{x:.59,y:.4},{x:.5,y:.55},{x:.5,y:.68}]}]:[];
    const options={semantic},reference=new ArtisanComposer(atlas,S),gpu=new ArtisanComposer(atlas,S);
    let t=performance.now();const expected=reference.convert(pixels,W,H,options),cpuMs=performance.now()-t;
+   const oldNative=new ArtisanComposer(atlas,S);await oldNative.enablePCBoost(W,H);
+   oldNative.fullGpuLayout=null;oldNative.nativeContour=null;t=performance.now();
+   const oldNativeText=await oldNative.convertAccelerated(pixels,W,H,options),oldNativeMs=performance.now()-t;
    await gpu.enablePCBoost(W,H);t=performance.now();
    const actual=await gpu.convertAccelerated(pixels,W,H,options),nativeMs=performance.now()-t;
    const check=new ArtisanComposer(atlas,S),prepared=check._prepare(pixels,W,H,options);
@@ -36,7 +39,7 @@ try{
     let x=0;return [...line].map(char=>{const j=lookup.get(char),p={x,j};x+=check.atlas[j].columns;return p;});
    });
    const independent=criticizeArtisanRows(exactRows,check.atlas,W,S,unary,seams,prepared.field,measureArtisanLayout);
-   cases.push({W,H,S,face,cpuMs,nativeMs,backend:gpu.acceleration,error:gpu.gpuError,
+   cases.push({W,H,S,face,cpuMs,oldNativeMs,oldNativeBackend:oldNative.acceleration,oldNativePerf:oldNative.lastPerf,nativeMs,backend:gpu.acceleration,error:gpu.gpuError,
     perf:gpu.lastPerf,reference:reference.lastDiagnostics.critique.after,
     gpu:gpu.lastDiagnostics.critique,independent,
     cpuText:expected,gpuText:actual});

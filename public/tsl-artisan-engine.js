@@ -658,6 +658,7 @@ export class ArtisanComposer {
  async _prepareGpu(pixels,width,height,options){
   const S=this.sample,old=this.previousGray?.length===width*height*S*S?this.previousGray:null;
   try{
+   this.nativeContour.timings={};
    const field=await this.nativeContour.run(1,width*S,height*S,pixels,options);
    let change=0,count=0;
    if(old){const step=Math.max(1,Math.floor(field.gray.length/2500));

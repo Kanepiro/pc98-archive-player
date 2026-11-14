@@ -65,6 +65,7 @@ endif()
 
 if(WIN32)
  add_executable(fullgpu_nms fullgpu_nms.cpp)
+ target_compile_features(fullgpu_nms PRIVATE cxx_std_17)
  target_link_libraries(fullgpu_nms PRIVATE d3d11 dxgi d3dcompiler)
  if(MSVC)
   target_compile_options(fullgpu_nms PRIVATE /O2 /EHsc)

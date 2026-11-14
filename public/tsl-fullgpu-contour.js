@@ -32,7 +32,8 @@ export class NativeContour {
   const bytes=await response.arrayBuffer(),header=new DataView(bytes);
   if(bytes.byteLength!==24+n*(op===1||op===4?12:op===5?8:4)||header.getUint32(0,true)!==0x43524754||
     header.getUint32(4,true)!==op||header.getUint32(8,true)!==n)throw Error('輪郭GPUの応答が不正です');
-  this.timings[op]= {wallMs:performance.now()-start,nativeMs:header.getFloat64(bytes.byteLength-8,true)};
+  const previous=this.timings[op]||{wallMs:0,nativeMs:0,calls:0};
+  this.timings[op]={wallMs:previous.wallMs+performance.now()-start,nativeMs:previous.nativeMs+header.getFloat64(bytes.byteLength-8,true),calls:previous.calls+1};
   if(op===5)return {target:new Float32Array(bytes,16,n),importance:new Float32Array(bytes,16+n*4,n)};
   if(op===4)return {target:new Float32Array(bytes,16,n),importance:new Float32Array(bytes,16+n*4,n),
    skeleton:Uint8Array.from(new Uint32Array(bytes,16+n*8,n)),regions,

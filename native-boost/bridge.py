@@ -27,6 +27,7 @@ from pathlib import Path
 from urllib.parse import urlsplit, unquote
 from base64 import urlsafe_b64decode
 import mp4_native
+from gpu_metrics import RunMetrics
 from fullgpu_bridge import FullGpuClient, ContourGpuClient
 
 HOST = "127.0.0.1"
@@ -37,6 +38,7 @@ WEB_ROOT = ROOT / "app" if (ROOT / "app" / "index.html").is_file() else ROOT.par
 DATA = Path(os.getenv("TASL_BOOST_DATA_DIR") or (
     Path(os.getenv("LOCALAPPDATA") or Path.home() / ".cache") / "TASL-Faithful-Boost"))
 DATA.mkdir(parents=True, exist_ok=True)
+METRICS = RunMetrics(DATA)
 MAX_SCORE_REQUEST = 64 * 1024 * 1024
 MAX_VIDEO = 2 * 1024 ** 3
 MAX_TSL = 192 * 1024 ** 2
@@ -296,6 +298,9 @@ class Handler(BaseHTTPRequestHandler):
         if not self.allowed():
             return self.response(403, {"error": "Origin denied"})
         route = urlsplit(self.path).path
+        if re.fullmatch(r"/api/metrics/[0-9a-f]{32}/report", route):
+            identity=route.split("/")[3]
+            return self.send_file(DATA/("metrics-"+identity+".json"),"application/json")
         if route == "/api/vision/health":
             v = native_vision()
             return self.response(200, {"ready": bool(v and v.ready), "reason": v.reason if v else VISION_REASON,
@@ -345,6 +350,17 @@ class Handler(BaseHTTPRequestHandler):
         if not self.allowed():
             return self.response(403, {"error": "Origin denied"})
         route = urlsplit(self.path).path
+        if route == "/api/metrics/start":
+            return self.response(200, {"id": METRICS.start()})
+        if re.fullmatch(r"/api/metrics/[0-9a-f]{32}/finish", route):
+            try:
+                length=int(self.headers.get("Content-Length","0"))
+                if not 1<=length<=32*1024*1024: raise ValueError("Measurement report size")
+                report=json.loads(self.rfile.read(length))
+                if not isinstance(report,dict):raise ValueError("Measurement report object required")
+                identity=route.split("/")[3];METRICS.finish(identity,report)
+                return self.response(200,{"url":"/api/metrics/"+identity+"/report"})
+            except Exception as e:return self.response(400,{"error":str(e)[:300]})
         if route == "/api/vision/detect":
             try:
                 w, h = int(self.headers.get("X-TASL-Width", "0")), int(self.headers.get("X-TASL-Height", "0"))

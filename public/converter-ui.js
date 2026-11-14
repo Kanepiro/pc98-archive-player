@@ -34,10 +34,13 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
    });
   }finally{v.removeAttribute('src');v.load();URL.revokeObjectURL(url);}
  }
+ const metricsLink=document.createElement('a');metricsLink.id='gpu-metrics-download';metricsLink.hidden=true;
+ metricsLink.textContent='工程別時間・GPU使用状況を保存';metricsLink.download='TASL-GPU-measurements.json';
+ $('tsl-result').append(metricsLink);
  const compatibleCheckpoint=job=>{
   const native16=job?.config?.['video-font-render']==='native16';
   const mode=job?.config?.['video-style'];
-  const version=mode==='artisan'?19:mode==='quality'?(native16?8:7):mode==='halftone'?(native16?15:14):(native16?3:2);
+  const version=mode==='artisan'?20:mode==='quality'?(native16?8:7):mode==='halftone'?(native16?15:14):(native16?3:2);
   return mode!=='outline'&&job?.engineVersion===version+(job?.config?.['video-mode']==='pc98'?20:0);
  };
  function show(which){
@@ -69,7 +72,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   $('preview-tsl-full').disabled=value||!result;
  }
  function clearResult(){
-  result=null;$('tsl-result').hidden=true;
+  result=null;metricsLink.hidden=true;$('tsl-result').hidden=true;
   if(downloadUrl)URL.revokeObjectURL(downloadUrl);downloadUrl=null;
   if(directMp4Url?.startsWith('blob:'))URL.revokeObjectURL(directMp4Url);directMp4Url=null;$('direct-mp4-download').hidden=true;
  }
@@ -180,6 +183,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
     }});
    downloadUrl=URL.createObjectURL(result.blob);
    const a=$('tsl-download');a.href=downloadUrl;a.download=tslName(file.name,result.plan.conversionMode);
+   if(result.metricsUrl){metricsLink.href=result.metricsUrl;metricsLink.hidden=false;}
    $('tsl-result').hidden=false;
    $('converter-status').textContent=directMP4?'TSL完成。元音声付きMP4を作成中…':'変換が完了しました';
    $('converter-detail').textContent=(mode==='pc98'
