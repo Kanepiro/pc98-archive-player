@@ -57,7 +57,8 @@ export async function convertVideoNative(file,{signal,onProgress=()=>{},...optio
   sourceGrid:options.sourceGrid,fps:options.fps,
   brightness:options.brightness,contrast:options.contrast,
   gamma:options.gamma,edge:options.edge,native16:options.native16,
-  fit:options.fit,positionX:options.positionX,positionY:options.positionY
+  fit:options.fit,positionX:options.positionX,positionY:options.positionY,
+  sourceAudioRequired:options.sourceAudioRequired===true
  }));
  const identity=await fingerprint(file);
  check(signal);
@@ -125,9 +126,36 @@ export async function convertVideoNative(file,{signal,onProgress=()=>{},...optio
   if(!response.ok)throw Error('完成したTSLをPCブーストから受信できませんでした');
   const blob=await response.blob();
   clearRecord();
-  return {blob,plan,source:{width:plan.sourceWidth,height:plan.sourceHeight,
+  return {blob,plan,jobId:job.id,source:{width:plan.sourceWidth,height:plan.sourceHeight,
    duration:plan.duration},elapsed:(performance.now()-start)/1000};
  }finally{
   signal?.removeEventListener('abort',onAbort);
+ }
+}
+
+export async function exportNativeMp4({jobId,signal,onProgress=()=>{}}={}){
+ if(!jobId||!/^[0-9a-f]{24}$/.test(jobId))
+  throw Error('PCブーストのジョブIDが不正です');
+ const route=HOST+'/jobs/'+encodeURIComponent(jobId)+'/mp4';
+ check(signal);
+ await jsonResponse(route,{method:'POST',signal});
+ const cancel=()=>{fetch(route+'/cancel',{method:'POST',keepalive:true}).catch(()=>{});};
+ signal?.addEventListener('abort',cancel,{once:true});
+ try{
+  while(true){
+   check(signal);
+   const state=await jsonResponse(route,{signal,cache:'no-store'});
+   onProgress(state);
+   if(state.state==='error')throw Error(state.message||'GPU/CPU MP4生成に失敗しました');
+   if(state.state==='cancelled')throw cancelled();
+   if(state.state==='done'){
+    // Direct HTTP download avoids copying multi-GB long videos into JS memory.
+    return {url:route+'/result',size:state.size||0,encoder:state.encoder,
+     width:state.width,height:state.height,total:state.total};
+   }
+   await sleep(600,signal);
+  }
+ }finally{
+  signal?.removeEventListener('abort',cancel);
  }
 }

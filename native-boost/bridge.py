@@ -16,6 +16,7 @@ import sys
 import tempfile
 import threading
 import webbrowser
+import mp4_native
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -80,6 +81,15 @@ class Job:
     plan: dict = field(default_factory=dict)
     lock: threading.RLock = field(default_factory=threading.RLock)
     original_name: str = ''
+    mp4_state: str = 'not_started'
+    mp4_message: str = ''
+    mp4_encoder: str = ''
+    mp4_done: int = 0
+    mp4_total: int = 0
+    mp4_width: int = 0
+    mp4_height: int = 0
+    mp4_cancel: bool = False
+    mp4_procs: list = field(default_factory=list)
 
 
 def probe(input_path):
@@ -283,7 +293,7 @@ def run_job(job):
         with job.lock:
             job.procs = []
             finished = job.state == "done"
-        if finished and (job.source.parent.resolve() == WORK.resolve()
+        if finished and not job.options.get('sourceAudioRequired') and (job.source.parent.resolve() == WORK.resolve()
                          and job.source.suffix == ".video"
                          and re.fullmatch(r"[0-9a-f]{64}", job.source.stem)):
             try:
@@ -374,7 +384,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(403, {"error": "Origin not allowed"})
         parts = urlsplit(self.path).path.strip("/").split("/")
         if parts == ["health"]:
-            return self.send(200, {"name": "TASL PC Native Boost", "version": "1.0.2",
+            return self.send(200, {"name": "TASL PC Native Boost", "version": "1.1.0",
                                    "native": bool(executable("tsl_boost")),
                                    "ffmpeg": bool(executable("ffmpeg")),
                                    "ffprobe": bool(executable("ffprobe"))})
@@ -386,11 +396,39 @@ class Handler(BaseHTTPRequestHandler):
             job = JOBS.get(parts[1])
         if not job:
             return self.send(404, {"error": "Unknown job"})
+        if len(parts) == 3 and parts[2] == "mp4":
+            with job.lock:
+                return self.send(200, {"id": job.id, "state": job.mp4_state,
+                                       "message": job.mp4_message,
+                                       "encoder": job.mp4_encoder,
+                                       "done": job.mp4_done, "total": job.mp4_total,
+                                       "width": job.mp4_width, "height": job.mp4_height,
+                                       "size": job.output.with_suffix(".mp4").stat().st_size
+                                       if job.mp4_state == "done" and job.output.with_suffix(".mp4").is_file() else 0})
         if len(parts) == 2:
             with job.lock:
                 return self.send(200, {"id": job.id, "state": job.state,
                                        "done": job.done, "total": job.total,
                                        "message": job.message, "plan": job.plan})
+        if len(parts) == 4 and parts[2] == "mp4" and parts[3] == "result":
+            with job.lock:
+                ready = job.mp4_state == "done"
+            dest = job.output.with_suffix(".mp4")
+            if not ready or not dest.is_file():
+                return self.send(409, {"error": "MP4生成が完了していません"})
+            self.send_response(200)
+            self.send_header("Content-Type", "video/mp4")
+            self.send_header("Content-Disposition", 'attachment; filename="TASL_GPU_MP4.mp4"')
+            self.send_header("Content-Length", str(dest.stat().st_size))
+            origin = self.headers.get("Origin")
+            if origin:
+                self.send_header("Access-Control-Allow-Origin", origin)
+                self.send_header("Access-Control-Allow-Private-Network", "true")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            with dest.open("rb") as stream:
+                shutil.copyfileobj(stream, self.wfile, 256*1024)
+            return
         if len(parts) == 3 and parts[2] == "result":
             with job.lock:
                 ready = job.state == "done"
@@ -414,6 +452,35 @@ class Handler(BaseHTTPRequestHandler):
         if not self._ok_origin():
             return self.send(403, {"error": "Origin not allowed"})
         path = urlsplit(self.path).path
+        if path.startswith("/jobs/") and path.endswith("/mp4/cancel"):
+            job_id = path.split("/")[2]
+            with LOCK:
+                job = JOBS.get(job_id)
+            if not job:
+                return self.send(404, {"error": "Unknown job"})
+            with job.lock:
+                job.mp4_cancel = True
+                for proc in job.mp4_procs:
+                    if proc.poll() is None:
+                        proc.terminate()
+            return self.send(200, {"ok": True})
+        if path.startswith("/jobs/") and path.endswith("/mp4"):
+            job_id = path.split("/")[2]
+            with LOCK:
+                job = JOBS.get(job_id)
+            if not job:
+                return self.send(404, {"error": "Unknown job"})
+            with job.lock:
+                if job.mp4_state == "done" and job.output.with_suffix(".mp4").is_file():
+                    return self.send(200, {"state": "done"})
+                if job.state != "done" or not job.source.is_file():
+                    return self.send(409, {"error": "元動画が見つかりません。MP4指定で変換し直してください"})
+                if job.mp4_state in ("queued", "preparing", "encoding"):
+                    return self.send(200, {"state": job.mp4_state})
+                job.mp4_cancel = False
+                job.mp4_state = "queued"
+            threading.Thread(target=mp4_native.run_mp4,args=(job,executable),daemon=True).start()
+            return self.send(202, {"state": "queued"})
         if path.startswith("/jobs/") and path.endswith("/cancel"):
             job_id = path.split("/")[2]
             with LOCK:

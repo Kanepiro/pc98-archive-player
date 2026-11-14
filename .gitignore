@@ -14,3 +14,6 @@ native-boost/smoke*
 native-boost/*.TSL
 native-boost/__pycache__/
 boost-build/
+
+# Windows-native GPU renderer binary
+native-boost/tsl_render.exe
