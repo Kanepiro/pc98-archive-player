@@ -6,10 +6,10 @@ import {fileIdentity,readCheckpointSummary} from './tsl-checkpoint.js';
 import {exportTslInWorker} from './tsl-export-controller.js';
 export function setupConverter({openPreview,stopPlayback,isExporting,enterImmersive}) {
  const $=id=>document.getElementById(id);
- const isPC=!/(Android|iPhone|iPad|iPod|Mobile)/i.test(navigator.userAgent)&&navigator.userAgentData?.mobile!==true;
- const pcLocal=location.hostname==='127.0.0.1'&&['39083','39084'].includes(location.port);
- $('pc-boost-setting').hidden=!(isPC&&pcLocal);
- $('video-pc-boost').checked=!!(isPC&&pcLocal);
+ const isPC=true;
+ const pcLocal=['127.0.0.1','localhost'].includes(location.hostname);
+ $('pc-boost-setting').hidden=true;
+ $('video-pc-boost').checked=true;
  // A deliberate setting change takes precedence over a saved checkpoint.
  // Automatic restores do not emit input/change events.
  $('converter-settings').addEventListener('input',()=>{userAdjustedSettings=true;});
@@ -150,7 +150,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
     gamma:Number($('video-gamma').value),edge:Number($('video-edge').value),
     conversionMode:$('video-style').value,native16:$('video-font-render').value==='native16',
     fit:$('video-fit').value,positionX:Number($('crop-x').value)/100,positionY:Number($('crop-y').value)/100,
-    checkpointConfig,exactNative:isPC&&pcLocal&&$('video-pc-boost').checked,
+    checkpointConfig,exactNative:pcLocal,
     onCheckpointIssue:()=>{$('converter-detail').textContent='端末に途中保存できません。変換は続行しますが、閉じると再開できない場合があります。';},
     onProgress:p=>{
      if(p.phase==='loading')return;
@@ -195,7 +195,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
    if(directMP4){
     // ALWAYS encode the TSL returned by the ORIGINAL browser converter.
     // The native GPU path never selects, rewrites, or substitutes AA glyphs.
-    const native=isPC&&pcLocal&&$('video-pc-boost').checked;
+    const native=pcLocal;
     if(!native&&result.plan.duration>300)
      throw Error('ブラウザー側のMP4書き出しは5分までです（TSLは保存可能）');
     const started=performance.now();

@@ -198,12 +198,12 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   let metricsUrl=null;
   if(metricsId)try{
    const r=await fetch('/api/metrics/'+metricsId+'/finish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-    appVersion:'0.3.38',source:{name:file.name,bytes:file.size,width:video.videoWidth,height:video.videoHeight,duration:video.duration},
+    appVersion:'0.3.39',source:{name:file.name,bytes:file.size,width:video.videoWidth,height:video.videoHeight,duration:video.duration},
     settings:options,plan,resumedFrom:resumeStart,totalConversionSeconds:(performance.now()-taskStarted)/1000,frames:metricFrames,status:'completed'})});
    if(r.ok){metricsUrl=(await r.json()).url;metricsId=null;}
   }catch{}
   return {blob,plan,ramp,metricsUrl,source:{width:video.videoWidth,height:video.videoHeight,duration:video.duration},elapsed:(performance.now()-started)/1000};
  } finally {
-  if(metricsId)fetch('/api/metrics/'+metricsId+'/finish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({appVersion:'0.3.38',status:'interrupted',frames:metricFrames}),keepalive:true}).catch(()=>{});
+  if(metricsId)fetch('/api/metrics/'+metricsId+'/finish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({appVersion:'0.3.39',status:'interrupted',frames:metricFrames}),keepalive:true}).catch(()=>{});
   worker?.terminate();vision?.close();video.pause();video.removeAttribute('src');video.load();URL.revokeObjectURL(url);}
 }

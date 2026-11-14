@@ -2,22 +2,20 @@ import {rgbaToASCII} from './tsl-converter-core.js';
 import {QualityConverter} from './tsl-quality.js';
 import {ArtisanComposer} from './tsl-artisan-engine.js';
 import {rgbaToHalftone} from './tsl-halftone.js';
-import {GpuToneConverter} from './tsl-tone-webgpu.js';
 let quality=null,tones=null,gpuUnavailableReason='';
 self.onmessage=async({data:d})=>{
  try{
   if(d.type==='init'){
    if(d.mode==='legacy'||d.mode==='halftone'){
-    try{tones=await GpuToneConverter.create(d.mode,d.sample,d.width,d.height);}
-    catch(e){tones=null;gpuUnavailableReason=String(e);}
+    tones=null;gpuUnavailableReason='Windowsネイティブ版: モード1・2の専用GPU計算は未実装のためCPU処理';
    }else{
     quality=d.mode==='artisan'?new ArtisanComposer(d.atlas,d.sample):new QualityConverter(d.atlas,d.sample);
     quality.restore(d.state);
     // PC Boost: real Windows DirectCompute D3D11, NOT WebGPU.
     // Fall back to exact C++ CPU when the native GPU is unavailable.
-    if(d.mode==='artisan'&&d.exactNative)
+    if(d.mode==='artisan')
      await quality.enablePCBoost(d.width,d.height);
-    else await quality.enableWebGPU(d.width,d.height);
+    else quality.gpuError='Windowsネイティブ版: モード3の専用GPU計算は未実装のためCPU処理';
     if(d.mode==='artisan'&&d.exactNative&&d.legacyLayout){quality.fullGpuLayout=null;quality.nativeContour=null;}
    }
    self.postMessage({ready:true,gpuAvailable:!!quality?.gpuMatcher||!!tones});return;

@@ -1,7 +1,7 @@
 name: Full GPU Windows validation
 on:
   push:
-    branches: [work/fullgpu-20261114]
+    branches: [work/fullgpu-20261114, work/platform-windows-20261114]
   workflow_dispatch:
 permissions:
   contents: read
@@ -79,6 +79,8 @@ jobs:
           $p = Start-Process python -ArgumentList 'native-boost/bridge.py' -PassThru -RedirectStandardError gpu-server.log
           try {
             Start-Sleep -Seconds 3
+            node tests/platform-native.browser.mjs
+            if ($LASTEXITCODE -ne 0) { throw 'Native platform isolation failed' }
             node tests/fullgpu-layout.browser.mjs
             if ($LASTEXITCODE -ne 0) { throw 'Native layout regression failed' }
             node tests/video-comparison.browser.mjs
@@ -160,12 +162,12 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Packaged application smoke test failed' }
           python native-boost/package_report.py $app
           if ($LASTEXITCODE -ne 0) { throw 'Validation report generation failed' }
-          Compress-Archive -Path $app -DestinationPath TASL-PC-Boost-v0.3.38-NativeGPU-Windows-x64.zip
+          Compress-Archive -Path $app -DestinationPath TASL-PC-Boost-v0.3.39-NativeGPU-Windows-x64.zip
       - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: TASL-PC-Boost-v0.3.38-NativeGPU-Windows-x64
-          path: TASL-PC-Boost-v0.3.38-NativeGPU-Windows-x64.zip
+          name: TASL-PC-Boost-v0.3.39-NativeGPU-Windows-x64
+          path: TASL-PC-Boost-v0.3.39-NativeGPU-Windows-x64.zip
           retention-days: 7
       - uses: actions/upload-artifact@v4
         if: failure()
@@ -173,3 +175,24 @@ jobs:
           name: Packaged-smoke-failure
           path: native-dist/TASL-PC-Boost/packaged-smoke.log
           retention-days: 7
+
+  publish:
+    if: github.ref == 'refs/heads/work/platform-windows-20261114'
+    needs: [package]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: TASL-PC-Boost-v0.3.39-NativeGPU-Windows-x64
+          path: release-assets
+      - name: Publish tested package as a hardware-unverified prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        run: |
+          sha256sum release-assets/*.zip > release-assets/SHA256SUMS.txt
+          gh release create windows-v0.3.39 release-assets/* --target "$RELEASE_COMMIT" --prerelease --title "Windows native v0.3.39 — 実機検証前" --notes-file native-boost/RELEASE-v0.3.39.md
