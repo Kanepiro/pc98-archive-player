@@ -23,7 +23,7 @@ static int positive(const std::string& x){
  if(n<=0||n>1000000)throw std::runtime_error("invalid positive number");
  return n;
 }
-struct Params{std::string input; int fps=24;};
+struct Params{std::string input; int fps=24,outWidth=0,outHeight=0,nv12=0;};
 static Params args(int argc,char** argv){
  Params a;
  for(int i=1;i<argc;++i){
@@ -31,6 +31,9 @@ static Params args(int argc,char** argv){
   std::string k=argv[i],v=argv[++i];
   if(k=="--input")a.input=v;
   else if(k=="--fps")a.fps=positive(v);
+  else if(k=="--output-width")a.outWidth=positive(v);
+  else if(k=="--output-height")a.outHeight=positive(v);
+  else if(k=="--nv12")a.nv12=positive(v);
   else throw std::runtime_error("unknown argument");
  }
  if(a.input.empty()||a.fps<5||a.fps>30)throw std::runtime_error("invalid renderer options");

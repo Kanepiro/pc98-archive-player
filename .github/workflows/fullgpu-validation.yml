@@ -70,6 +70,12 @@ jobs:
             node tests/fullgpu-layout.browser.mjs
             if ($LASTEXITCODE -ne 0) { throw 'Native layout regression failed' }
           } finally { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+      - name: Verify native GPU detection postprocessing
+        shell: pwsh
+        run: |
+          pip install numpy==1.26.4 opencv-python-headless==4.11.0.86
+          python tests/nms-parity.py
+          if ($LASTEXITCODE -ne 0) { throw 'GPU NMS regression failed' }
       - name: Verify GPU raster against original Windows GDI
         shell: pwsh
         run: |

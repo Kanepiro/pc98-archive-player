@@ -121,3 +121,12 @@ class ContourGpuClient(FullGpuClient):
         if regions>8 or len(payload) != 32+w*h*4+regions*24*4:
             raise ValueError("Contour size mismatch")
         return 24+w*h*(12 if op in (1,4) else 4)
+
+class NmsGpuClient(FullGpuClient):
+    program_name="fullgpu_nms"
+    marker=b"DIRECTCOMPUTE_NMS "
+    def validate(self,payload):
+        if len(payload)<16:raise ValueError("NMS header")
+        magic,nf,no,_=struct.unpack_from("<4I",payload)
+        if magic!=0x534d4e54 or not 1<=nf<=896 or not 1<=no<=19206 or len(payload)!=16+4*(nf*17+no*6):raise ValueError("NMS bounds")
+        return (2+nf*17+36)*4

@@ -8,8 +8,9 @@ class NativeVision:
         self.root=Path(root)/"models";self.lock=threading.RLock()
         self.sessions={};self.reason="";self.test_cpu=os.getenv("TASL_TEST_VISION_CPU")=="1"
         self.ready=False;self.known=False;self.profile=[]
-        from fullgpu_bridge import ContourGpuClient
+        from fullgpu_bridge import ContourGpuClient, NmsGpuClient
         self.preprocessor=ContourGpuClient(lambda n:str(self.root.parent/(n+".exe")))
+        self.nms=NmsGpuClient(lambda n:str(self.root.parent/(n+".exe")))
     def initialize(self):
         with self.lock:
             if self.known:return self.ready
@@ -92,32 +93,42 @@ class NativeVision:
             face_ms=(time.perf_counter()-t)*1000;t=time.perf_counter()
             ob=self.sessions["object"];ov=ob.run(None,{ob.get_inputs()[0].name:obj[None]})
             object_ms=(time.perf_counter()-t)*1000;t=time.perf_counter()
-            face_boxes,face_scores=fv[0][0],fv[1].reshape(-1)
-            ids=np.flatnonzero(face_scores>=.55);ids=ids[np.argsort(-face_scores[ids],kind="stable")]
+            face_candidates,object_candidates,nms_backend=self.suppress(fv,ov)
             faces=[]
-            while len(ids):
-                first=ids[0];overlap=self.iou(face_boxes[first,:4],face_boxes[ids,:4])>.3;overlap[0]=True
-                group=ids[overlap];ids=ids[~overlap]
-                weights=face_scores[group];box=(face_boxes[group]*weights[:,None]).sum(axis=0)/weights.sum()
-                score=float(face_scores[first])
-                # Unletterbox centre/size and the six original keypoints.
-                box=box.copy();box[0]=(box[0]*128-tx)/(w*sx);box[1]=(box[1]*128-ty)/(h*sx)
+            for original,score in face_candidates:
+                box=original.copy();box[0]=(box[0]*128-tx)/(w*sx);box[1]=(box[1]*128-ty)/(h*sx)
                 box[2]*=size/w;box[3]*=size/h
-                points=[]
-                for k in range(6):
-                    points.append({"x":float((box[4+k*2]*128-tx)/(w*sx)),"y":float((box[5+k*2]*128-ty)/(h*sx))})
+                points=[{"x":float((box[4+k*2]*128-tx)/(w*sx)),"y":float((box[5+k*2]*128-ty)/(h*sx))} for k in range(6)]
                 faces.append(self.detection(box[:4],score,"face",w,h,points))
-            boxes,scores,classes=ov[0][0],ov[1].reshape(-1),ov[2].reshape(-1)
-            ids=np.flatnonzero(scores>=.36);ids=ids[np.argsort(-scores[ids],kind="stable")]
-            objects=[]
-            while len(ids) and len(objects)<6:
-                first=ids[0]
-                objects.append(self.detection(boxes[first],float(scores[first]),self.metadata["labels"][int(classes[first])],w,h))
-                overlaps=self.iou(boxes[first],boxes[ids])
-                overlaps[0]=1;ids=ids[overlaps<=.3]
+            objects=[self.detection(box,score,self.metadata["labels"][label],w,h) for box,score,label in object_candidates]
             return {"faces":{"detections":faces},"objects":{"detections":objects},
                 "backend":self.backend,"providerEvidence":self.profile,"preprocessBackend":preprocess_backend,"timing":{"preprocessCpuMs":prep*1000,"faceInferenceMs":face_ms,
-                 "objectInferenceMs":object_ms,"nmsCpuMs":(time.perf_counter()-t)*1000}}
+                 "objectInferenceMs":object_ms,"nmsBackend":nms_backend,"nmsWallMs":(time.perf_counter()-t)*1000}}
+    def suppress(self,fv,ov):
+        fb,fs=fv[0][0],fv[1].reshape(-1)
+        ob,oscores,classes=ov[0][0],ov[1].reshape(-1),ov[2].reshape(-1)
+        try:
+            if self.test_cpu and os.getenv("TASL_TEST_NATIVE_VISION")!="1":raise RuntimeError("Explicit CPU test")
+            nf,no=len(fs),len(oscores)
+            data=np.concatenate([fb.ravel(),fs,ob.ravel(),oscores,classes.astype(np.float32)]).astype(np.float32).tobytes()
+            result=self.nms.compute(struct.pack("<4I",0x534d4e54,nf,no,0)+data)
+            fc,oc=struct.unpack_from("<2I",result)
+            if fc>nf or oc>6:raise RuntimeError("Invalid GPU detection count")
+            faces=np.frombuffer(result,np.float32,count=nf*17,offset=8).reshape(nf,17)
+            objects=np.frombuffer(result,np.float32,count=36,offset=8+nf*17*4).reshape(6,6)
+            return [(r[:16],float(r[16])) for r in faces[:fc]],[(r[:4],float(r[4]),int(r[5])) for r in objects[:oc]],"WARP-Test" if self.nms.software else "DirectCompute"
+        except Exception as e:
+            reason=str(e)[:150]
+        ids=np.flatnonzero(fs>=.55);ids=ids[np.argsort(-fs[ids],kind="stable")];faces=[]
+        while len(ids):
+            first=ids[0];overlap=self.iou(fb[first,:4],fb[ids,:4])>.3;overlap[0]=True
+            group=ids[overlap];ids=ids[~overlap];weights=fs[group]
+            faces.append(((fb[group]*weights[:,None]).sum(axis=0)/weights.sum(),float(fs[first])))
+        ids=np.flatnonzero(oscores>=.36);ids=ids[np.argsort(-oscores[ids],kind="stable")];objects=[]
+        while len(ids) and len(objects)<6:
+            first=ids[0];objects.append((ob[first],float(oscores[first]),int(classes[first])))
+            overlaps=self.iou(ob[first],ob[ids]);overlaps[0]=1;ids=ids[overlaps<=.3]
+        return faces,objects,"CPU: "+reason
     @staticmethod
     def detection(box,score,label,w,h,points=None):
         x,y,bw,bh=[float(v) for v in box]

@@ -65,15 +65,16 @@ def _encode(job, executable, fps, native_width, native_height,
                     if gpu else
                     ["-c:v", "libx264", "-preset", "veryfast", "-crf", "21"])
     codec = "NVIDIA NVENC (GPU)" if gpu else "libx264 (CPU)"
-    _log(job, state="encoding", message=f"MP4変換中 · {codec}", encoder=codec, done=0)
-    frame_size = f"{native_width}x{native_height}"
+    _log(job, state="encoding", message=f"MP4変換中 · {codec} · " + ("描画・拡大縮小・色変換 DirectCompute" if gpu_raster else "描画 GDI CPU"), encoder=codec, done=0)
+    frame_size = f"{out_width}x{out_height}" if gpu_raster else f"{native_width}x{native_height}"
+    pixel_format = "nv12" if gpu_raster else "bgr0"
     cmd = [ffmpeg, "-nostdin", "-hide_banner", "-loglevel", "error",
-           "-f", "rawvideo", "-pixel_format", "bgr0",
+           "-f", "rawvideo", "-pixel_format", pixel_format,
            "-video_size", frame_size, "-framerate", str(fps),
            "-i", "pipe:0",
            "-i", str(job.source),
            "-map", "0:v:0", "-map", "1:a:0?",
-           "-vf", vf, *encoder_opts, "-pix_fmt", "yuv420p",
+           *(["-vf", vf] if not gpu_raster else []), *encoder_opts, "-pix_fmt", "nv12" if gpu_raster else "yuv420p",
            "-c:a", "aac", "-b:a", "192k",
            "-movflags", "+faststart", "-shortest",
            "-stats_period", "0.5", "-progress", "pipe:2",
@@ -84,7 +85,7 @@ def _encode(job, executable, fps, native_width, native_height,
     try:
         with render_log.open("wb") as log:
             renderer = subprocess.Popen(
-                [renderer_bin, "--input", str(job.output), "--fps", str(fps)],
+                [renderer_bin, "--input", str(job.output), "--fps", str(fps)]+(["--output-width",str(out_width),"--output-height",str(out_height),"--nv12","1"] if gpu_raster else []),
                 stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=log,
                 bufsize=1024 * 1024)
             encoder = subprocess.Popen(cmd, stdin=renderer.stdout,
