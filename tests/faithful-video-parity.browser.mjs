@@ -6,7 +6,7 @@ import {join} from 'node:path';
 import {createHash} from 'node:crypto';
 const tmp=mkdtempSync(join(tmpdir(),'tasl-faithful-e2e-'));
 const movie=join(tmp,'movie.mp4');
-const encode=spawnSync('ffmpeg',['-v','error','-f','lavfi','-i',
+const encode=spawnSync(process.env.FFMPEG_BIN||'ffmpeg',['-v','error','-f','lavfi','-i',
  'testsrc2=size=640x360:rate=10','-t','1',
  '-c:v','libx264','-preset','ultrafast','-pix_fmt','yuv420p','-y',movie],{encoding:'utf8'});
 if(encode.status!==0)throw Error(encode.stderr);
