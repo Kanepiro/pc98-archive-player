@@ -60,7 +60,7 @@ void connect(uint3 id:SV_DispatchThreadID){
  uint i=id.x+id.y*65535*128;if(i>=w*h||A[o(7)+i]==0xffffffff)return;
  uint x=i%w,y=i/w;
  for(int dy=-1;dy<=1;dy++)for(int dx=-1;dx<=1;dx++){
-  int xx=int(x)+dx,yy=int(y)+dy;if(xx<=0||yy<=0||xx>=int(w)-1||yy>=int(h)-1)continue;
+  int xx=int(x)+dx,yy=int(y)+dy;if(op==4?(xx<0||yy<0||xx>=int(w)||yy>=int(h)):(xx<=0||yy<=0||xx>=int(w)-1||yy>=int(h)-1))continue;
   uint j=yy*w+xx;if(A[o(7)+j]==0xffffffff)continue;
   uint a=root(i),b=root(j);if(a!=b){
    uint prior;InterlockedMin(A[o(7)+max(a,b)],min(a,b),prior);
@@ -103,7 +103,7 @@ void distanceField(uint3 id:SV_DispatchThreadID){
 void thin(uint3 id:SV_DispatchThreadID){
  uint i=id.x+id.y*65535*128;if(i>=w*h)return;uint x=i%w,y=i/w;
  uint value=A[o(source)+i];bool remove=false;
- if(value&&x>0&&y>0&&x+1<w&&y+1<h){
+ if(stage!=2&&value&&x>0&&y>0&&x+1<w&&y+1<h){
   uint p2=A[o(source)+i-w],p3=A[o(source)+i-w+1],p4=A[o(source)+i+1],p5=A[o(source)+i+w+1];
   uint p6=A[o(source)+i+w],p7=A[o(source)+i+w-1],p8=A[o(source)+i-1],p9=A[o(source)+i-w-1];
   uint neighbours=p2+p3+p4+p5+p6+p7+p8+p9;
@@ -113,3 +113,5 @@ void thin(uint3 id:SV_DispatchThreadID){
  }
  A[o(destination)+i]=remove?0:value;
 }
+
+#include "fullgpu_topology.hlsl"

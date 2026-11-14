@@ -663,9 +663,7 @@ export class ArtisanComposer {
    if(old){const step=Math.max(1,Math.floor(field.gray.length/2500));
     for(let i=0;i<field.gray.length;i+=step){change+=Math.abs(field.gray[i]-old[i]);count++;}}
    field.cut=count>0&&change/count>.18;
-   const topology=buildArtisanTopology(field,options.semantic);
-   const skeleton=await this.nativeContour.run(3,field.w,field.h,topology.mask);
-   const structure=finishArtisanTopology(field,topology,skeleton);
+   const structure=await this.nativeContour.run(4,field.w,field.h,field.target,options);
    const guided=guideArtisanFaces(field,structure,options.semantic);
    guided.dist=await this.nativeContour.run(2,field.w,field.h,guided.target);
    return this._prepare(pixels,width,height,options,field,guided);

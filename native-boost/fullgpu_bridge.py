@@ -108,8 +108,9 @@ class ContourGpuClient(FullGpuClient):
         if len(payload) < 32:
             raise ValueError("Incomplete contour header")
         magic, op, w, h = struct.unpack_from("<4I", payload)
-        if magic != 0x43504754 or op not in (1, 2, 3) or w < 4 or h < 4 or w*h > 3000000:
+        if magic != 0x43504754 or op not in (1, 2, 3, 4) or w < 4 or h < 4 or w*h > 3000000:
             raise ValueError("Invalid contour dimensions")
-        if len(payload) != 32+w*h*4:
+        regions=struct.unpack_from("<I",payload,28)[0] if op == 4 else 0
+        if regions>8 or len(payload) != 32+w*h*4+regions*24*4:
             raise ValueError("Contour size mismatch")
-        return 24+w*h*(12 if op == 1 else 4)
+        return 24+w*h*(12 if op in (1,4) else 4)
