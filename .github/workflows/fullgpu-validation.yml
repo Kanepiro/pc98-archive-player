@@ -54,6 +54,11 @@ jobs:
             node tests/fullgpu-layout.browser.mjs
             if ($LASTEXITCODE -ne 0) { throw 'Native layout regression failed' }
           } finally { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+      - name: Verify GPU raster against original Windows GDI
+        shell: pwsh
+        run: |
+          python tests/raster-parity.py
+          if ($LASTEXITCODE -ne 0) { throw 'GPU raster parity failed' }
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -493,7 +493,7 @@ export class ArtisanComposer {
     throw Error(health.gpuReason||'DirectCompute対応GPUが見つかりません');
    this.directComputeMatcher=new Mode4ExactNativeMatcher('/api/mode4/gpu-score');
    this.nativeGpuInfo={name:health.layoutName||health.gpuName||'DirectCompute GPU',
-    identified:true,architecture:'Direct3D 11',software:false};
+    identified:true,architecture:'Direct3D 11',software:!!health.layoutSoftware};
    this.acceleration='DirectCompute';
   }catch(e){
    this.gpuError=String(e);

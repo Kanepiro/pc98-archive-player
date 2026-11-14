@@ -31,8 +31,8 @@ struct ContourGPU {
   ID3D11Buffer* cb[]={constants.Get()};ID3D11UnorderedAccessView* uv[]={uav.Get()};
   gpu.context->CSSetConstantBuffers(0,1,cb);gpu.context->CSSetUnorderedAccessViews(0,1,uv,nullptr);
   gpu.context->CSSetShader(shaders[entry].Get(),nullptr,0);
-  uint32_t groups=(count+127)/128;if(groups>65535)throw std::runtime_error("contour dispatch size");
-  gpu.context->Dispatch(groups,1,1);
+  uint32_t groups=(count+127)/128;
+  gpu.context->Dispatch(std::min(65535u,groups),(groups+65534)/65535,1);
  }
  void unbind(){ID3D11UnorderedAccessView* empty[]={nullptr};gpu.context->CSSetUnorderedAccessViews(0,1,empty,nullptr);}
  uint32_t changed(){

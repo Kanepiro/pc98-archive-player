@@ -195,6 +195,18 @@ class NativeGpuClient:
 GPU = NativeGpuClient()
 LAYOUT = FullGpuClient(executable)
 CONTOUR = ContourGpuClient(executable)
+VISION = None
+VISION_REASON = ""
+def native_vision():
+    global VISION, VISION_REASON
+    if VISION is None and not VISION_REASON:
+        try:
+            from native_vision import NativeVision
+            VISION = NativeVision(ROOT)
+            VISION.initialize()
+        except Exception as exc:
+            VISION_REASON = str(exc)
+    return VISION
 atexit.register(CONTOUR.close)
 atexit.register(LAYOUT.close)
 atexit.register(GPU.close)
@@ -284,6 +296,10 @@ class Handler(BaseHTTPRequestHandler):
         if not self.allowed():
             return self.response(403, {"error": "Origin denied"})
         route = urlsplit(self.path).path
+        if route == "/api/vision/health":
+            v = native_vision()
+            return self.response(200, {"ready": bool(v and v.ready), "reason": v.reason if v else VISION_REASON,
+                "backend": v.backend if v and v.ready else "CPU fallback"})
         if route == "/health":
             return self.response(200, {
                 "name": "TASL Original Algorithm PC Boost",
@@ -329,6 +345,19 @@ class Handler(BaseHTTPRequestHandler):
         if not self.allowed():
             return self.response(403, {"error": "Origin denied"})
         route = urlsplit(self.path).path
+        if route == "/api/vision/detect":
+            try:
+                w, h = int(self.headers.get("X-TASL-Width", "0")), int(self.headers.get("X-TASL-Height", "0"))
+                length = int(self.headers.get("Content-Length", "0"))
+                if not 1 <= w <= 8192 or not 1 <= h <= 8192 or w*h > 16777216 or length != w*h*4:
+                    raise ValueError("Invalid vision frame dimensions")
+                payload = self.rfile.read(length)
+                if len(payload) != length: raise ValueError("Incomplete vision frame")
+                v = native_vision()
+                if not v: raise RuntimeError(VISION_REASON)
+                return self.response(200, v.detect(payload,w,h))
+            except Exception as e:
+                return self.response(503, {"error": str(e)[:450]})
         if route in ("/api/mode4/gpu-layout", "/api/mode4/gpu-contour"):
             client = CONTOUR if route.endswith("gpu-contour") else LAYOUT
             try:

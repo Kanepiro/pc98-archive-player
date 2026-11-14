@@ -145,7 +145,11 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
     onProgress({phase:'vision',message:'顔・動物・物体の認識モデルを準備しています'});
     try{
      const module=await import('./tsl-artisan-vision.js');
-     vision=await module.createArtisanVision({onStatus:message=>onProgress({phase:'vision',message})});
+     if(input.exactNative){
+      try{const native=await import('./tsl-native-vision.js');vision=await native.createNativeVision({onStatus:message=>onProgress({phase:'vision',message})});}
+      catch(e){onProgress({phase:'vision',message:'DirectML認識を使えません: '+e.message});}
+     }
+     if(!vision)vision=await module.createArtisanVision({onStatus:message=>onProgress({phase:'vision',message})});
      onProgress({phase:'vision',message:'顔・動物・物体を識別しながらAAを構成します'});
     }catch(e){
      onProgress({phase:'vision',message:'画像認識が利用できないため輪郭構造のみで処理します：'+e.message});
@@ -157,7 +161,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
    const time=Math.min(plan.steps[i].time,Math.max(0,video.duration-.001));
    if(i>0||time!==video.currentTime)await mediaEvent(video,'seeked',signal,()=>{video.currentTime=time;});
    check(signal);
-   const detections=vision?.detect(video,rect,canvas.width,canvas.height,time)||[];
+   const detections=await vision?.detect(video,rect,canvas.width,canvas.height,time)||[];
    const frameRect=vision?artisanFocusRect(rect,detections,canvas.width,canvas.height,focusRect):rect;
    if(vision)focusRect=frameRect;
    const semantic=vision?remapArtisanRegions(detections,rect,frameRect,canvas.width,canvas.height):[];

@@ -50,9 +50,9 @@ def _log(job, state=None, message=None, encoder=None, done=None):
 
 
 def _encode(job, executable, fps, native_width, native_height,
-            out_width, out_height, gpu, target):
+            out_width, out_height, gpu, target, gpu_raster=False):
     """Piped C++ Win32 GDI -> FFmpeg NVENC or CPU; no intermediate PNG images."""
-    renderer_bin = executable("tsl_render")
+    renderer_bin = executable("tsl_render_gpu" if gpu_raster else "tsl_render")
     if not renderer_bin:
         raise RuntimeError("Windows TSL renderer executable is missing")
     ffmpeg = executable("ffmpeg")
@@ -151,6 +151,13 @@ def run_mp4(job, executable):
                  done=job.mp4_total)
             return
         gpu_ok, gpu_detail = nvenc_probe(executable("ffmpeg"))
+        raster_ok = False
+        if executable("tsl_render_gpu"):
+            try:
+                probe = subprocess.run([executable("tsl_render_gpu"), "--probe"], capture_output=True, timeout=15)
+                raster_ok = probe.returncode == 0 and probe.stdout.startswith(b"DIRECTCOMPUTE_RASTER ")
+            except (OSError, subprocess.TimeoutExpired):
+                pass
         if not gpu_ok:
             _log(job, message="NVENCが使用できないためCPUエンコードに切替")
         gpu_target = job.output.with_suffix(".gpu.tmp.mp4")
@@ -158,7 +165,11 @@ def run_mp4(job, executable):
         if gpu_ok:
             success, reason = _encode(job, executable, fps, native_width,
                                       native_height, out_width, out_height,
-                                      True, gpu_target)
+                                      True, gpu_target, raster_ok)
+            if not success and raster_ok and not job.mp4_cancel:
+                # A renderer failure does not justify disabling a working NVENC device.
+                success, reason = _encode(job, executable, fps, native_width,
+                    native_height, out_width, out_height, True, gpu_target, False)
             if success:
                 gpu_target.replace(mp4)
                 _log(job, state="done", message="GPU NVENCによるMP4書き出し完了",
@@ -170,7 +181,10 @@ def run_mp4(job, executable):
             _log(job, message="GPU書き出しに失敗。CPUへ自動切替: " + reason[:150])
         success, reason = _encode(job, executable, fps, native_width,
                                   native_height, out_width, out_height,
-                                  False, cpu_target)
+                                  False, cpu_target, raster_ok)
+        if not success and raster_ok and not job.mp4_cancel:
+            success, reason = _encode(job, executable, fps, native_width,
+                native_height, out_width, out_height, False, cpu_target, False)
         if success:
             cpu_target.replace(mp4)
             _log(job, state="done", message="CPUでMP4書き出し完了",

@@ -14,7 +14,7 @@ static ComPtr<ID3DBlob> fullShader(const char* entry){
 struct FullGPU {
  NativeDirectCompute gpu;
  std::array<ComPtr<ID3D11ComputeShader>,8> shaders;
- ComPtr<ID3D11Buffer> memory,staging,constants;
+ ComPtr<ID3D11Buffer> memory,staging,constants,counterReadback;
  ComPtr<ID3D11UnorderedAccessView> uav;
  struct alignas(16) Params {uint32_t W,H,S,G,kind,first,stride,count,x,y,beam,options,faces,old,cut,budget;};
  std::vector<uint32_t> host;
@@ -27,6 +27,8 @@ struct FullGPU {
   for(size_t i=0;i<8;i++){auto code=fullShader(names[i]);checked(gpu.device->CreateComputeShader(code->GetBufferPointer(),code->GetBufferSize(),nullptr,&shaders[i]),"create layout shader");}
   D3D11_BUFFER_DESC cd={};cd.ByteWidth=sizeof(Params);cd.Usage=D3D11_USAGE_DEFAULT;cd.BindFlags=D3D11_BIND_CONSTANT_BUFFER;
   checked(gpu.device->CreateBuffer(&cd,nullptr,&constants),"layout constants");
+  cd.ByteWidth=16;cd.Usage=D3D11_USAGE_STAGING;cd.BindFlags=0;cd.CPUAccessFlags=D3D11_CPU_ACCESS_READ;
+  checked(gpu.device->CreateBuffer(&cd,nullptr,&counterReadback),"critic counter readback");
   D3D11_QUERY_DESC q={D3D11_QUERY_TIMESTAMP_DISJOINT,0};
   checked(gpu.device->CreateQuery(&q,&disjoint),"disjoint query");q.Query=D3D11_QUERY_TIMESTAMP;
   for(auto& s:stamps){checked(gpu.device->CreateQuery(&q,&s.start),"timestamp");checked(gpu.device->CreateQuery(&q,&s.end),"timestamp");}
@@ -102,8 +104,17 @@ struct FullGPU {
   p.kind=3;
   // Scan the same two parities and tile budget as the original critic. The shader
   // stops accepting new tiles at the budget; unsupported boundaries are skipped.
-  for(UINT parity=0;parity<2;parity++)for(UINT y=parity;y+1<p.H;y+=2)for(UINT x=parity;x+2<=p.W;x+=2){
+  uint32_t scanned=0;bool budgetReached=false;
+  for(UINT parity=0;parity<2&&!budgetReached;parity++)for(UINT y=parity;y+1<p.H&&!budgetReached;y+=2)for(UINT x=parity;x+2<=p.W;x+=2){
    p.x=x;p.y=y;dispatch(5,p,1);dispatch(6,p,cellGroups);dispatch(7,p,1);
+   if(++scanned%32==0){
+    ID3D11UnorderedAccessView* empty[]={nullptr};gpu.context->CSSetUnorderedAccessViews(0,1,empty,nullptr);
+    D3D11_BOX box={offsets[22]*4,0,0,offsets[22]*4+16,1,1};
+    gpu.context->CopySubresourceRegion(counterReadback.Get(),0,0,0,0,memory.Get(),0,&box);
+    D3D11_MAPPED_SUBRESOURCE m={};checked(gpu.context->Map(counterReadback.Get(),0,D3D11_MAP_READ,0,&m),"critic budget");
+    budgetReached=((uint32_t*)m.pData)[2]>=p.budget;gpu.context->Unmap(counterReadback.Get(),0);
+    if(budgetReached)break;
+   }
   }
   end(5);gpu.context->End(disjoint.Get());
   ID3D11UnorderedAccessView* none[]={nullptr};gpu.context->CSSetUnorderedAccessViews(0,1,none,nullptr);
