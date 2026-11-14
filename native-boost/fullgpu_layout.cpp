@@ -62,18 +62,27 @@ struct FullGPU {
   std::copy(offsets.begin(),offsets.end(),host.begin());
   if(host.size()*4>512ull*1024*1024)throw std::runtime_error("layout arena exceeds 512 MiB");
   if(memory){D3D11_BUFFER_DESC prior={};memory->GetDesc(&prior);
-   if(prior.ByteWidth==host.size()*4){gpu.context->UpdateSubresource(memory.Get(),0,nullptr,host.data(),0,0);return;}
+   if(prior.ByteWidth==host.size()*4){uploadInputs(p);return;}
   }
   memory.Reset();uav.Reset();staging.Reset();
   D3D11_BUFFER_DESC desc={};desc.ByteWidth=(UINT)host.size()*4;desc.Usage=D3D11_USAGE_DEFAULT;
   desc.BindFlags=D3D11_BIND_UNORDERED_ACCESS;desc.MiscFlags=D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;desc.StructureByteStride=4;
-  D3D11_SUBRESOURCE_DATA initial={};initial.pSysMem=host.data();
-  checked(gpu.device->CreateBuffer(&desc,&initial,&memory),"GPU arena");
+  checked(gpu.device->CreateBuffer(&desc,nullptr,&memory),"GPU arena");
   D3D11_UNORDERED_ACCESS_VIEW_DESC vd={};vd.ViewDimension=D3D11_UAV_DIMENSION_BUFFER;vd.Buffer.NumElements=(UINT)host.size();
   checked(gpu.device->CreateUnorderedAccessView(memory.Get(),&vd,&uav),"GPU arena view");
   desc.BindFlags=0;desc.Usage=D3D11_USAGE_STAGING;desc.CPUAccessFlags=D3D11_CPU_ACCESS_READ;desc.MiscFlags=0;desc.StructureByteStride=0;
   desc.ByteWidth=(UINT)(p.cells+16)*4;
   checked(gpu.device->CreateBuffer(&desc,nullptr,&staging),"layout readback");
+  uploadInputs(p);
+ }
+ void uploadInputs(const Payload& p){
+  // Scratch is initialized on the GPU; only actual input data crosses PCIe.
+  const UINT zero[4]={0,0,0,0};
+  gpu.context->ClearUnorderedAccessViewUint(uav.Get(),zero);
+  D3D11_BOX inputBox={0,0,0,offsets[13]*4,1,1};
+  gpu.context->UpdateSubresource(memory.Get(),0,&inputBox,host.data(),0,0);
+  D3D11_BOX portBox={offsets[20]*4,0,0,(UINT)(offsets[20]+p.G*8*p.S)*4,1,1};
+  gpu.context->UpdateSubresource(memory.Get(),0,&portBox,host.data()+offsets[20],0,0);
  }
  void dispatch(int which,Params& p,UINT x,UINT y=1){
   if(!x)return;
