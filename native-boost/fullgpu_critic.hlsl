@@ -153,9 +153,12 @@ void evaluate(uint3 id:SV_DispatchThreadID){
  put(at+3,squared/(S*S));put(at+4,edge/(S*S));put(at+5,drawn/(S*S));
 }
 groupshared float sums[768];
+groupshared uint criticActive;
 [numthreads(128,1,1)]
 void reduceCritic(uint tid:SV_GroupIndex){
- if(passKind==3&&ui(22,15)==0)return;
+ if(tid==0)criticActive=(passKind!=3||ui(22,15)!=0)?1:0;
+ GroupMemoryBarrierWithGroupSync();
+ if(!criticActive)return;
  for(uint j=0;j<6;j++){float s=0;for(uint i=tid;i<W*H;i+=128)s+=data(25,i*6+j);sums[j*128+tid]=s;}
  GroupMemoryBarrierWithGroupSync();
  for(uint stride=64;stride>0;stride/=2){
