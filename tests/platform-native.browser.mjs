@@ -5,7 +5,7 @@ const browser=await chromium.launch({channel:'chrome',headless:true,args:['--no-
 try{
  const page=await browser.newPage();
  await page.goto(process.env.BOOST_URL||'http://127.0.0.1:39085/');
- assert.match(await page.locator('header').innerText(),/Windows ネイティブ版 · v0.3.42-rc1/);
+ assert.match(await page.locator('header').innerText(),/Windows ネイティブ版 · v0.3.42-rc2/);
  const results=await page.evaluate(async()=>{
   const {makeArtisanGlyphAtlas}=await import('/tsl-artisan.js');
   const {makeGlyphAtlas}=await import('/tsl-quality.js');

@@ -43,12 +43,12 @@ result={'adapter':report['adapter'],'sameSourceSha256':report['sourceSha256'],'e
  'scope':'Layout counters compare the retained v0.3.41 layout path and residency on one process. Whole-video time compares untouched v0.3.41 and the new app, same WARP PC and source. Hardware/whole-device VRAM remains unverified.'}
 (root/'gpu-validation/resident-summary.json').write_text(json.dumps(result,indent=2))
 print('RESIDENT_SUMMARY',json.dumps({**result,'video':[{'resident':r['resident'],'wallMs':r['wallMs']} for r in report['video']]}))
-lines=['# v0.3.42-rc1 GPU常駐 検証結果','','Windows CIのWARPソフトウェア実行。GTX 1050 Tiの実機性能ではありません。','',
+lines=['# v0.3.42-rc2 GPU常駐 検証結果','','Windows CIのWARPソフトウェア実行。GTX 1050 Tiの実機性能ではありません。','',
  '文字列・全体評価値・TSL・MP4復号後のフレームが一致。容量確保失敗時も同じ文字列と評価値。','両方のアプリで同じ動画を1回予備実行した後、各1回を計測。測定時は途中保存を再利用せず全フレームを変換。','',
  '| 組版計測（23フレーム） | 旧経路 | 常駐経路 |','|---|---:|---:|']
 for key in ['nativeWallMs','frameMeanMs','h2dCalls','h2dBytes','d2hCalls','d2hBytes','gpuWaitMs','bufferAllocations','bufferReleases','staticUploads','ringBytes','arenaBytes','processVramBytes','processVramBudgetBytes']:
  lines.append(f'| {key} | {summaries[0][key]:.3f} | {summaries[1][key]:.3f} |')
-lines+=['','| 同じ動画・同じ設定 | v0.3.41 | v0.3.42-rc1 |','|---|---:|---:|',
+lines+=['','| 同じ動画・同じ設定 | v0.3.41 | v0.3.42-rc2 |','|---|---:|---:|',
  f"| 文字変換全体 ms | {report['video'][0]['wallMs']:.3f} | {report['video'][1]['wallMs']:.3f} |",
  f"| 変換＋MP4 秒 | {runs[0]['conversionPlusMp4Seconds']:.3f} | {runs[1]['conversionPlusMp4Seconds']:.3f} |",'',
  '転送・確保回数は組版プロセスの計測値。DXGI値もそのプロセスの使用量です。デバイス全体の使用量とは異なります。',

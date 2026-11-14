@@ -203,17 +203,17 @@ jobs:
           Copy-Item native-boost/README-FULLGPU-JA.md $app/README-JA.md
           Copy-Item native-boost/CHANGELOG-FULLGPU.md $app/CHANGELOG.md
           Copy-Item native-boost/VALIDATION-NOTES.md $app/VALIDATION-NOTES.md
-          Copy-Item native-boost/RELEASE-v0.3.42-rc1.md $app/GPU-RESIDENT-NOTES.md
+          Copy-Item native-boost/RELEASE-v0.3.42-rc2.md $app/GPU-RESIDENT-NOTES.md
           python tests/packaged-smoke.py $app
           if ($LASTEXITCODE -ne 0) { throw 'Packaged application smoke test failed' }
           python native-boost/package_report.py $app
           if ($LASTEXITCODE -ne 0) { throw 'Validation report generation failed' }
-          Compress-Archive -Path $app -DestinationPath TASL-PC-Boost-v0.3.42-rc1-NativeGPU-Windows-x64.zip
+          Compress-Archive -Path $app -DestinationPath TASL-PC-Boost-v0.3.42-rc2-NativeGPU-Windows-x64.zip
       - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: TASL-PC-Boost-v0.3.42-rc1-NativeGPU-Windows-x64
-          path: TASL-PC-Boost-v0.3.42-rc1-NativeGPU-Windows-x64.zip
+          name: TASL-PC-Boost-v0.3.42-rc2-NativeGPU-Windows-x64
+          path: TASL-PC-Boost-v0.3.42-rc2-NativeGPU-Windows-x64.zip
           retention-days: 7
       - uses: actions/upload-artifact@v4
         if: failure()
@@ -232,7 +232,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: TASL-PC-Boost-v0.3.42-rc1-NativeGPU-Windows-x64
+          name: TASL-PC-Boost-v0.3.42-rc2-NativeGPU-Windows-x64
           path: release-assets
       - name: Publish validated all-modes native package
         env:
@@ -243,4 +243,5 @@ jobs:
           branch_head=$(gh api repos/"$GH_REPO"/git/ref/heads/work/gpu-resident-20261114 --jq .object.sha)
           if [ "$branch_head" != "$RELEASE_COMMIT" ]; then echo "A newer commit exists; skip superseded release"; exit 0; fi
           sha256sum release-assets/*.zip > release-assets/SHA256SUMS.txt
-          gh release create windows-v0.3.42-rc1 --prerelease release-assets/* --target "$RELEASE_COMMIT" --title "Windows native v0.3.42-rc1 — GPU常駐・実機検証前" --notes-file native-boost/RELEASE-v0.3.42-rc1.md
+          gh release edit windows-v0.3.42-rc1 --notes-file native-boost/RELEASE-v0.3.42-rc1.md
+          gh release create windows-v0.3.42-rc2 --prerelease release-assets/* --target "$RELEASE_COMMIT" --title "Windows native v0.3.42-rc2 — GPU常駐・実機検証前" --notes-file native-boost/RELEASE-v0.3.42-rc2.md
