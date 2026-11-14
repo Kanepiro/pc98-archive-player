@@ -1,4 +1,6 @@
-# TASL PC Boost v0.3.41 — Windows ネイティブGPU版
+# TASL PC Boost v0.3.42-rc2 — Windows ネイティブGPU版（実機検証前）
+
+GPUメモリ常駐の検証候補です。追加領域は10入力枠＋NMS予約1MiBで256MiB以内。従来の組版と今回の最適化後では文字列・評価値の一致を検証し、動画全体も旧v0.3.41と比較しています。詳細はGPU-RESIDENT-NOTES.mdとVALIDATION/RESIDENT-VALIDATION-JA.mdを参照してください。GTX 1050 Ti実機での確認は未完了です。
 
 ZIPを展開して「TASL-PC-Boost.exe」を起動してください。PythonやNode.jsの別途インストールは不要です。モード1〜4のすべてでネイティブGPU処理を自動選択します。モード1・2の画素集約・濃淡・輪郭強調、モード3の色補正・ぼかし・輪郭連結・字形照合・ちらつき抑制・文字配置をDirectComputeで計算します。WebGPUはどのモードでも使用しません。
 
