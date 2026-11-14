@@ -15,7 +15,7 @@ static ComPtr<ID3DBlob> fullShader(const char* entry){
 }
 struct FullGPU {
  NativeDirectCompute gpu;
- std::array<ComPtr<ID3D11ComputeShader>,9> shaders;
+ std::array<ComPtr<ID3D11ComputeShader>,8> shaders;
  ComPtr<ID3D11Buffer> memory,staging,constants,counterReadback;
  ComPtr<ID3D11UnorderedAccessView> uav,scratchA,scratchB;
  bool residentEnabled=false,firstRequest=true,bindingsActive=false;
@@ -69,12 +69,14 @@ struct FullGPU {
   const UINT start=(UINT)(baseWords+(sequence%10)*ringWords);
   for(UINT k=0;k<5;k++)offsets[k]=start+(UINT)(k*p.n);
   offsets[5]=start+(UINT)(5*p.n);offsets[12]=start+(UINT)(5*p.n+p.cells);
-  const UINT retainAt=start+(UINT)(5*p.n);
+  // Write final layout directly into this slot. The previous slot's IDs
+  // remain available without an extra copy kernel or CPU round-trip.
+  offsets[15]=start+(UINT)(5*p.n+p.cells+32);
   if(reusePrevious){
    const UINT prior=(UINT)(baseWords+((sequence-1)%10)*ringWords);
-   offsets[4]=prior+(UINT)(3*p.n);offsets[5]=prior+(UINT)(5*p.n);
+   offsets[4]=prior+(UINT)(3*p.n);offsets[5]=prior+(UINT)(5*p.n+p.cells+32);
   }
-  std::copy(offsets.begin(),offsets.end(),host.begin());host[26]=retainAt;
+  std::copy(offsets.begin(),offsets.end(),host.begin());
   const UINT zero[4]={};
   gpu.context->ClearUnorderedAccessViewUint(scratchA.Get(),zero);
   gpu.context->ClearUnorderedAccessViewUint(scratchB.Get(),zero);
@@ -82,7 +84,7 @@ struct FullGPU {
   if(reusePrevious){
    upload(start*4,(UINT)p.n*16,frameInput.data());
    upload(offsets[12]*4,32*4,frameInput.data()+5*p.n+p.cells);
-  }else upload(start*4,(UINT)ringWords*4,frameInput.data());
+  }else upload(start*4,(UINT)(5*p.n+p.cells+32)*4,frameInput.data());
   metrics[10]=sequence%10;
  }
  struct alignas(16) Params {uint32_t W,H,S,G,kind,first,stride,count,x,y,beam,options,faces,old,cut,budget;};
@@ -93,8 +95,8 @@ struct FullGPU {
  std::array<Stamp,6> stamps;
  ComPtr<ID3D11Query> disjoint;
  FullGPU(){
-  const char* names[]={"prepare","score","candidates","solveRows","solveBands","criticPropose","evaluate","reduceCritic","retain"};
-  for(size_t i=0;i<9;i++){auto code=fullShader(names[i]);checked(gpu.device->CreateComputeShader(code->GetBufferPointer(),code->GetBufferSize(),nullptr,&shaders[i]),"create layout shader");}
+  const char* names[]={"prepare","score","candidates","solveRows","solveBands","criticPropose","evaluate","reduceCritic"};
+  for(size_t i=0;i<8;i++){auto code=fullShader(names[i]);checked(gpu.device->CreateComputeShader(code->GetBufferPointer(),code->GetBufferSize(),nullptr,&shaders[i]),"create layout shader");}
   D3D11_BUFFER_DESC cd={};cd.ByteWidth=sizeof(Params);cd.Usage=D3D11_USAGE_DEFAULT;cd.BindFlags=D3D11_BIND_CONSTANT_BUFFER;
   checked(gpu.device->CreateBuffer(&cd,nullptr,&constants),"layout constants");
   cd.ByteWidth=16;cd.Usage=D3D11_USAGE_STAGING;cd.BindFlags=0;cd.CPUAccessFlags=D3D11_CPU_ACCESS_READ;
@@ -130,7 +132,7 @@ struct FullGPU {
   }
   std::copy(offsets.begin(),offsets.end(),host.begin());
   if(host.size()*4>512ull*1024*1024)throw std::runtime_error("layout arena exceeds 512 MiB");
-  baseWords=host.size();ringWords=5*p.n+p.cells+32;
+  baseWords=host.size();ringWords=5*p.n+2*p.cells+32;
   residentEnabled=wantResident;fallbackReason=0;
   if(residentEnabled&&ringWords*4*10+1024*1024>256ull*1024*1024){residentEnabled=false;fallbackReason=1;}
   // A single job-start check. Never resize/tune based on per-frame load.
@@ -158,7 +160,7 @@ struct FullGPU {
    }
   }
   residentShape=shape;
-  if(residentEnabled)frameInput.resize(ringWords);
+  if(residentEnabled)frameInput.resize(ringWords-p.cells);
 
   uploadInputs(p);
  }
@@ -237,7 +239,6 @@ struct FullGPU {
    }
   }
   end(5);
-  if(residentEnabled)dispatch(8,p,cellGroups); // Retain IDs; does not change layout or evaluation.
   gpu.context->End(disjoint.Get());
   ID3D11UnorderedAccessView* none[]={nullptr};gpu.context->CSSetUnorderedAccessViews(0,1,none,nullptr);bindingsActive=false;
   D3D11_BOX rowsBox={offsets[15]*4,0,0,(UINT)(offsets[15]+src.cells)*4,1,1};
@@ -273,7 +274,7 @@ int main(int argc,char** argv){
  try{
   _setmode(_fileno(stdin),_O_BINARY);_setmode(_fileno(stdout),_O_BINARY);
   if(argc==2&&std::string(argv[1])=="--check-shader"){
-   for(auto name:{"prepare","score","candidates","solveRows","solveBands","criticPropose","evaluate","reduceCritic","retain"}){
+   for(auto name:{"prepare","score","candidates","solveRows","solveBands","criticPropose","evaluate","reduceCritic"}){
     auto code=fullShader(name);std::cout<<name<<" "<<code->GetBufferSize()<<" bytes\n";
    }return 0;
   }

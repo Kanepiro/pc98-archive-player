@@ -3,7 +3,7 @@ import {packNativeMode4} from './tsl-mode4-native-exact.js';
 export const RESIDENT_MAGIC=0x524c4754;
 export const RESIDENT_LIMIT=256*1024*1024;
 export const NMS_RESERVE=1024*1024;
-export function residentBytes(width,height,S){return 10*4*(5*width*height*S*S+width*height+32);}
+export function residentBytes(width,height,S){return 10*4*(5*width*height*S*S+2*width*height+32);}
 export class NativeLayoutTransfer {
  constructor(enabled=true){this.enabled=enabled;this.sequence=0;this.session=0;this.atlas=null;}
  reset(){this.atlas=null;this.canReuse=false;}

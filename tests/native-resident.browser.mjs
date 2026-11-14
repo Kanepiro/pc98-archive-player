@@ -45,6 +45,7 @@ try{
   const t=ring.resident[i].perf.transfer;
   assert.equal(t.residentEnabled,1);
   assert.equal(t.ringSlot,i%10);
+  assert.equal(t.dispatchCalls,ring.baseline[i].perf.transfer.dispatchCalls);
   assert.ok(t.residentBytes<=256*1024*1024);
   if(i){assert.equal(t.bufferAllocations,0);assert.equal(t.bufferReleases,0);assert.equal(t.staticUploads,0);}
  }
