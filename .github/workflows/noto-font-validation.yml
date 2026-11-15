@@ -1,0 +1,61 @@
+name: Noto font validation candidate
+on:
+  push:
+    branches: [work/noto-windows-20261115]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build only the changed renderers
+        shell: pwsh
+        run: |
+          cmake -S native-boost -B noto-build -A x64
+          if ($LASTEXITCODE -ne 0) { throw 'CMake failed' }
+          cmake --build noto-build --config Release --parallel 2 --target tsl_render tsl_render_gpu
+          if ($LASTEXITCODE -ne 0) { throw 'Renderer build failed' }
+          npm ci
+          if ($LASTEXITCODE -ne 0) { throw 'npm ci failed' }
+          npm test
+          if ($LASTEXITCODE -ne 0) { throw 'Unit tests failed' }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { throw 'Web build failed' }
+      - name: Assemble candidate from the unchanged v0.3.43 host
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          Invoke-WebRequest 'https://github.com/Kanepiro/pc98-archive-player/releases/download/windows-v0.3.43/TASL-PC-Boost-v0.3.43-Windows-x64.zip' -OutFile baseline.zip
+          if ((Get-FileHash baseline.zip -Algorithm SHA256).Hash.ToLower() -ne '6aaa6be887b374854d93c5fa9f631620710c7b3698a5eeb0af4a6acf5bd22ac3') { throw 'Baseline hash mismatch' }
+          Expand-Archive baseline.zip baseline
+          $app='candidate/TASL-PC-Boost'
+          New-Item -ItemType Directory $app -Force | Out-Null
+          Get-ChildItem baseline/TASL-PC-Boost | Where-Object { $_.Name -notin @('app','SHA256SUMS.json','FREEZE-VALIDATION','packaged-smoke.log') } | Copy-Item -Destination $app -Recurse
+          Copy-Item dist $app/app -Recurse
+          Copy-Item noto-build/Release/tsl_render.exe,noto-build/Release/tsl_render_gpu.exe $app -Force
+          Copy-Item public/fonts/OFL.txt $app/NOTO-OFL.txt
+          pip install pillow==11.3.0
+          $env:TASL_TEST_WARP='1'
+          python tests/noto-native.py $app
+          if ($LASTEXITCODE -ne 0) { throw 'Private-font CPU/GPU test failed' }
+          Set-Content $app/NOTO-CANDIDATE.txt 'UNPUBLISHED VALIDATION CANDIDATE. Fixed-cell clipping and physical mobile validation are not approved. Do not replace the published version.'
+          python -c "from pathlib import Path; import hashlib,json; r=Path('candidate/TASL-PC-Boost'); (r/'SHA256SUMS.json').write_text(json.dumps({p.relative_to(r).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in r.rglob('*') if p.is_file() and p.name!='SHA256SUMS.json'},indent=2))"
+          Compress-Archive -Path $app -DestinationPath TASL-Noto-Windows-Validation-Candidate.zip
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: noto-validation
+          path: noto-validation/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TASL-Noto-Windows-Validation-Candidate
+          path: TASL-Noto-Windows-Validation-Candidate.zip

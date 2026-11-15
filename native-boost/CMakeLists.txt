@@ -82,3 +82,17 @@ if(WIN32)
   set_property(TARGET native_modes PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
  endif()
 endif()
+
+# The exact same OTF is used by Canvas and each private GDI process.
+if(WIN32)
+ foreach(renderer tsl_render tsl_render_gpu)
+  add_custom_command(TARGET ${renderer} POST_BUILD
+   COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${renderer}>/fonts"
+   COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${CMAKE_CURRENT_SOURCE_DIR}/../public/fonts/NotoSansMonoCJKjp-Regular.otf"
+    "$<TARGET_FILE_DIR:${renderer}>/fonts/NotoSansMonoCJKjp-Regular.otf"
+   COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${CMAKE_CURRENT_SOURCE_DIR}/../public/fonts/OFL.txt"
+    "$<TARGET_FILE_DIR:${renderer}>/fonts/OFL.txt")
+ endforeach()
+endif()

@@ -1,6 +1,6 @@
 // Windows-native TSL frame renderer: PC-98 8x16/16x16 geometry to BGRA.
 // Streams video frames to stdout for FFmpeg NVENC/CPU encoding.
-// Built against stock Win32 GDI. No extra runtime, fonts, or assets.
+// Stock Win32 GDI with the bundled, process-private Noto Regular font.
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
@@ -17,6 +17,7 @@
 #include <vector>
 #include <fcntl.h>
 #include <io.h>
+#include "tasl_private_font.hpp"
 
 static int positive(const std::string& x){
  const int n=std::stoi(x);
@@ -106,6 +107,7 @@ struct Surface{
   width=cols*cw;height=rows*ch;
   if(width<=0||height<=0||width>7680||height>5760)
    throw std::runtime_error("TSL output dimensions invalid");
+  ensureTaslPrivateFont();
   hdc=CreateCompatibleDC(nullptr);
   if(!hdc)throw std::runtime_error("CreateCompatibleDC failed");
   BITMAPINFO bmi{};
@@ -120,9 +122,10 @@ struct Surface{
   previous=(HBITMAP)SelectObject(hdc,bitmap);
   font=CreateFontW(-(native?16:20),0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,SHIFTJIS_CHARSET,
    OUT_TT_PRECIS,CLIP_DEFAULT_PRECIS,NONANTIALIASED_QUALITY,
-   FIXED_PITCH|FF_MODERN,L"MS Gothic");
+   FIXED_PITCH|FF_MODERN,L"Noto Sans Mono CJK JP");
   if(!font)throw std::runtime_error("CreateFontW failed");
   oldFont=(HFONT)SelectObject(hdc,font);
+  verifyTaslFace(hdc);
   brush=CreateSolidBrush(RGB(8,13,18));
   SetBkMode(hdc,TRANSPARENT);
   SetTextColor(hdc,RGB(227,244,232));
@@ -158,6 +161,7 @@ struct Surface{
     wchar_t wide=0;
     int n=MultiByteToWideChar(932,0,line.data()+i,bytes,&wide,1);
     if(n==0)wide=L'?';
+    verifyTaslGlyph(hdc,wide);
     chars.push_back(wide);
     advances.push_back(cw*cwUsed);
     col+=cwUsed;

@@ -1,3 +1,4 @@
+import {ensureTaslFont,taslCanvasFont,assertTaslGlyphs} from './tasl-font.js';
 // Mode 4: only the user's curated CP932 glyphs, plus structural blank cells.
 // The archive remains Shift-JIS/CP932, with single and double column glyphs.
 import {MODE4_ALLOWED_CHARS,MODE4_ALLOWED_SET} from './mode4-allowed.js';
@@ -88,9 +89,9 @@ export async function makeArtisanGlyphAtlas(sample=6,signal,progress=()=>{}){
  const small=doc.createElement('canvas'),mini=small.getContext('2d',{willReadFrequently:true});
  if(!ctx||!mini)throw Error('字形の描画に失敗しました');
  const entries=[...allowedArtisanGlyphMap()],atlas=[];
- const font='20px monospace';
- const supported=async()=>{try{await doc.fonts?.ready;}catch{}};
- await supported();
+ await ensureTaslFont();
+ assertTaslGlyphs(entries.map(([char])=>char).join(''));
+ const font=taslCanvasFont(20);
  // Every selected glyph is eligible: do not silently prune the user's list.
  for(let index=0;index<entries.length;index++){
   if(signal?.aborted)throw new DOMException('解析を中止しました','AbortError');

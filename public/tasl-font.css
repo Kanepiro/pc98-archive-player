@@ -1,0 +1,7 @@
+@font-face {
+ font-family:"TASL Noto Mono";
+ src:url("./fonts/NotoSansMonoCJKjp-Regular.otf") format("opentype");
+ font-style:normal;
+ font-weight:400;
+ font-display:block;
+}
