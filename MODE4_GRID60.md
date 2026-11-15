@@ -1,6 +1,6 @@
-# Mode 4 60px contour AA — v0.3.44-rc.5
+# Mode 4 60px contour AA — v0.3.44
 
-This is an isolated validation candidate. Do not replace the published working release until visual and platform acceptance are complete.
+The release retains the validated RC5 algorithm. See ACCEPTANCE_MODE4_60.md for acceptance scope and the user’s physical-device test waiver.
 
 ## Fixed geometry and unchanged characters
 
@@ -46,11 +46,11 @@ Engine 6005 distinguishes old conversion checkpoints. Checkpoint batches store o
 
 ## Native build and isolation
 
-The Windows validation launcher uses localhost:39092 and TASL-Mode4-60-RC5-Test. Native glyph matching uses DirectCompute, not WebGPU. GPU rasterization and compression are separate; the available GTX 1050 Ti machine uses DirectCompute NV12 rasterization and libx264 CPU encoding.
+The Windows launcher uses the existing bridge defaults: localhost:39083 and TASL-Faithful-Boost. Environment variables can isolate validation without changing these defaults. Native glyph matching uses DirectCompute, not WebGPU. GPU rasterization and compression are separate; the available GTX 1050 Ti machine uses DirectCompute NV12 rasterization and libx264 CPU encoding.
 
 The source includes tests for palette/bounds, all 2014 positions, sparse/dense score equivalence, positioned TSL roundtrip/resume, malformed offsets, Gaussian equivalence, blank rejection and threshold boundaries. Native validation compares all 2014 positions in browser, CPU and GPU rendering, and checks actual-image CPU/GPU scores.
 
-Windows 11, Android and iOS physical-device verification is not supplied by Linux Chromium/WebKit tests. Actual test measurements and visual limitations are recorded separately in each version’s validation report.
+Linux Chromium/WebKit tests are not physical Android/iOS tests. Physical-device verification is not a completion gate under the user’s 2026-11-16 instruction. Record available test coverage and visual limitations accurately.
 
 ## Earlier Gaussian optimization
 
