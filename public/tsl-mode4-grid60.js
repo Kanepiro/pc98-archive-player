@@ -1,5 +1,6 @@
+import {GLYPH_BOUNDS,validateOffsets} from './mode4-position60.js';
 import {MODE4_CHARS,MODE4_BYTES,MODE4_MASK_SHA256} from './mode4-palette60.js';
-// Symmetric chamfer error: glyph-only strokes cost 65%, missed target strokes 35%.
+// Symmetric chamfer error: glyph-only strokes and missed target strokes have equal weight.
 // Features: 576 normalized ink weights followed by 576 truncated distance values.
 export function shapeDescriptor(mask){
  const n=24,weights=Float32Array.from(mask,v=>v>=.18?v:0),distance=new Float32Array(576).fill(100);
@@ -13,12 +14,12 @@ export function shapeDescriptor(mask){
   if(x<n-1&&y<n-1)v=Math.min(v,distance[i+n+1]+Math.SQRT2);if(x&&y<n-1)v=Math.min(v,distance[i+n-1]+Math.SQRT2);distance[i]=v;
  }
  const out=new Float32Array(1152);
- for(let i=0;i<576;i++){out[i]=sum?weights[i]/sum:0;out[576+i]=Math.min(1,Math.max(0,distance[i]-.5)/6);}
+ for(let i=0;i<576;i++){out[i]=sum?weights[i]/sum:0;out[576+i]=Math.min(1,Math.max(0,distance[i]-.5)/2.5);}
  return out;
 }
-export function glyphScore(t,g){let loss=0;for(let i=0;i<576;i++)loss+=.65*g[i]*t[i+576]+.35*t[i]*g[i+576];return loss;}
-export const MODE4_CELL=60,MODE4_SAMPLE=24,MODE4_ENGINE=6002,MODE4_BLUR_SIGMA=8;
-export const MODE4_LIMIT=0.24,MODE4_EDGE_HIGH=0.025,MODE4_EDGE_LOW=0.0125,MODE4_MIN_EDGE=8;
+export function glyphScore(t,g){let loss=0;for(let i=0;i<576;i++)loss+=.5*g[i]*t[i+576]+.5*t[i]*g[i+576];return loss;}
+export const MODE4_CELL=60,MODE4_SAMPLE=24,MODE4_ENGINE=6003,MODE4_BLUR_SIGMA=8;
+export const MODE4_LIMIT=0.21,MODE4_EDGE_HIGH=0.025,MODE4_EDGE_LOW=0.0125,MODE4_MIN_EDGE=8;
 export const MODE4_SPACE='　';
 const chars=[...MODE4_CHARS],ids=new Map(chars.map((c,i)=>[c,i]));
 const state=globalThis[Symbol.for('tasl.mode4.grid60.v1')]??={promise:null,masks:null,tints:new Map()};
@@ -61,10 +62,12 @@ function tintedAtlas(color){
 }
 export function drawMode4Grid(canvas,data,index,{foreground='#e3f4e8',background='#080d12'}={}){
  const lines=data.frames[index].split('\n');validateGridFrame(lines,data.width,data.height);
+ const positions=data.mode4Offsets?.[index];if(positions)validateOffsets(lines,data.width,data.height,positions);
  const w=data.width*30,h=data.height*60;if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
  const c=canvas.getContext('2d');c.fillStyle=background;c.fillRect(0,0,w,h);const atlas=tintedAtlas(foreground);c.imageSmoothingEnabled=false;
  for(let y=0;y<lines.length;y++)for(let x=0,row=[...lines[y]];x<row.length;x++){
-  const g=ids.get(row[x]);if(g===undefined)continue;c.drawImage(atlas,g%10*60,(g/10|0)*60,60,60,x*60,y*60,60,60);
+  const g=ids.get(row[x]);if(g===undefined)continue;const at=y*data.width+x*2,dx=positions?positions[at]-60:0,dy=positions?positions[at+1]-60:0;
+  c.save();c.beginPath();c.rect(x*60,y*60,60,60);c.clip();c.drawImage(atlas,g%10*60,(g/10|0)*60,60,60,x*60+dx,y*60+dy,60,60);c.restore();
  }
 }
 const kernels=new Map();
@@ -100,10 +103,23 @@ export function areaSample(src,w,h,n){
  }return out;
 }
 export async function makeMode4Atlas(){
- const bytes=await ensureMode4Atlas();return chars.map((char,i)=>{
-  const mask=areaSample(Float32Array.from(bytes.subarray(i*3600,(i+1)*3600),v=>v/255),60,60,24);
-  if(!mask.some(v=>v>0))throw Error('指定文字の字形が空です');return {char,columns:2,mask,features:shapeDescriptor(mask)};
- });
+ const bytes=await ensureMode4Atlas(),atlas=[];
+ for(let i=0;i<170;i++){
+  const mask=areaSample(Float32Array.from(bytes.subarray(i*3600,(i+1)*3600),v=>v/255),60,60,24),[l,t,r,b]=GLYPH_BOUNDS[i];
+  if(!mask.some(v=>v>0))throw Error('指定文字の字形が空です');
+  // 5 source pixels = exactly 2 descriptor pixels. No rescaling or clipping.
+  const offsets=[[0,0]];
+  for(let dy=Math.ceil(-t/5)*5;dy<=60-b;dy+=5)for(let dx=Math.ceil(-l/5)*5;dx<=60-r;dx+=5)if(dx||dy)offsets.push([dx,dy]);
+  for(const [dx,dy] of offsets){
+   const shifted=new Float32Array(576);
+   for(let y=0;y<24;y++)for(let x=0;x<24;x++){const nx=x+dx/2.5,ny=y+dy/2.5;if(nx>=0&&nx<24&&ny>=0&&ny<24)shifted[ny*24+nx]=mask[y*24+x];}
+   const features=shapeDescriptor(shifted),ink=[];
+   for(let k=0;k<576;k++)if(features[k])ink.push(k);
+   atlas.push({char:chars[i],glyph:i,columns:2,dx,dy,features,ink});
+  }
+ }
+ if(atlas.length!==2014||new Set(atlas.map(g=>g.char)).size!==170)throw Error('60px配置候補が不正です');
+ return atlas;
 }
 // Keep the principal connected stroke in each 60px cell. Global contour length
 // breaks local ties in favor of a contour that continues beyond the current cell.
@@ -179,7 +195,17 @@ export function prepareMode4Targets(pixels,width,height,options={}){
 }
 export function selectMode4Glyphs(targets,atlas){
  const indices=[],scores=[];
- for(const t of targets){let best=Infinity,id=0;for(let g=0;g<atlas.length;g++){const loss=glyphScore(t,atlas[g].features);if(loss<best){best=loss;id=g;}}indices.push(id);scores.push(best);}
+ for(const t of targets){
+  const ink=[];for(let k=0;k<576;k++)if(t[k])ink.push(k);
+  let best=Infinity,id=0;
+  for(let g=0;g<atlas.length;g++){
+   const a=atlas[g],f=a.features;let loss=0;
+   if(a.ink){for(const k of a.ink)loss+=.5*f[k]*t[k+576];if(loss>best)continue;for(const k of ink)loss+=.5*t[k]*f[k+576];}
+   else loss=glyphScore(t,f);
+   if(loss<best){best=loss;id=g;}
+  }
+  indices.push(id);scores.push(best);
+ }
  return {indices,scores};
 }
 export function judgeMode4(targets,result,atlas,options={}){
@@ -189,7 +215,7 @@ export function judgeMode4(targets,result,atlas,options={}){
   const score=result.scores[i],edge=targets.edgeCounts[i];
   if(!Number.isInteger(id)||!atlas[id]||!Number.isFinite(score))throw Error('字形スコアが不正です');
   const accepted=edge>=minEdge&&score<=limit;
-  return {cell:i,bestChar:atlas[id].char,bestScore:score,edgePixels:edge,limit,accepted,output:accepted?atlas[id].char:MODE4_SPACE,reason:edge<minEdge?'no-contour':score>limit?'score':'accepted'};
+  return {cell:i,bestChar:atlas[id].char,bestScore:score,bestX:atlas[id].dx??0,bestY:atlas[id].dy??0,x:accepted?(atlas[id].dx??0):0,y:accepted?(atlas[id].dy??0):0,edgePixels:edge,limit,accepted,output:accepted?atlas[id].char:MODE4_SPACE,reason:edge<minEdge?'no-contour':score>limit?'score':'accepted'};
  });
 }
 export class Grid60Converter{
@@ -204,8 +230,9 @@ export class Grid60Converter{
   result??=selectMode4Glyphs(targets,this.atlas);
   // Final common gate runs AFTER CPU/GPU selection. No layout pass may revive a rejection.
   const decisions=judgeMode4(targets,result,this.atlas,options),accepted=decisions.filter(d=>d.accepted).length;
+  this.lastOffsets=Uint8Array.from(decisions.flatMap(d=>[d.x+60,d.y+60]));
   this.lastAudit=options.mode4Diagnostics?decisions:null;
-  this.lastPerf={prepareMs:prepared-start,matchMs:performance.now()-prepared,totalMs:performance.now()-start,candidates:170,cells:targets.length,accepted,blank:targets.length-accepted,limit:options.mode4ScoreLimit??MODE4_LIMIT,sigma:options.mode4BlurSigma??MODE4_BLUR_SIGMA};
+  this.lastPerf={prepareMs:prepared-start,matchMs:performance.now()-prepared,totalMs:performance.now()-start,candidates:170,positions:this.atlas.length,cells:targets.length,accepted,blank:targets.length-accepted,limit:options.mode4ScoreLimit??MODE4_LIMIT,sigma:options.mode4BlurSigma??MODE4_BLUR_SIGMA};
   const rows=[];for(let y=0;y<height;y++)rows.push(decisions.slice(y*width/2,(y+1)*width/2).map(d=>d.output).join(''));
   return rows.join('\r\n')+'\r\n';
  }

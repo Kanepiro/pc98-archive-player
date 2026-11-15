@@ -37,7 +37,7 @@ self.onmessage=async({data:d})=>{
     ?rgbaToHalftone(pixels,d.width,d.height,d.options)
     :rgbaToASCII(pixels,d.width,d.height,d.options);
   }
-  self.postMessage({frame,acceleration,audit:quality?.lastAudit||null,
+  self.postMessage({frame,offsets:d.options.mode4Cell60?quality?.lastOffsets:null,acceleration,audit:quality?.lastAudit||null,
    perf:d.options.conversionMode==='artisan'?quality.lastPerf:null,
    adapterInfo:quality?.gpuMatcher?.adapterInfo||tones?.adapterInfo||null,
    gpuReason:quality?.gpuError||gpuUnavailableReason||''});

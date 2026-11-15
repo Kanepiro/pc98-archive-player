@@ -163,7 +163,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
    const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data;
    const converted=await convertFrame(worker,pixels,plan.width,plan.height,{...options,ramp,sample,semantic},signal);
    acceleration=converted.acceleration||'CPU';
-   pending.push(writer.append(converted.frame));
+   pending.push(writer.append(converted.frame,converted.offsets));
    // Commit small batches atomically; at most 15 latest frames are lost on an abrupt close.
    if(pending.length>=16||i===plan.count-1){
     if(checkpointEnabled){

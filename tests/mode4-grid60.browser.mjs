@@ -16,14 +16,14 @@ try{
   const converted=await convertVideo(source,{...options,width:120,height:67,native16:true,sourceGrid:true,fit:'cover'});
   const bytes=await converted.blob.arrayBuffer(),data=parseTSL(new TextDecoder('shift_jis').decode(bytes));
   if(!data.mode4Cell60)throw Error('Missing 60px marker');
-  const allowed=new Set([...MODE4_CHARS,m.MODE4_SPACE]);let violations=0,accepted=0,blank=0,lines=['frame,cell,row,column,best_char,best_score,edge_pixels,limit,accepted,output,reason'];
+  const allowed=new Set([...MODE4_CHARS,m.MODE4_SPACE]);let violations=0,accepted=0,blank=0,lines=['frame,cell,row,column,best_char,best_score,edge_pixels,limit,accepted,output,reason,best_x,best_y,x,y'];
   if(audits.length!==data.frames.length)throw Error('Missing audit frames');
   for(let f=0;f<data.frames.length;f++){
    const rows=data.frames[f].split('\n');m.validateGridFrame(rows,data.width,data.height);
    const flat=rows.flatMap(row=>[...row]);if(flat.length!==audits[f].length)throw Error('Audit size');
-   for(let i=0;i<flat.length;i++){const d=audits[f][i];if(d.output!==flat[i]||!allowed.has(flat[i])||d.accepted&&(d.bestScore>d.limit||d.edgePixels<m.MODE4_MIN_EDGE))violations++;
+   for(let i=0;i<flat.length;i++){const d=audits[f][i],pos=data.mode4Offsets?.[f];if(!pos||pos[i*2]-60!==d.x||pos[i*2+1]-60!==d.y)violations++;if(d.output!==flat[i]||!allowed.has(flat[i])||d.accepted&&(d.bestScore>d.limit||d.edgePixels<m.MODE4_MIN_EDGE))violations++;
     if(d.accepted)accepted++;else blank++;
-    lines.push([f,i,Math.floor(i/(data.width/2)),i%(data.width/2),d.bestChar,d.bestScore,d.edgePixels,d.limit,d.accepted,d.output,d.reason].join(','));
+    lines.push([f,i,Math.floor(i/(data.width/2)),i%(data.width/2),d.bestChar,d.bestScore,d.edgePixels,d.limit,d.accepted,d.output,d.reason,d.bestX,d.bestY,d.x,d.y].join(','));
    }
   }
   const again=await convertVideo(source,{...options,onProgress:()=>{},width:120,height:67,native16:true,sourceGrid:true,fit:'cover'});
@@ -39,7 +39,7 @@ try{
   const previews=[];for(const sec of [0,1,3,5,8]){const f=Math.min(data.frames.length-1,Math.round(sec*fps)),c=document.createElement('canvas');drawTSL(c,data,f);previews.push({f,sec,png:c.toDataURL()});}
   let mp4=null;if(doExport){console.log('export starting');const {exportTslInWorker}=await import('/tsl-export-controller.js');
    const b=await exportTslInWorker({kind:'TSL',data,bytes},{sourceAudioFile:source});mp4=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result.split(',')[1]);r.onerror=reject;r.readAsDataURL(b);});}
-  const summary={frames:data.frames.length,width:data.width,height:data.height,pixels:[data.width*30,data.height*60],duration:data.duration,unique:new Set(data.frames).size,violations,accepted,blank,placementRate:accepted/(accepted+blank),resumeSame,partialResume,issues,progress,elapsed:converted.elapsed};
+  const summary={frames:data.frames.length,width:data.width,height:data.height,pixels:[data.width*30,data.height*60],duration:data.duration,unique:new Set(data.frames.map((f,i)=>f+Array.from(data.mode4Offsets?.[i]??[]).join(','))).size,violations,accepted,blank,placementRate:accepted/(accepted+blank),resumeSame,partialResume,issues,progress,elapsed:converted.elapsed};
   return {summary,tsl:Array.from(new Uint8Array(bytes)),csv:lines.join('\n')+'\n',previews,mp4};
  },{file:process.env.VIDEO||'__inmu10.mp4',fps:Number(process.env.FPS||24),native:process.env.NATIVE==='1',doExport:process.env.NO_EXPORT!=='1',partial:process.env.PARTIAL==='1'});
  await writeFile(out+'/grid60.TSL',Buffer.from(result.tsl));await writeFile(out+'/scores.csv',result.csv);

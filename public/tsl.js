@@ -1,3 +1,4 @@
+import {parsePositions} from './mode4-position60.js';
 import {drawMode4Grid as draw60,validateGridFrame as validate60} from './tsl-mode4-grid60.js';
 import {drawMode4Grid,validateGridFrame} from './tsl-mode4-grid.js';
 import {taslCanvasFont,assertTaslGlyphs} from './tasl-font.js';
@@ -21,6 +22,7 @@ export function parseTSL(text){
  const frames=chunks.slice(2,2+count).map(s=>s.replace(/\n+$/,''));
  if(mode4Cell60)for(const frame of frames)validate60(frame.split("\n"),width,height);
  if(mode4Cell120)for(const frame of frames)validateGridFrame(frame.split('\n'),width,height);
+ const mode4Offsets=mode4Cell60?parsePositions(chunks[0],frames,width,height):null;
  const schedule=[];let duration=0;
  for(const line of chunks[1].split('\n')){
   const match=line.split('#')[0].trim().match(/^(\d+)\s+(\d+)$/);if(!match)continue;
@@ -35,7 +37,7 @@ export function parseTSL(text){
   if(!Number.isFinite(mode4Fps)||mode4Fps<1||mode4Fps>30||!Number.isFinite(seconds)||seconds<=0||seconds>7200||Math.ceil(seconds*mode4Fps)!==count)throw Error('モード4の時刻情報が不正です');
   schedule.length=0;for(let i=0;i<count;i++)schedule.push({frame:i,start:i/mode4Fps});duration=seconds;
  }
- return {frames,schedule,duration,width,height,title:names.join(' / '),version:hdr[0],native16,mode4Cell60,mode4Cell120,mode4Fps};
+ return {frames,schedule,duration,width,height,title:names.join(' / '),version:hdr[0],native16,mode4Cell60,mode4Cell120,mode4Fps,mode4Offsets};
 }
 export function tslFrameAt(data,seconds){
  let low=0,high=data.schedule.length;

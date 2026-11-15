@@ -8,7 +8,7 @@ export class NativeGrid60{
  constructor(h){this.adapterInfo={name:h.grid120Name,software:!!h.grid120Software,architecture:'Direct3D 11'};}
  async match(targets,atlas){
   const C=targets.length,G=atlas.length,D=targets[0].length,buffer=new ArrayBuffer(32+(C+G)*D*4);
-  new Uint32Array(buffer,0,8).set([0x30324754,1,C,G,D,0,0,0]);
+  new Uint32Array(buffer,0,8).set([0x30324754,2,C,G,D,0,0,0]);
   const f=new Float32Array(buffer,32);let at=0;
   for(const v of [...targets,...atlas.map(g=>g.features)]){f.set(v,at);at+=D;}
   const r=await fetch('/api/mode4/grid120',{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:buffer,signal:AbortSignal.timeout(190000)});

@@ -1,51 +1,53 @@
-# Mode 4 60px contour AA — v0.3.44-rc.2
+# Mode 4 60px contour AA — v0.3.44-rc.3
 
-This is an isolated validation candidate. Visual acceptance is not complete; do not replace the published working release.
+This is an isolated validation candidate. Do not replace the published working release until visual and platform acceptance are complete.
 
-## Rendering contract
+## Fixed geometry and unchanged characters
 
-- Fixed 60×60 source and display cells. Columns/rows are ceil(source dimension / 60); extra pixels are centered padding, without cropping.
-- A cell contains one of the original 170 CP932 palette characters, or the two-byte full-width space 0x81 0x40.
-- The original palette bytes are preserved without Unicode normalization.
-- Matching, browser preview, TSL playback and native/browser MP4 use the same bundled Noto Sans Mono CJK JP Regular raster masks.
-- Font rasterization is nominal 60px. Four glyphs (├ ┤ ┼ β) have 62px ink extent and use a uniform 60/62 fit to stay inside the cell. Other glyphs retain their raster size.
-- New TSL files carry TASL_MODE4_CELL60. The existing 120px and legacy TSL renderers remain available.
+Source selection and display cells are 60×60 pixels. Dimensions are rounded upward to whole cells with centered padding, without cropping. The original CP932 palette has exactly 170 unique characters. The only additional frame character is U+3000 (CP932 81 40), occupying one full 60px cell.
 
-## Pipeline and acceptance
+The bundled Noto Sans Mono CJK JP Regular masks are unchanged from RC1/RC2. Font size is nominally 60px. The four 62px ink extents (├ ┤ ┼ β) retain the previously documented uniform 60/62 fit. RC3 does not rotate, distort, scale, clip, add or remove glyphs.
 
-1. Grayscale and the existing contrast/brightness/gamma settings.
-2. Separable Gaussian blur, sigma 8 source pixels, radius ceil(3 sigma).
-3. Half-resolution area sampling; central gradient, four-direction non-maximum suppression; hysteresis high 0.025 / low 0.0125; connected components shorter than 12 half-resolution pixels are removed.
-4. Label connected contours across the frame. Within each 60px cell keep the strongest connected local stroke, ranked by local pixel count × (1 + 0.25 × log(1 + global connected contour length)). This removes secondary local strokes without adding pixels. Then broaden the one-pixel contour skeleton using sigma 0.9 at half resolution, to compare it with actual glyph strokes.
-5. Sample each 60px cell to 24×24 using area sampling. The complete cell remains represented.
-6. Score all 170 characters using symmetric weighted chamfer error. A descriptor stores 576 normalized ink weights and 576 truncated distance values. Ink cutoff is 0.18. Distance uses two-pass eight-neighbor chamfer (costs 1 and sqrt(2)), with normalized distance min(1, max(0,d-0.5)/6).
-7. Error = 0.65 × glyph-ink-weighted target distance + 0.35 × target-ink-weighted glyph distance. Smaller is better; extra glyph strokes receive the larger penalty.
-8. Select the minimum-error character. Accept only if contour count >= 8 half-resolution skeleton pixels and error <= 0.24. Otherwise output a full-width space.
+RC3 evaluates the 2014 legal positions of these same 170 glyphs on a 5px translation lattice. Every nonzero mask pixel must remain inside its own cell. Five source pixels correspond exactly to two 24×24 descriptor pixels. Position candidates are not new palette characters.
 
-The final common gate runs after CPU or native GPU matching. There is no subsequent layout pass that can revive rejected characters. No density target or blank-filling pass exists.
+## Contours and score
 
-## Diagnostics and resume
+1. Grayscale plus existing contrast/brightness/gamma options.
+2. Separable Gaussian sigma 8 source pixels, radius ceil(3 sigma), replicated image boundaries.
+3. 2×2 area reduction, central gradient, four-direction nonmaximum suppression, hysteresis high 0.025 / low 0.0125.
+4. Remove connected components shorter than 12 half-resolution pixels.
+5. Retain the principal local connected stroke per 60px cell: local length × (1 + 0.25 × log(1 + global connected contour length)).
+6. Broaden the skeleton with sigma 0.9 at half resolution; source brightness is not added as fill.
+7. Area sample the entire 60px cell to 24×24.
+8. Evaluate all 170 glyphs at every legal position; choose the minimum error.
+9. Accept only if skeleton count >= 8 and error <= 0.21. Otherwise output a stationary full-width blank.
 
-Set mode4Diagnostics:true in conversion options to receive an audit for every cell in conversion progress. It contains bestChar, bestScore, edgePixels, limit, accepted, output and reason. The validation script writes scores.csv and checks it against the actual serialized TSL.
+Descriptor: 576 normalized ink weights (cutoff 0.18), then 576 truncated eight-neighbor chamfer distances. Horizontal/vertical distance cost is 1 and diagonal cost is sqrt(2). Distance normalization is min(1,max(0,d-0.5)/2.5).
 
-Engine 6002 and a fingerprint including threshold/blur/edge settings prevent incompatible checkpoints from mixing. A conversion interrupted under this engine can resume at its last 16-frame checkpoint. A 120px conversion must be restarted to use 60px; old TSL playback remains supported.
+Error = 0.5 × glyph-ink-weighted target distance + 0.5 × target-ink-weighted glyph distance. Lower is better. The shorter distance radius and equal weights penalize replacing a long contour by a small centered dot.
 
-## Native path
+CPU scoring skips zero ink weights and prunes only using a nonnegative partial-score lower bound; it still considers every position. Native GPU protocol version 2 has 2014 candidates and this same score; version 1 retains its original 170-glyph score for old clients. The native process keeps the glyph buffer resident when the input atlas is unchanged.
 
-Windows DirectCompute scores the 1152-component descriptor. The original 469-component kernel remains for legacy requests. The historical grid120 endpoint and launcher filenames are retained for packaging compatibility; the private 60px candidate uses localhost:39089 and TASL-Mode4-60-RC2-Test storage.
+A common final gate runs after CPU/GPU selection. There is no blank-filling or post-layout revival. Audit fields include bestChar, bestScore, bestX, bestY, edgePixels, limit, accepted, output, x and y.
 
-Native renderers use the canonical 60px masks, including the formal full-width space. GPU rasterization and encoding are distinct: this test machine used DirectCompute NV12 rendering with libx264 CPU encoding.
+## TSL, playback, MP4 and resume
 
-## Validation status
+The CP932 TSL 1.08 header, schedule and text frames retain their existing syntax. New files still use TASL_MODE4_CELL60. Optional header comments encode positions:
 
-Windows 10 Pro 10.0.19045 / GTX 1050 Ti: 10 seconds at 24 fps, 240 converted and decoded frames, all unique; zero rejected-character violations. 46,335 accepted / 91,905 blank cells, placement 33.52%. Conversion took 398.57 seconds on the test machine.
+# TASL_MODE4_OFFSETS <zero-based frame> <base64 of uint8 dx+60,dy+60 pairs>
 
-All 170 glyphs and full-width blank positioning were tested in native CPU/GPU rendering. The browser/native comparison had a maximum one-level RGB rounding difference, with matching placement.
+There is one pair for every cell, including blanks (60,60). Positions must be multiples of five within -55…55, fit the unchanged glyph bounds, and leave blanks stationary. Invalid frame counts, duplicate frame indexes, incorrect lengths and cell overflow are rejected. Files without these comments render at the original positions.
 
-Mobile common code was tested sequentially in Chromium and WebKit, including portrait, padded dimensions and partial resume. These are browser-engine tests, not Android/iOS physical-device certification. Windows 11 is also untested.
+Existing TSL files remain readable. Older players that ignore the new comments can read the text, but cannot reproduce RC3's within-cell placement; accurate positioned playback requires RC3 support.
 
-RC2 reduces secondary strokes compared with RC1. Car/building recognition and some face/body continuity remain insufficient. A 22-second, 5-fps Windows test also produced 110 unique frames, zero score violations, and exact resume from frame 16. Chromium and WebKit partial resume now use the current engine constant for ArrayBuffer checkpoint storage. This candidate is not a finished release.
+Browser preview/export and native CPU/GPU export use the same canonical masks and stored offsets. GPU rasterization builds a bounded atlas of the actual character/position combinations used by the TSL. Native CPU rendering checks every shifted ink pixel for overflow.
 
-## RC2 implementation notes
+Engine 6003 distinguishes old conversion checkpoints. Checkpoint batches store offsets alongside frame bytes; resuming reconstructs the same header comments. WebKit continues to use ArrayBuffer storage for the current engine. Modes 1–3 keep their previous algorithms, workers and checkpoint engine numbers.
 
-The Gaussian uses paired symmetric taps and an unclamped interior loop; its kernel, boundary replication and sigma are unchanged. The tested 1080p benchmark had zero output difference. No render masks, glyph positions, palette entries, CPU/GPU score kernels, or modes 1–3 algorithms changed from RC1.
+## Native build and isolation
+
+The Windows validation launcher uses localhost:39090 and TASL-Mode4-60-RC3-Test. Native glyph matching uses DirectCompute, not WebGPU. GPU rasterization and compression are separate; the available GTX 1050 Ti machine uses DirectCompute NV12 rasterization and libx264 CPU encoding.
+
+The source includes tests for palette/bounds, all 2014 positions, sparse/dense score equivalence, positioned TSL roundtrip/resume, malformed offsets, Gaussian equivalence, blank rejection and threshold boundaries. Native validation compares all 2014 positions in browser, CPU and GPU rendering, and checks actual-image CPU/GPU scores.
+
+Windows 11, Android and iOS physical-device verification is not supplied by Linux Chromium/WebKit tests. Actual test measurements and visual limitations are recorded separately in the RC3 validation report.
