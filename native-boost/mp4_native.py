@@ -213,7 +213,7 @@ def run_mp4(job, executable):
              message=str(exc)[:800])
     finally:
         try:
-            report=metrics.finish(measurement,{"appVersion":"0.3.44-rc.3","stage":"MP4","status":job.mp4_state,
+            report=metrics.finish(measurement,{"appVersion":"0.3.44-rc.4","stage":"MP4","status":job.mp4_state,
                 "totalMp4Seconds":time.perf_counter()-started,"encoder":job.mp4_encoder,"message":job.mp4_message,
                 "attempts":getattr(job,"mp4_attempts",[]),"plan":job.plan})
             job.output.with_suffix(".mp4-report.json").write_bytes(report.read_bytes())

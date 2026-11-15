@@ -1,4 +1,4 @@
-# Mode 4 60px contour AA — v0.3.44-rc.3
+# Mode 4 60px contour AA — v0.3.44-rc.4
 
 This is an isolated validation candidate. Do not replace the published working release until visual and platform acceptance are complete.
 
@@ -6,21 +6,21 @@ This is an isolated validation candidate. Do not replace the published working r
 
 Source selection and display cells are 60×60 pixels. Dimensions are rounded upward to whole cells with centered padding, without cropping. The original CP932 palette has exactly 170 unique characters. The only additional frame character is U+3000 (CP932 81 40), occupying one full 60px cell.
 
-The bundled Noto Sans Mono CJK JP Regular masks are unchanged from RC1/RC2. Font size is nominally 60px. The four 62px ink extents (├ ┤ ┼ β) retain the previously documented uniform 60/62 fit. RC3 does not rotate, distort, scale, clip, add or remove glyphs.
+The bundled Noto Sans Mono CJK JP Regular masks are unchanged from RC1/RC2. Font size is nominally 60px. The four 62px ink extents (├ ┤ ┼ β) retain the previously documented uniform 60/62 fit. RC4 does not rotate, distort, scale, clip, add or remove glyphs.
 
-RC3 evaluates the 2014 legal positions of these same 170 glyphs on a 5px translation lattice. Every nonzero mask pixel must remain inside its own cell. Five source pixels correspond exactly to two 24×24 descriptor pixels. Position candidates are not new palette characters.
+RC4 retains the RC3 position search and evaluates the 2014 legal positions of these same 170 glyphs on a 5px translation lattice. Every nonzero mask pixel must remain inside its own cell. Five source pixels correspond exactly to two 24×24 descriptor pixels. Position candidates are not new palette characters.
 
 ## Contours and score
 
 1. Grayscale plus existing contrast/brightness/gamma options.
-2. Separable Gaussian sigma 8 source pixels, radius ceil(3 sigma), replicated image boundaries.
-3. 2×2 area reduction, central gradient, four-direction nonmaximum suppression, hysteresis high 0.025 / low 0.0125.
+2. Separable Gaussian sigma 8 source pixels, radius ceil(3 sigma), replicated image boundaries, fused with the following 2×2 area reduction. Each adjacent pair of Gaussian kernels is averaged before convolution; this is the same linear filter up to Float32 rounding. It does not change source-pixel sigma.
+3. Central gradient, four-direction nonmaximum suppression, hysteresis high 0.025 / low 0.0125.
 4. Remove connected components shorter than 12 half-resolution pixels.
 5. Retain the principal local connected stroke per 60px cell: local length × (1 + 0.25 × log(1 + global connected contour length)).
 6. Broaden the skeleton with sigma 0.9 at half resolution; source brightness is not added as fill.
 7. Area sample the entire 60px cell to 24×24.
 8. Evaluate all 170 glyphs at every legal position; choose the minimum error.
-9. Accept only if skeleton count >= 8 and error <= 0.21. Otherwise output a stationary full-width blank.
+9. Accept only if skeleton count >= 8 and error <= 0.28. Otherwise output a stationary full-width blank.
 
 Descriptor: 576 normalized ink weights (cutoff 0.18), then 576 truncated eight-neighbor chamfer distances. Horizontal/vertical distance cost is 1 and diagonal cost is sqrt(2). Distance normalization is min(1,max(0,d-0.5)/2.5).
 
@@ -42,12 +42,16 @@ Existing TSL files remain readable. Older players that ignore the new comments c
 
 Browser preview/export and native CPU/GPU export use the same canonical masks and stored offsets. GPU rasterization builds a bounded atlas of the actual character/position combinations used by the TSL. Native CPU rendering checks every shifted ink pixel for overflow.
 
-Engine 6003 distinguishes old conversion checkpoints. Checkpoint batches store offsets alongside frame bytes; resuming reconstructs the same header comments. WebKit continues to use ArrayBuffer storage for the current engine. Modes 1–3 keep their previous algorithms, workers and checkpoint engine numbers.
+Engine 6004 distinguishes old conversion checkpoints. Checkpoint batches store offsets alongside frame bytes; resuming reconstructs the same header comments. WebKit continues to use ArrayBuffer storage for the current engine. Modes 1–3 keep their previous algorithms, workers and checkpoint engine numbers.
 
 ## Native build and isolation
 
-The Windows validation launcher uses localhost:39090 and TASL-Mode4-60-RC3-Test. Native glyph matching uses DirectCompute, not WebGPU. GPU rasterization and compression are separate; the available GTX 1050 Ti machine uses DirectCompute NV12 rasterization and libx264 CPU encoding.
+The Windows validation launcher uses localhost:39091 and TASL-Mode4-60-RC4-Test. Native glyph matching uses DirectCompute, not WebGPU. GPU rasterization and compression are separate; the available GTX 1050 Ti machine uses DirectCompute NV12 rasterization and libx264 CPU encoding.
 
 The source includes tests for palette/bounds, all 2014 positions, sparse/dense score equivalence, positioned TSL roundtrip/resume, malformed offsets, Gaussian equivalence, blank rejection and threshold boundaries. Native validation compares all 2014 positions in browser, CPU and GPU rendering, and checks actual-image CPU/GPU scores.
 
-Windows 11, Android and iOS physical-device verification is not supplied by Linux Chromium/WebKit tests. Actual test measurements and visual limitations are recorded separately in the RC3 validation report.
+Windows 11, Android and iOS physical-device verification is not supplied by Linux Chromium/WebKit tests. Actual test measurements and visual limitations are recorded separately in the RC4 validation report.
+
+## RC4 changes
+
+The acceptance limit is 0.28 after comparing 0.21, 0.28, 0.35 and 0.42 on four actual frames. This restores more of the existing important contours while retaining the explicit blank gate. It is not a density target or a post-layout fill. The score, 170 glyphs, 2014 positions and native matching/raster binaries are unchanged from RC3. Gaussian plus area reduction is fused to avoid calculating full-resolution output pixels that are immediately averaged. Tests cover random, constant and corner-impulse images, sigma 0/0.9/4/8/24 and narrow boundary cases against the unfused reference (absolute tolerance 1.2e-7).

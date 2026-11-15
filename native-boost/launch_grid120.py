@@ -9,6 +9,6 @@ sys.executable=str(root/'TASL-PC-Boost.exe')
 sys._MEIPASS=str(root/'_internal')
 dll_dirs=[os.add_dll_directory(str(p)) for p in [root,root/'_internal'] if p.is_dir()]
 sys.path.insert(0,str(root/'python-source'))
-os.environ.setdefault('TASL_BOOST_PORT','39090')
-os.environ.setdefault('TASL_BOOST_DATA_DIR',str(Path(os.environ['LOCALAPPDATA'])/'TASL-Mode4-60-RC3-Test'))
+os.environ.setdefault('TASL_BOOST_PORT','39091')
+os.environ.setdefault('TASL_BOOST_DATA_DIR',str(Path(os.environ['LOCALAPPDATA'])/'TASL-Mode4-60-RC4-Test'))
 runpy.run_path(str(root/'python-source/bridge.py'),run_name='__main__')
