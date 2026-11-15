@@ -21,7 +21,7 @@ inline int grid120Id(unsigned code){
  for(int i=0;i<170;i++)if(codes[i]==code)return i;
  throw std::runtime_error("Character outside fixed Mode4 palette");
 }
-inline void grid120Draw(void* buffer,int width,int height,std::string_view frame,int rows,int cell=120){
+inline void grid120Draw(void* buffer,int width,int height,std::string_view frame,int rows,int cell=120,const std::vector<unsigned char>* offsets=nullptr){
  auto p=(unsigned char*)buffer;
  for(int i=0;i<width*height;i++){p[4*i]=18;p[4*i+1]=13;p[4*i+2]=8;p[4*i+3]=0;}
  const auto& masks=grid120Masks(cell);int row=0,col=0;
@@ -33,12 +33,28 @@ inline void grid120Draw(void* buffer,int width,int height,std::string_view frame
   // The GPU's internal background atlas entry is not a frame character.
   if(a==32){col++;continue;}
   if(i>=frame.size())throw std::runtime_error("Truncated Mode4 character");
-  unsigned b=(unsigned char)frame[i++];if(cell==60&&a==0x81&&b==0x40){col++;continue;}int g=grid120Id(a*256+b);
+  unsigned b=(unsigned char)frame[i++];int dx=0,dy=0;
+  if(offsets){size_t at=(row*(width/cell)+col)*2;if(at+1>=offsets->size())throw std::runtime_error("Mode4 offsets missing");dx=int((*offsets)[at])-60;dy=int((*offsets)[at+1])-60;if(dx%5||dy%5||std::abs(dx)>55||std::abs(dy)>55)throw std::runtime_error("Mode4 offsets invalid");}
+  if(cell==60&&a==0x81&&b==0x40){if(dx||dy)throw std::runtime_error("Mode4 blank offset invalid");col++;continue;}int g=grid120Id(a*256+b);
   for(int y=0;y<cell;y++)for(int x=0;x<cell;x++){
-   unsigned ink=masks[g*cell*cell+y*cell+x];int d=((row*cell+y)*width+col*cell+x)*4;
+   unsigned ink=masks[g*cell*cell+y*cell+x];int nx=x+dx,ny=y+dy;if(nx<0||nx>=cell||ny<0||ny>=cell){if(ink)throw std::runtime_error("Mode4 glyph leaves its cell");continue;}int d=((row*cell+ny)*width+col*cell+nx)*4;
    p[d]=(18*(255-ink)+232*ink+127)/255;
    p[d+1]=(13*(255-ink)+244*ink+127)/255;
    p[d+2]=(8*(255-ink)+227*ink+127)/255;
   }col++;
  }
+}
+
+inline std::vector<unsigned char> grid60DecodeOffsets(const std::string& text,size_t expected){
+ if(text.size()!=((expected+2)/3)*4)throw std::runtime_error("Mode4 offset length invalid");
+ const std::string alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+ std::vector<unsigned char> out;out.reserve(expected);unsigned value=0;int bits=0;bool padding=false;
+ for(char c:text){
+  if(c=='='){padding=true;continue;}
+  auto at=alphabet.find(c);if(padding||at==std::string::npos)throw std::runtime_error("Mode4 offset base64 invalid");
+  value=(value<<6)|unsigned(at);bits+=6;if(bits>=8){bits-=8;out.push_back((value>>bits)&255);}
+ }
+ if(out.size()!=expected)throw std::runtime_error("Mode4 offset data missing");
+ for(unsigned x:out)if(x<5||x>115||(int(x)-60)%5)throw std::runtime_error("Mode4 offset range invalid");
+ return out;
 }

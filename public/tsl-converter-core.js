@@ -1,4 +1,5 @@
 // TASL 1.08: unchanged ASCII mode 1 / Shift-JIS quality mode 3.
+import {validateOffsets,positionHeader} from './mode4-position60.js';
 import {qualityColumns,encodeQualityFrame} from './tsl-quality.js';
 import {halftoneColumns,encodeHalftoneFrame} from './tsl-halftone.js';
 import {artisanColumns,encodeArtisanFrame} from './tsl-artisan.js';
@@ -165,8 +166,8 @@ export function tslName(name,conversionMode='legacy') {
  return (stem||'video')+(conversionMode==='quality'?'_Mode3':conversionMode==='halftone'?'_Mode2':conversionMode==='artisan'?'_Mode4':'')+'.TSL';
 }
 export class TSLWriter {
- constructor(plan) {this.plan=plan;this.parts=[];this.batch=[];this.size=0;this.frames=0;}
- append(frame) {
+ constructor(plan) {this.plan=plan;this.parts=[];this.batch=[];this.offsets=[];this.size=0;this.frames=0;}
+ append(frame,offsets=null) {
   const lines=frame.split('\r\n');lines.pop();
   const quality=this.plan.conversionMode==='quality',halftone=this.plan.conversionMode==='halftone',artisan=this.plan.conversionMode==='artisan';
   if(this.plan.mode4Cell60)validate60(lines,this.plan.width,this.plan.height);
@@ -180,6 +181,10 @@ export class TSLWriter {
   if(this.frames>=this.plan.count)throw Error('画面数が多すぎます');
   const part=this.plan.mode4Cell60?encode60(lines):this.plan.mode4Cell120?encodeGridFrame(lines):artisan?encodeArtisanFrame(lines):quality?encodeQualityFrame(lines):halftone?encodeHalftoneFrame(lines):frame+'\f\r\n';this.size+=part.length;
   if(this.size>MAX_OUTPUT_BYTES-4096-this.plan.count*24)throw Error('出力サイズ上限を超えました');
+  if(this.plan.mode4Cell60){
+   const positions=offsets?validateOffsets(lines,this.plan.width,this.plan.height,offsets):null;
+   this.offsets.push(positions);if(positions)part.mode4Offsets=positions;
+  }
   this.batch.push(part);this.frames++;
   if(this.batch.length>=64){this.parts.push(new Blob(this.batch));this.batch=[];}
   return part;
@@ -189,12 +194,16 @@ export class TSLWriter {
    throw Error('途中保存データの順序が不正です');
   if(this.frames+chunk.count>this.plan.count||this.size+chunk.blob.size>MAX_OUTPUT_BYTES-4096-this.plan.count*24)
    throw Error('途中保存データが出力上限を超えています');
+  if(this.plan.mode4Cell60){
+   if(chunk.mode4Offsets&&(!Array.isArray(chunk.mode4Offsets)||chunk.mode4Offsets.length!==chunk.count||chunk.mode4Offsets.some(x=>x!==null&&(!(x instanceof Uint8Array)||x.length!==this.plan.width*this.plan.height))))throw Error('途中保存の文字位置が不正です');
+   this.offsets.push(...(chunk.mode4Offsets??Array(chunk.count).fill(null)));
+  }
   this.parts.push(chunk.blob);this.size+=chunk.blob.size;this.frames+=chunk.count;
  }
  finish() {
   if(this.frames!==this.plan.count)throw Error('画面データが不足しています');
-  const p=this.plan,header=['1.08',p.count,p.width,p.height,1,-1,p.conversionMode==='quality'?'Video conversion - Quality':p.conversionMode==='halftone'?'Video conversion - Halftone':p.conversionMode==='artisan'?'Video conversion - AA Artisan':'Video conversion',...(p.native16?['# PC98_FONT_16X16']:[]),...(p.mode4Cell60?['# TASL_MODE4_CELL60','# TASL_MODE4_TIMING '+p.fps+' '+p.sourceDuration]:[]),...(p.mode4Cell120?['# TASL_MODE4_CELL120','# TASL_MODE4_TIMING '+p.fps+' '+p.sourceDuration]:[]),'\f'].join('\r\n')+'\r\n';
+  const p=this.plan,header=['1.08',p.count,p.width,p.height,1,-1,p.conversionMode==='quality'?'Video conversion - Quality':p.conversionMode==='halftone'?'Video conversion - Halftone':p.conversionMode==='artisan'?'Video conversion - AA Artisan':'Video conversion',...(p.native16?['# PC98_FONT_16X16']:[]),...(p.mode4Cell60?['# TASL_MODE4_CELL60','# TASL_MODE4_TIMING '+p.fps+' '+p.sourceDuration]:[]),...positionHeader(this.offsets,p.width*p.height),...(p.mode4Cell120?['# TASL_MODE4_CELL120','# TASL_MODE4_TIMING '+p.fps+' '+p.sourceDuration]:[]),'\f'].join('\r\n')+'\r\n';
   const schedule=p.steps.map((s,i)=>(i+1)+' '+s.ticks+'\r\n').join('')+'0 0\r\n\f\r\n';
-  return new Blob([header,schedule,...this.parts,...this.batch,'\x1a'],{type:'application/octet-stream'});
+  const result=new Blob([header,schedule,...this.parts,...this.batch,'\x1a'],{type:'application/octet-stream'});if(result.size>MAX_OUTPUT_BYTES)throw Error('出力サイズ上限を超えました');return result;
  }
 }

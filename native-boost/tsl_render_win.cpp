@@ -65,6 +65,7 @@ struct TSL{
  std::string bytes;
  std::vector<std::string_view> chunks;
  std::vector<int> ticks;
+ std::vector<std::vector<unsigned char>> offsets;
  int count=0,width=0,height=0,durationTicks=0;
  bool native16=false,mode4Cell120=false,mode4Cell60=false;double mode4Fps=0,mode4Duration=0;
  explicit TSL(const std::string& filename){
@@ -84,6 +85,15 @@ struct TSL{
    std::istringstream is(s.substr(20));is>>mode4Fps>>mode4Duration;
    if(!is||!std::isfinite(mode4Fps)||mode4Fps<1||mode4Fps>30||!std::isfinite(mode4Duration)||mode4Duration<=0||mode4Duration>7200||int(std::ceil(mode4Duration*mode4Fps))!=count)throw std::runtime_error("Mode4 timing invalid");
   }
+  int positionFrames=0;
+  for(const auto& s:header)if(s.rfind("# TASL_MODE4_OFFSETS ",0)==0){
+   if(!mode4Cell60||width%2)throw std::runtime_error("Mode4 positions require 60px grid");
+   if(offsets.empty())offsets.resize(count);
+   std::istringstream is(s.substr(std::string("# TASL_MODE4_OFFSETS ").size()));int index=-1;std::string encoded,extra;is>>index>>encoded;
+   if(!is||index<0||index>=count||!offsets[index].empty()||(is>>extra))throw std::runtime_error("Mode4 position frame invalid");
+   offsets[index]=grid60DecodeOffsets(encoded,size_t(width)*height);positionFrames++;
+  }
+  if(positionFrames&&positionFrames!=count)throw std::runtime_error("Mode4 position frame count invalid");
   ticks.reserve(count+1);
   int at=0;
   for(const std::string& line:lines(chunks[1])){
@@ -100,6 +110,7 @@ struct TSL{
   durationTicks=at;
  }
  std::string_view frame(int n)const{return chunks.at(2+n);}
+ const std::vector<unsigned char>* position(int n)const{return offsets.empty()?nullptr:&offsets.at(n);}
 };
 struct Surface{
  HDC hdc=nullptr;
@@ -147,8 +158,8 @@ struct Surface{
   if(brush)DeleteObject(brush);
   if(hdc)DeleteDC(hdc);
  }
- void draw(std::string_view frame,int columns,int rows){
-  if(mode4Cell60||mode4Cell120){grid120Draw(pixels,width,height,frame,rows,mode4Cell60?60:120);return;}
+ void draw(std::string_view frame,int columns,int rows,const std::vector<unsigned char>* offsets=nullptr){
+  if(mode4Cell60||mode4Cell120){grid120Draw(pixels,width,height,frame,rows,mode4Cell60?60:120,offsets);return;}
   RECT rect{0,0,width,height};
   FillRect(hdc,&rect,brush);
   size_t pos=0;
@@ -196,7 +207,7 @@ int main(int argc,char** argv){
    const int tick=int(int64_t(i)*60/a.fps);
    const auto it=std::upper_bound(t.ticks.begin(),t.ticks.end(),tick);
    const int n=t.mode4Fps?std::min(t.count-1,int(i*t.mode4Fps/a.fps+1e-8)):std::max(0,int(it-t.ticks.begin())-1);
-   if(n!=last){surface.draw(t.frame(n),t.width,t.height);last=n;}
+   if(n!=last){surface.draw(t.frame(n),t.width,t.height,t.position(n));last=n;}
    std::cout.write((const char*)surface.pixels,std::streamsize(size));
    if(!std::cout)throw std::runtime_error("writing raw video failed");
    if((i+1)%24==0||i==frames-1)

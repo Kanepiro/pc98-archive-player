@@ -5,7 +5,7 @@ struct GridGPU{
  ComPtr<ID3D11ComputeShader> shader;
  ComPtr<ID3D11Buffer> output,staging,constants;
  ComPtr<ID3D11UnorderedAccessView> view;
- uint32_t capacity=0;
+ uint32_t capacity=0; InputView cachedGlyphs; std::vector<float> cachedGlyphData;
  GridGPU(){
   auto p=shaderFilename();p=p.substr(0,p.find_last_of(L"\\/")+1)+L"mode4_grid_gpu.hlsl";
   ComPtr<ID3DBlob> code,error;
@@ -17,13 +17,13 @@ struct GridGPU{
  }
  void compute(){
   auto started=std::chrono::steady_clock::now();uint32_t h[8];std::cin.read((char*)h,32);
-  if(!std::cin||h[0]!=0x30324754||h[1]!=1||h[2]<1||h[2]>4096||h[3]!=170||(h[4]!=469&&h[4]!=1152))throw std::runtime_error("Grid120 protocol");
+  if(!std::cin||h[0]!=0x30324754||h[2]<1||h[2]>4096||!((h[1]==1&&h[3]==170&&(h[4]==469||h[4]==1152))||(h[1]==2&&h[3]==2014&&h[4]==1152)))throw std::runtime_error("Grid120 protocol");
   uint32_t C=h[2],G=h[3],D=h[4],N=C*G;
   std::vector<float> t(C*D),g(G*D);std::cin.read((char*)t.data(),t.size()*4);std::cin.read((char*)g.data(),g.size()*4);
   if(!std::cin)throw std::runtime_error("Grid120 truncated payload");
   for(float v:t)if(!std::isfinite(v))throw std::runtime_error("Grid120 target nonfinite");
   for(float v:g)if(!std::isfinite(v))throw std::runtime_error("Grid120 glyph nonfinite");
-  auto targets=gpu.upload(t),glyphs=gpu.upload(g);
+  auto targets=gpu.upload(t);if(cachedGlyphData!=g){cachedGlyphs=gpu.upload(g);cachedGlyphData=g;}
   if(capacity!=N){
    output.Reset();staging.Reset();view.Reset();
    D3D11_BUFFER_DESC b={};b.ByteWidth=N*4;b.Usage=D3D11_USAGE_DEFAULT;b.BindFlags=D3D11_BIND_UNORDERED_ACCESS;b.MiscFlags=D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;b.StructureByteStride=4;
@@ -33,8 +33,8 @@ struct GridGPU{
    b.Usage=D3D11_USAGE_STAGING;b.BindFlags=0;b.MiscFlags=0;b.StructureByteStride=0;b.CPUAccessFlags=D3D11_CPU_ACCESS_READ;
    checked(gpu.device->CreateBuffer(&b,nullptr,&staging),"Grid120 readback");capacity=N;
   }
-  uint32_t params[]={C,G,D,0};gpu.context->UpdateSubresource(constants.Get(),0,nullptr,params,0,0);
-  ID3D11Buffer* cb[]={constants.Get()};ID3D11ShaderResourceView* ins[]={targets.srv.Get(),glyphs.srv.Get()};ID3D11UnorderedAccessView* outs[]={view.Get()};
+  uint32_t params[]={C,G,D,h[1]};gpu.context->UpdateSubresource(constants.Get(),0,nullptr,params,0,0);
+  ID3D11Buffer* cb[]={constants.Get()};ID3D11ShaderResourceView* ins[]={targets.srv.Get(),cachedGlyphs.srv.Get()};ID3D11UnorderedAccessView* outs[]={view.Get()};
   gpu.context->CSSetShader(shader.Get(),nullptr,0);gpu.context->CSSetConstantBuffers(0,1,cb);gpu.context->CSSetShaderResources(0,2,ins);gpu.context->CSSetUnorderedAccessViews(0,1,outs,nullptr);
   gpu.context->Dispatch((N+127)/128,1,1);
   ID3D11UnorderedAccessView* nil[]={nullptr};gpu.context->CSSetUnorderedAccessViews(0,1,nil,nullptr);

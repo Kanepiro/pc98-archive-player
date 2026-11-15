@@ -79,7 +79,7 @@ export async function appendCheckpoint(job,start,parts,qualityState=null){
   store.get(KEY).onsuccess=e=>{
    const active=e.target.result;
    if(!active||active.id!==job.id||active.done!==start){tx.abort();return;}
-   tx.objectStore('chunks').put({start,count:parts.length,...payload});
+   tx.objectStore('chunks').put({start,count:parts.length,...payload,mode4Offsets:parts.map(p=>p.mode4Offsets??null)});
    if(qualityState)tx.objectStore('state').put({key:KEY,value:qualityState});
    store.put({...active,done:start+parts.length,updatedAt:Date.now()});
   };

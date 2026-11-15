@@ -156,7 +156,7 @@ class Grid120GpuClient(FullGpuClient):
         if len(payload) < 32:
             raise ValueError("Grid120 header missing")
         magic, version, cells, glyphs, features, _, _, _ = struct.unpack_from("<8I", payload)
-        if magic != 0x30324754 or version != 1 or not 1 <= cells <= 4096 or glyphs != 170 or features not in (469,1152):
+        if magic != 0x30324754 or not 1 <= cells <= 4096 or not ((version == 1 and glyphs == 170 and features in (469,1152)) or (version == 2 and glyphs == 2014 and features == 1152)):
             raise ValueError("Grid120 dimensions invalid")
         if len(payload) != 32 + 4*(cells+glyphs)*features:
             raise ValueError("Grid120 payload length invalid")

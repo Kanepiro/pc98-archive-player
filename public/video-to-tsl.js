@@ -168,7 +168,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
    acceleration=converted.acceleration||'CPU';
    if(metricsId)metricFrames.push({frame:i,sourceSecond:time,decodedSecond:decodedFrame?.timestamp??null,backend:acceleration,perf:converted.perf,
     gpu:converted.adapterInfo,fallbackReason:converted.gpuReason,vision:vision?{backend:vision.backend||'MediaPipe CPU',timing:vision.timing}:null});
-   pending.push(writer.append(converted.frame));
+   pending.push(writer.append(converted.frame,converted.offsets));
    // Commit small batches atomically; at most 15 latest frames are lost on an abrupt close.
    if(pending.length>=16||i===plan.count-1){
     if(checkpointEnabled){
@@ -193,12 +193,12 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   let metricsUrl=null;
   if(metricsId)try{
    const r=await fetch('/api/metrics/'+metricsId+'/finish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-    appVersion:'0.3.44-rc.1',source:{name:file.name,bytes:file.size,width:video.videoWidth,height:video.videoHeight,duration:video.duration},
+    appVersion:'0.3.44-rc.3',source:{name:file.name,bytes:file.size,width:video.videoWidth,height:video.videoHeight,duration:video.duration},
     settings:options,plan,resumedFrom:resumeStart,totalConversionSeconds:(performance.now()-taskStarted)/1000,frames:metricFrames,status:'completed'})});
    if(r.ok){metricsUrl=(await r.json()).url;metricsId=null;}
   }catch{}
   return {blob,plan,ramp,metricsUrl,source:{width:video.videoWidth,height:video.videoHeight,duration:video.duration},elapsed:(performance.now()-started)/1000};
  } finally {
-  if(metricsId)fetch('/api/metrics/'+metricsId+'/finish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({appVersion:'0.3.44-rc.1',status:'interrupted',frames:metricFrames}),keepalive:true}).catch(()=>{});
+  if(metricsId)fetch('/api/metrics/'+metricsId+'/finish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({appVersion:'0.3.44-rc.3',status:'interrupted',frames:metricFrames}),keepalive:true}).catch(()=>{});
   worker?.terminate();vision?.close();await frameReader?.close();video.pause();video.removeAttribute('src');video.load();URL.revokeObjectURL(url);}
 }
