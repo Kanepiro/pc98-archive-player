@@ -17,8 +17,8 @@ export function shapeDescriptor(mask){
  return out;
 }
 export function glyphScore(t,g){let loss=0;for(let i=0;i<576;i++)loss+=.65*g[i]*t[i+576]+.35*t[i]*g[i+576];return loss;}
-export const MODE4_CELL=60,MODE4_SAMPLE=24,MODE4_ENGINE=6001,MODE4_BLUR_SIGMA=8;
-export const MODE4_LIMIT=0.22,MODE4_EDGE_HIGH=0.025,MODE4_EDGE_LOW=0.0125,MODE4_MIN_EDGE=8;
+export const MODE4_CELL=60,MODE4_SAMPLE=24,MODE4_ENGINE=6002,MODE4_BLUR_SIGMA=8;
+export const MODE4_LIMIT=0.24,MODE4_EDGE_HIGH=0.025,MODE4_EDGE_LOW=0.0125,MODE4_MIN_EDGE=8;
 export const MODE4_SPACE='　';
 const chars=[...MODE4_CHARS],ids=new Map(chars.map((c,i)=>[c,i]));
 const state=globalThis[Symbol.for('tasl.mode4.grid60.v1')]??={promise:null,masks:null,tints:new Map()};
@@ -74,8 +74,19 @@ export function gaussianFrame(src,w,h,sigma=8){
  let k=kernels.get(sigma);
  if(!k){const r=Math.ceil(sigma*3);k=Float32Array.from({length:r*2+1},(_,i)=>Math.exp(-.5*((i-r)/sigma)**2));const sum=k.reduce((a,b)=>a+b);for(let i=0;i<k.length;i++)k[i]/=sum;kernels.set(sigma,k);}
  const r=(k.length-1)/2,tmp=new Float32Array(src.length),out=new Float32Array(src.length);
- for(let y=0;y<h;y++)for(let x=0;x<w;x++){let s=0;for(let d=-r;d<=r;d++)s+=src[y*w+Math.max(0,Math.min(w-1,x+d))]*k[d+r];tmp[y*w+x]=s;}
- for(let y=0;y<h;y++)for(let x=0;x<w;x++){let s=0;for(let d=-r;d<=r;d++)s+=tmp[Math.max(0,Math.min(h-1,y+d))*w+x]*k[d+r];out[y*w+x]=s;}
+ // The same symmetric Gaussian kernel, with paired taps and unclamped interior loops.
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const i=y*w+x;let sum=src[i]*k[r];
+  if(x>=r&&x<w-r){for(let d=1;d<=r;d++)sum+=(src[i-d]+src[i+d])*k[r+d];}
+  else for(let d=1;d<=r;d++)sum+=(src[y*w+Math.max(0,x-d)]+src[y*w+Math.min(w-1,x+d)])*k[r+d];
+  tmp[i]=sum;
+ }
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const i=y*w+x;let sum=tmp[i]*k[r];
+  if(y>=r&&y<h-r){for(let d=1,off=w;d<=r;d++,off+=w)sum+=(tmp[i-off]+tmp[i+off])*k[r+d];}
+  else for(let d=1;d<=r;d++)sum+=(tmp[Math.max(0,y-d)*w+x]+tmp[Math.min(h-1,y+d)*w+x])*k[r+d];
+  out[i]=sum;
+ }
  return out;
 }
 // Exact area resampling, including fractional 60/24 boundaries.
@@ -94,6 +105,41 @@ export async function makeMode4Atlas(){
   if(!mask.some(v=>v>0))throw Error('指定文字の字形が空です');return {char,columns:2,mask,features:shapeDescriptor(mask)};
  });
 }
+// Keep the principal connected stroke in each 60px cell. Global contour length
+// breaks local ties in favor of a contour that continues beyond the current cell.
+// This removes secondary contours BEFORE glyph scoring; it never fills blanks.
+export function principalContours(raw,w,h){
+ if(w%30||h%30||raw.length!==w*h)throw Error('Contour grid invalid');
+ const labels=new Int32Array(raw.length),sizes=[0],filtered=new Float32Array(raw.length);let label=0;
+ for(let i=0;i<raw.length;i++)if(raw[i]&&!labels[i]){
+  label++;const stack=[i];labels[i]=label;let n=0;
+  while(stack.length){const p=stack.pop(),x=p%w,y=p/w|0;n++;
+   for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+    const nx=x+dx,ny=y+dy;if(nx<0||nx>=w||ny<0||ny>=h)continue;const j=ny*w+nx;
+    if(raw[j]&&!labels[j]){labels[j]=label;stack.push(j);}
+   }
+  }sizes.push(n);
+ }
+ const columns=w/30,rows=h/30;
+ for(let cy=0;cy<rows;cy++)for(let cx=0;cx<columns;cx++){
+  const seen=new Uint8Array(900);let best=[],bestImportance=-1;
+  for(let q=0;q<900;q++){
+   const gx=cx*30+q%30,gy=cy*30+(q/30|0);if(seen[q]||!raw[gy*w+gx])continue;
+   const list=[],todo=[q];seen[q]=1;
+   while(todo.length){
+    const at=todo.pop();list.push(at);const x=at%30,y=at/30|0;
+    for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+     const nx=x+dx,ny=y+dy;if(nx<0||nx>=30||ny<0||ny>=30)continue;const j=ny*30+nx;
+     if(!seen[j]&&raw[(cy*30+ny)*w+cx*30+nx]){seen[j]=1;todo.push(j);}
+    }
+   }
+   const importance=list.length*(1+.25*Math.log1p(sizes[labels[gy*w+gx]]));
+   if(importance>bestImportance){bestImportance=importance;best=list;}
+  }
+  for(const q of best)filtered[(cy*30+(q/30|0))*w+cx*30+q%30]=1;
+ }
+ return filtered;
+}
 export function prepareMode4Targets(pixels,width,height,options={}){
  const W=width/2*60,H=height*60;
  if(width%2||pixels.length!==W*H*4)throw Error('60px画素数が一致しません');
@@ -110,7 +156,7 @@ export function prepareMode4Targets(pixels,width,height,options={}){
  const high=options.mode4EdgeHigh??MODE4_EDGE_HIGH,low=options.mode4EdgeLow??MODE4_EDGE_LOW;
  const steps=[1,w+1,w,w-1];
  for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=y*w+x,d=steps[direction[i]],m=mag[i];if(m>=low&&m>=mag[i-d]&&m>=mag[i+d])thin[i]=m;}
- const edges=new Float32Array(w*h),seen=new Uint8Array(w*h),stack=[],component=[];
+ let edges=new Float32Array(w*h);const seen=new Uint8Array(w*h),stack=[],component=[];
  for(let i=0;i<thin.length;i++)if(thin[i]>=high&&!seen[i]){
   stack.push(i);seen[i]=1;component.length=0;
   while(stack.length){const p=stack.pop();component.push(p);const x=p%w,y=p/w|0;
@@ -119,6 +165,7 @@ export function prepareMode4Targets(pixels,width,height,options={}){
   }
   if(component.length>=12)for(const p of component)edges[p]=1;
  }
+ const rawEdges=options.mode4DebugImage?edges:null;edges=principalContours(edges,w,h);
  // Broaden a one-pixel skeleton to the Noto stroke width; no source luminance fill.
  const ink=gaussianFrame(edges,w,h,.9);for(let i=0;i<ink.length;i++)ink[i]=Math.min(1,ink[i]*2.4);
  const targets=[],counts=[];
@@ -127,7 +174,7 @@ export function prepareMode4Targets(pixels,width,height,options={}){
   for(let y=0;y<30;y++)for(let x=0;x<30;x++){const i=(cy*30+y)*w+cx*30+x;cell[y*30+x]=ink[i];count+=edges[i];}
   targets.push(shapeDescriptor(areaSample(cell,30,30,24)));counts.push(count);
  }
- targets.edgeCounts=counts;if(options.mode4DebugImage)targets.contours={pixels:edges,width:w,height:h};
+ targets.edgeCounts=counts;if(options.mode4DebugImage)targets.contours={pixels:edges,rawPixels:rawEdges,width:w,height:h};
  return targets;
 }
 export function selectMode4Glyphs(targets,atlas){
