@@ -29,15 +29,15 @@ for src,dst in [('mode4_grid_gpu','mode4_grid_gpu'),('tsl_render_gpu','tsl_rende
  shutil.copy2(o.bin/(src+'.exe'),app/(dst+'.exe'))
 shutil.copy2(r/'native-boost/mode4_grid_gpu.hlsl',app/'mode4_grid_gpu.hlsl')
 (app/'MODE4-60-README.txt').write_text(
- 'TASL モード4 60px検証版 v0.3.44-rc.1（公開版とは別です）\n\n'
+ 'TASL モード4 60px検証版 v0.3.44-rc.2（公開版とは別です）\n\n'
  'ZIP全体を新しいフォルダへ展開し、TASL-PC-Boost.exeを起動してください。\n'
- 'localhost:39088と専用の途中保存領域を使います。フォントのインストールは不要です。\n'
+ 'localhost:39089と専用の途中保存領域を使います。フォントのインストールは不要です。\n'
  '指定170文字・60px固定・Noto Sans Mono CJK JP Regular。\n'
  'Windows 10 / GTX 1050 Tiで字形照合GPU・CPU/GPU描画・MP4出力を検証。\n'
  'この環境ではNVENC API互換性のため圧縮はCPUへ自動切替します。\n'
  'Windows 11、Android、iOSの実機検証は未完了です。\n'
  '人物・車・建物の視認性に未解決の問題があるため、完成版ではありません。\n'
- 'Gaussian sigma=8、輪郭量8以上、Chamfer誤差0.22以下の文字のみ採用します。\n'
+ '各セルの主な連結輪郭を選別。Gaussian sigma=8、輪郭量8以上、Chamfer誤差0.24以下の文字のみ採用します。\n'
  '不合格セルは全角空白となり、60pxの配置幅を保持します。\n'
  '旧120px TSLも再生できます。旧方式の途中変換は新方式に混ぜず、最初から変換します。\n'
  '詳細はMODE4_GRID60.mdと検証報告を参照してください。\n',

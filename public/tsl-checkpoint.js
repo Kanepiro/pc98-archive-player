@@ -1,3 +1,4 @@
+import {MODE4_ENGINE} from './tsl-mode4-grid60.js';
 // Persist small batches of converted ASCII frames. Source videos remain on-device
 // and are never copied into IndexedDB (they can be up to 2 GiB).
 const DB_NAME='pc98-tsl-checkpoint-v1',KEY='current';
@@ -72,7 +73,7 @@ export async function appendCheckpoint(job,start,parts,qualityState=null){
  // Mode 4 uses ArrayBuffer storage: WebKit can reject Blob writes to IndexedDB.
  // Materialize before opening the transaction; older checkpoints remain readable.
  const blob=new Blob(parts,{type:'application/octet-stream'});
- const payload=(job.engineVersion===1202||job.engineVersion===6001)?{bytes:await blob.arrayBuffer()}:{blob};
+ const payload=(job.engineVersion===1202||job.engineVersion===6001||job.engineVersion===MODE4_ENGINE)?{bytes:await blob.arrayBuffer()}:{blob};
  return transact('readwrite',tx=>{
   const store=tx.objectStore('job');
   store.get(KEY).onsuccess=e=>{

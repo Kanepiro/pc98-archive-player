@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-import {mode4Grid,MODE4_SPACE,prepareMode4Targets,selectMode4Glyphs,judgeMode4,shapeDescriptor,gaussianFrame,validateGridFrame,Grid60Converter} from '../public/tsl-mode4-grid60.js';
+import {mode4Grid,MODE4_SPACE,MODE4_LIMIT,principalContours,prepareMode4Targets,selectMode4Glyphs,judgeMode4,shapeDescriptor,gaussianFrame,validateGridFrame,Grid60Converter} from '../public/tsl-mode4-grid60.js';
 import {MODE4_CHARS,MODE4_MASK_SHA256} from '../public/mode4-palette60.js';
 import {makePlan,TSLWriter} from '../public/tsl-converter-core.js';
 import {parseTSL,tslFrameAt} from '../public/tsl.js';
@@ -43,8 +43,8 @@ test('flat gray/white/black and low contrast texture are blank, even if best sco
 });
 test('score gate rejects above limit and admits at boundary; GPU rejection cannot revive',async()=>{
  const atlas=[{char:'｜',features:shapeDescriptor(new Float32Array(576).fill(1))}],targets=[atlas[0].features];targets.edgeCounts=[20];
- assert.equal(judgeMode4(targets,{indices:[0],scores:[.22]},atlas)[0].accepted,true);
- assert.equal(judgeMode4(targets,{indices:[0],scores:[.2201]},atlas)[0].accepted,false);
+ assert.equal(judgeMode4(targets,{indices:[0],scores:[MODE4_LIMIT]},atlas)[0].accepted,true);
+ assert.equal(judgeMode4(targets,{indices:[0],scores:[MODE4_LIMIT+.0001]},atlas)[0].accepted,false);
  const converter=new Grid60Converter(atlas);converter.native={adapterInfo:{software:false},match:async()=>({indices:[0],scores:[.99]})};
  const pixels=new Uint8ClampedArray(60*60*4);for(let y=0;y<60;y++)for(let x=0;x<60;x++){const p=(y*60+x)*4;pixels[p]=pixels[p+1]=pixels[p+2]=x>30?255:0;pixels[p+3]=255;}
  assert.equal(await converter.convertAccelerated(pixels,2,1,{mode4Diagnostics:true}),MODE4_SPACE+'\r\n');
@@ -59,4 +59,31 @@ test('Gaussian sigma8 is symmetric and preserves constant regions',()=>{
  const a=new Float32Array(61*61);a[30*61+30]=1;const b=gaussianFrame(a,61,61,8);
  assert.ok(Math.abs(b[30*61+22]-b[30*61+38])<1e-8);
  assert.ok(gaussianFrame(new Float32Array(61*61).fill(.4),61,61,8).every(x=>Math.abs(x-.4)<1e-6));
+});
+
+test('principal contours retain a continuing outline over a slightly longer isolated stroke',()=>{
+ const w=60,h=30,raw=new Float32Array(w*h);
+ for(let x=5;x<=55;x++)raw[15*w+x]=1;
+ for(let x=2;x<=27;x++)raw[5*w+x]=1;
+ const filtered=principalContours(raw,w,h);
+ for(let x=5;x<=55;x++)assert.equal(filtered[15*w+x],1);
+ for(let x=2;x<=27;x++)assert.equal(filtered[5*w+x],0);
+ for(let i=0;i<raw.length;i++)assert.ok(filtered[i]<=raw[i],'must not invent contour pixels');
+ assert.equal(principalContours(new Float32Array(w*h),w,h).some(x=>x),false);
+});
+test('paired Gaussian matches direct separable convolution including image boundaries',()=>{
+ function direct(src,w,h,sigma){
+  if(!sigma)return Float32Array.from(src);
+  const r=Math.ceil(sigma*3),k=Float32Array.from({length:2*r+1},(_,i)=>Math.exp(-.5*((i-r)/sigma)**2)),sum=k.reduce((a,b)=>a+b);
+  for(let i=0;i<k.length;i++)k[i]/=sum;
+  const tmp=new Float32Array(src.length),out=new Float32Array(src.length);
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){let s=0;for(let d=-r;d<=r;d++)s+=src[y*w+Math.max(0,Math.min(w-1,x+d))]*k[d+r];tmp[y*w+x]=s;}
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){let s=0;for(let d=-r;d<=r;d++)s+=tmp[Math.max(0,Math.min(h-1,y+d))*w+x]*k[d+r];out[y*w+x]=s;}
+  return out;
+ }
+ for(const [w,h] of [[7,3],[61,37]])for(const sigma of [0,1,8,12,24]){
+  const source=Float32Array.from({length:w*h},(_,i)=>((i*7919+31)%65521)/65521);
+  const expected=direct(source,w,h,sigma),actual=gaussianFrame(source,w,h,sigma);
+  for(let i=0;i<source.length;i++)assert.ok(Math.abs(actual[i]-expected[i])<=1e-6);
+ }
 });
