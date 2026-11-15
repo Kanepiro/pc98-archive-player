@@ -1,3 +1,4 @@
+import {drawMode4Grid as draw60,validateGridFrame as validate60} from './tsl-mode4-grid60.js';
 import {drawMode4Grid,validateGridFrame} from './tsl-mode4-grid.js';
 import {taslCanvasFont,assertTaslGlyphs} from './tasl-font.js';
 // Adapted from the user's TSL_Viewer.html. Timing uses an absolute clock.
@@ -7,6 +8,7 @@ export function parseTSL(text){
  if(chunks.length<4)throw Error('TSLの改ページ区切りがありません');
  const native16=chunks[0].split('\n').some(line=>line.trim()==='# PC98_FONT_16X16');
  const timing=chunks[0].match(/^# TASL_MODE4_TIMING ([0-9.]+) ([0-9.]+)$/m);
+ const mode4Cell60=chunks[0].split('\n').some(line=>line.trim()==='# TASL_MODE4_CELL60');
  const mode4Cell120=chunks[0].split('\n').some(line=>line.trim()==='# TASL_MODE4_CELL120');
  const hdr=[],names=[];
  for(const line of chunks[0].split('\n')){
@@ -17,6 +19,7 @@ export function parseTSL(text){
  if(!Number.isInteger(count)||count<1||count>10000||!Number.isInteger(width)||width<1||width>(native16?480:200)||!Number.isInteger(height)||height<1||height>(native16?240:100))throw Error('TSLの画面数またはサイズが不正です');
  if(chunks.length<count+3)throw Error('TSLの画面データが不足しています');
  const frames=chunks.slice(2,2+count).map(s=>s.replace(/\n+$/,''));
+ if(mode4Cell60)for(const frame of frames)validate60(frame.split("\n"),width,height);
  if(mode4Cell120)for(const frame of frames)validateGridFrame(frame.split('\n'),width,height);
  const schedule=[];let duration=0;
  for(const line of chunks[1].split('\n')){
@@ -27,12 +30,12 @@ export function parseTSL(text){
  }
  if(!schedule.length)for(let i=0;i<count;i++){schedule.push({frame:i,start:duration});duration+=.1;}
  let mode4Fps=null;
- if(mode4Cell120&&timing){
+ if((mode4Cell60||mode4Cell120)&&timing){
   mode4Fps=Number(timing[1]);const seconds=Number(timing[2]);
   if(!Number.isFinite(mode4Fps)||mode4Fps<1||mode4Fps>30||!Number.isFinite(seconds)||seconds<=0||seconds>7200||Math.ceil(seconds*mode4Fps)!==count)throw Error('モード4の時刻情報が不正です');
   schedule.length=0;for(let i=0;i<count;i++)schedule.push({frame:i,start:i/mode4Fps});duration=seconds;
  }
- return {frames,schedule,duration,width,height,title:names.join(' / '),version:hdr[0],native16,mode4Cell120,mode4Fps};
+ return {frames,schedule,duration,width,height,title:names.join(' / '),version:hdr[0],native16,mode4Cell60,mode4Cell120,mode4Fps};
 }
 export function tslFrameAt(data,seconds){
  let low=0,high=data.schedule.length;
@@ -40,6 +43,7 @@ export function tslFrameAt(data,seconds){
  return data.schedule[low].frame;
 }
 export function drawTSL(canvas,data,index,{cellWidth=data.native16?8:12,cellHeight=data.native16?16:24,fontSize=data.native16?16:20,foreground='#e3f4e8',background='#080d12'}={}){
+ if(data.mode4Cell60)return draw60(canvas,data,index,{foreground,background});
  if(data.mode4Cell120)return drawMode4Grid(canvas,data,index,{foreground,background});
  assertTaslGlyphs(data.frames[index]);
  const cw=cellWidth,ch=cellHeight,w=Math.round(data.width*cw),h=Math.round(data.height*ch);
