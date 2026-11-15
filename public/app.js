@@ -208,14 +208,12 @@ $('diagnostics').onclick=()=>{
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;$('install').hidden=false;});
 $('install').onclick=async()=>{if(installPrompt){await installPrompt.prompt();installPrompt=null;$('install').hidden=true;}};
 async function setupOffline(){
- if(!('serviceWorker' in navigator))return;
- try{
-  swRegistration=await navigator.serviceWorker.register('/sw.js?v=0.3.42-rc2',{updateViaCache:'none'});await navigator.serviceWorker.ready;
-  swRegistration.update().catch(()=>{});
-  $('offline').textContent='オフライン準備済み';
-  const show=()=>{if(swRegistration.waiting)$('update').hidden=false;};show();
-  swRegistration.addEventListener('updatefound',()=>swRegistration.installing?.addEventListener('statechange',show));
- }catch(e){$('offline').textContent='オフライン保存は利用できません';log('offline-error',{message:e.message});}
+ // The native EXE ships its assets; do not reuse a prior localhost PWA cache.
+ $('offline').textContent='Windows同梱プログラム';
+ if('serviceWorker' in navigator){
+  try{const registration=await navigator.serviceWorker.getRegistration('/');await registration?.unregister();}
+  catch(e){log('native-cache-cleanup',{message:e.message});}
+ }
 }
 $('update').onclick=()=>{stop();if(swRegistration?.waiting)swRegistration.waiting.postMessage({type:'activate'});else location.reload();};
 let hadServiceWorkerController=!!navigator.serviceWorker?.controller;
