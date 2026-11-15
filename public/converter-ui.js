@@ -191,7 +191,9 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
    if(result.metricsUrl){metricsLink.href=result.metricsUrl;metricsLink.hidden=false;}
    $('tsl-result').hidden=false;
    $('converter-status').textContent=directMP4?'TSL完成。元音声付きMP4を作成中…':'変換が完了しました';
-   $('converter-detail').textContent=(mode==='pc98'
+   $('converter-detail').textContent=(result.plan.mode4Cell120
+    ?result.plan.width/2+' × '+result.plan.height+'マス · '+result.plan.width/2*result.plan.height+'文字'
+    :mode==='pc98'
     ?'元動画から自動算出 · 全角'+Math.floor(result.plan.width/2)+'×'+result.plan.height+'文字相当（半角'+result.plan.width+'列）'
     :result.plan.width+' × '+result.plan.height+'文字')+
     (result.plan.mode4Cell120?' · 120×120px固定・170文字':result.plan.native16?' · 全角16×16ドット（半角8×16）':' · 約'+Number($('video-font-px').value)+'px')+
