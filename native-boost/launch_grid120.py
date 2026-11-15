@@ -1,4 +1,4 @@
-"""Boot the isolated 60px candidate using its packaged Python runtime."""
+"""Boot the 60px release using its packaged Python runtime."""
 import sys,os,runpy
 from pathlib import Path
 root=Path(__file__).resolve().parents[1]
@@ -9,6 +9,4 @@ sys.executable=str(root/'TASL-PC-Boost.exe')
 sys._MEIPASS=str(root/'_internal')
 dll_dirs=[os.add_dll_directory(str(p)) for p in [root,root/'_internal'] if p.is_dir()]
 sys.path.insert(0,str(root/'python-source'))
-os.environ.setdefault('TASL_BOOST_PORT','39092')
-os.environ.setdefault('TASL_BOOST_DATA_DIR',str(Path(os.environ['LOCALAPPDATA'])/'TASL-Mode4-60-RC5-Test'))
 runpy.run_path(str(root/'python-source/bridge.py'),run_name='__main__')
