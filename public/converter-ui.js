@@ -1,4 +1,4 @@
-import {mode4Grid,MODE4_ENGINE} from './tsl-mode4-grid.js';
+import {mode4Grid,MODE4_ENGINE} from './tsl-mode4-grid60.js';
 import {convertVideo} from './video-to-tsl.js';
 import {analyzeVideoTone} from './tsl-auto-settings.js';
 import {tslName,portraitGridForPixels,landscapeGridForPixels,native16PortraitGrid,native16LandscapeGrid,pc98GridFromPixels} from './tsl-converter-core.js';
@@ -55,7 +55,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  }
  function busy(value){
   for(const id of ['video-file','video-choose','converter-settings','video-direct-mp4'])$(id).disabled=value;
-  const missingDimensions=$('video-mode').value==='pc98'&&!sourceDimensions;
+  const missingDimensions=($('video-mode').value==='pc98'||$('video-style').value==='artisan')&&!sourceDimensions;
   $('convert-tsl').disabled=value||!selected||missingDimensions;
   $('cancel-tsl').hidden=!controller;
   $('auto-tune').disabled=!!controller||(!tuningController&&(!selected||missingDimensions));
@@ -132,6 +132,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   let last=0;
   try{
    const mode=$('video-mode').value;
+   if($('video-style').value==='artisan')await sourceSizePromise;
    const grid=selectedGrid();
    const {width,height}=grid;
    result=await convertVideo(file,{signal:controller.signal,width,height,
@@ -167,7 +168,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
        ?'SwiftShader等のソフトウェアGPUを除外しCPU処理'
        :'';
      const perf=p.plan.conversionMode==='artisan'&&p.perf
-      ?' · 輪郭CPU '+Math.round(p.perf.prepareMs)+'ms / GPU計算・転送 '+Math.round(p.perf.gpuMs)+'ms / 組版CPU '+Math.round(p.perf.layoutMs)+'ms · 配置 '+p.perf.accepted+' / 空白 '+p.perf.blank+'マス'
+      ?' · 輪郭CPU '+Math.round(p.perf.prepareMs)+'ms / 170文字の字形照合 '+Math.round(p.perf.matchMs)+'ms · 配置 '+p.perf.accepted+' / 空白 '+p.perf.blank+'マス'
       :'';
      $('converter-detail').textContent=(p.plan.reduced?'長尺のため自動調整 · ':'')+p.plan.effectiveFps.toFixed(2)+' fps · '+(p.acceleration==='WebGPU'?'WebGPU使用':p.acceleration==='CPU（GPU精度照合）'?'CPU処理（GPUとの精度差）':'CPU処理')+(gpuName?' · '+gpuName:'')+perf+' · 残り約'+Math.ceil(p.remaining)+'秒 · 途中保存済み '+p.saved.toLocaleString()+'画面';
     }});
@@ -270,7 +271,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   $('video-font-px').disabled=pc||native16||artisan;
   $('video-fit').disabled=pc||artisan;
   if(artisan){
-   try{const g=selectedGrid();$('layout-hint').textContent='モード4：60×60px固定 / '+g.columns+'×'+g.height+'マス / '+g.columns*g.height+'文字。170文字の形状照合。端数は余白を追加します。';}
+   try{const g=selectedGrid();$('layout-hint').textContent='モード4：60×60px固定 / '+g.columns+'×'+g.height+'マス / '+g.columns*g.height+'マスまで配置可能。不合格は空白。170文字の形状照合。端数は余白を追加します。';}
    catch(e){$('layout-hint').textContent='モード4：60×60px固定。'+e.message;}
    return;
   }
