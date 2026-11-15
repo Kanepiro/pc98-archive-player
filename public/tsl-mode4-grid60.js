@@ -1,8 +1,11 @@
 import {GLYPH_BOUNDS,validateOffsets} from './mode4-position60.js';
 import {MODE4_CHARS,MODE4_BYTES,MODE4_MASK_SHA256} from './mode4-palette60.js';
-// Symmetric chamfer error: glyph-only strokes and missed target strokes have equal weight.
+// Precision-weighted chamfer: penalize extra glyph strokes more than omitted contours.
+// Role scaling keeps the existing CPU/DirectCompute dot-product protocol identical.
 // Features: 576 normalized ink weights followed by 576 truncated distance values.
-export function shapeDescriptor(mask){
+export function shapeDescriptor(mask,role='neutral'){
+ if(!['neutral','target','glyph'].includes(role))throw Error('Shape descriptor role invalid');
+ const scale=role==='target'?2*MODE4_GLYPH_PRECISION:role==='glyph'?2*(1-MODE4_GLYPH_PRECISION):1;
  const n=24,weights=Float32Array.from(mask,v=>v>=.18?v:0),distance=new Float32Array(576).fill(100);
  let sum=0;for(let i=0;i<576;i++){sum+=weights[i];if(weights[i])distance[i]=0;}
  for(let y=0;y<n;y++)for(let x=0;x<n;x++){const i=y*n+x;let v=distance[i];
@@ -14,12 +17,13 @@ export function shapeDescriptor(mask){
   if(x<n-1&&y<n-1)v=Math.min(v,distance[i+n+1]+Math.SQRT2);if(x&&y<n-1)v=Math.min(v,distance[i+n-1]+Math.SQRT2);distance[i]=v;
  }
  const out=new Float32Array(1152);
- for(let i=0;i<576;i++){out[i]=sum?weights[i]/sum:0;out[576+i]=Math.min(1,Math.max(0,distance[i]-.5)/2.5);}
+ for(let i=0;i<576;i++){out[i]=sum?weights[i]/sum:0;out[576+i]=scale*Math.min(MODE4_DISTANCE_CAP,Math.max(0,distance[i]-.5)/2.5);}
  return out;
 }
 export function glyphScore(t,g){let loss=0;for(let i=0;i<576;i++)loss+=.5*g[i]*t[i+576]+.5*t[i]*g[i+576];return loss;}
-export const MODE4_CELL=60,MODE4_SAMPLE=24,MODE4_ENGINE=6004,MODE4_BLUR_SIGMA=8;
-export const MODE4_LIMIT=0.28,MODE4_EDGE_HIGH=0.025,MODE4_EDGE_LOW=0.0125,MODE4_MIN_EDGE=8;
+export const MODE4_CELL=60,MODE4_SAMPLE=24,MODE4_ENGINE=6005,MODE4_BLUR_SIGMA=8;
+export const MODE4_GLYPH_PRECISION=.65,MODE4_DISTANCE_CAP=2;
+export const MODE4_LIMIT=0.34,MODE4_EDGE_HIGH=0.025,MODE4_EDGE_LOW=0.0125,MODE4_MIN_EDGE=8;
 export const MODE4_SPACE='　';
 const chars=[...MODE4_CHARS],ids=new Map(chars.map((c,i)=>[c,i]));
 const state=globalThis[Symbol.for('tasl.mode4.grid60.v1')]??={promise:null,masks:null,tints:new Map()};
@@ -140,7 +144,7 @@ export async function makeMode4Atlas(){
   for(const [dx,dy] of offsets){
    const shifted=new Float32Array(576);
    for(let y=0;y<24;y++)for(let x=0;x<24;x++){const nx=x+dx/2.5,ny=y+dy/2.5;if(nx>=0&&nx<24&&ny>=0&&ny<24)shifted[ny*24+nx]=mask[y*24+x];}
-   const features=shapeDescriptor(shifted),ink=[];
+   const features=shapeDescriptor(shifted,'glyph'),ink=[];
    for(let k=0;k<576;k++)if(features[k])ink.push(k);
    atlas.push({char:chars[i],glyph:i,columns:2,dx,dy,features,ink});
   }
@@ -214,7 +218,7 @@ export function prepareMode4Targets(pixels,width,height,options={}){
  for(let cy=0;cy<height;cy++)for(let cx=0;cx<width/2;cx++){
   const cell=new Float32Array(900);let count=0;
   for(let y=0;y<30;y++)for(let x=0;x<30;x++){const i=(cy*30+y)*w+cx*30+x;cell[y*30+x]=ink[i];count+=edges[i];}
-  targets.push(shapeDescriptor(areaSample(cell,30,30,24)));counts.push(count);
+  targets.push(shapeDescriptor(areaSample(cell,30,30,24),'target'));counts.push(count);
  }
  targets.edgeCounts=counts;if(options.mode4DebugImage)targets.contours={pixels:edges,rawPixels:rawEdges,width:w,height:h};
  return targets;
@@ -258,7 +262,7 @@ export class Grid60Converter{
   const decisions=judgeMode4(targets,result,this.atlas,options),accepted=decisions.filter(d=>d.accepted).length;
   this.lastOffsets=Uint8Array.from(decisions.flatMap(d=>[d.x+60,d.y+60]));
   this.lastAudit=options.mode4Diagnostics?decisions:null;
-  this.lastPerf={prepareMs:prepared-start,matchMs:performance.now()-prepared,totalMs:performance.now()-start,candidates:170,positions:this.atlas.length,cells:targets.length,accepted,blank:targets.length-accepted,limit:options.mode4ScoreLimit??MODE4_LIMIT,sigma:options.mode4BlurSigma??MODE4_BLUR_SIGMA};
+  this.lastPerf={prepareMs:prepared-start,matchMs:performance.now()-prepared,totalMs:performance.now()-start,candidates:170,positions:this.atlas.length,cells:targets.length,accepted,blank:targets.length-accepted,limit:options.mode4ScoreLimit??MODE4_LIMIT,sigma:options.mode4BlurSigma??MODE4_BLUR_SIGMA,glyphPrecision:MODE4_GLYPH_PRECISION,distanceCap:MODE4_DISTANCE_CAP};
   const rows=[];for(let y=0;y<height;y++)rows.push(decisions.slice(y*width/2,(y+1)*width/2).map(d=>d.output).join(''));
   return rows.join('\r\n')+'\r\n';
  }
