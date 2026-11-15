@@ -15,10 +15,11 @@ await mkdir('dist',{recursive:true});await cp('public','dist',{recursive:true});
 await cp('licenses','dist/licenses',{recursive:true});await cp('LICENSE','dist/LICENSE');
 // Bundle the exporter and its AAC fallback locally for offline use; keep license notices.
 await build({entryPoints:['public/mp4-export.js'],outfile:'dist/mp4-export.js',platform:'browser',format:'esm',bundle:true,minify:true,legalComments:'eof'});
+await build({entryPoints:['public/video-frame-reader.js'],outfile:'dist/video-frame-reader.js',platform:'browser',format:'esm',bundle:true,minify:true,legalComments:'eof'});
 await cp('node_modules/mediabunny/LICENSE','dist/licenses/mediabunny.txt');
 await cp('node_modules/@mediabunny/aac-encoder/LICENSE','dist/licenses/mediabunny-aac-encoder.txt');
 await cp('node_modules/@mediabunny/aac-encoder/licenses/ffmpeg','dist/licenses/ffmpeg-aac',{recursive:true});
-async function walk(dir,prefix=''){const a=[];for(const e of await readdir(dir,{withFileTypes:true})){if(e.isDirectory())a.push(...await walk(dir+'/'+e.name,prefix+e.name+'/'));else if(e.name!=='sw.js')a.push(prefix+e.name);}return a;}
+async function walk(dir,prefix=''){const a=[];for(const e of await readdir(dir,{withFileTypes:true})){if(e.name==='native-assets')continue;if(e.isDirectory())a.push(...await walk(dir+'/'+e.name,prefix+e.name+'/'));else if(e.name!=='sw.js')a.push(prefix+e.name);}return a;}
 const names=(await walk('dist')).sort();
 const digest=createHash('sha256');for(const name of names)digest.update(await readFile('dist/'+name));
 const version=digest.digest('hex').slice(0,16);
@@ -48,4 +49,14 @@ self.addEventListener('fetch',event=>{
   }
  })());
 });\n`);
-console.log('Built '+names.length+' assets, cache '+version);
+const nativeBase='native-assets/'+version;
+await mkdir('dist/'+nativeBase,{recursive:true});
+for(const name of names){
+ if(name==='index.html'||name.startsWith('native-assets/'))continue;
+ const target='dist/'+nativeBase+'/'+name;
+ await mkdir(target.slice(0,target.lastIndexOf('/')),{recursive:true});
+ await cp('dist/'+name,target);
+}
+const index=await readFile('dist/index.html','utf8');
+await writeFile('dist/index.html',index.replace(/src="\/app\.js[^"]*"/,'src="/'+nativeBase+'/app.js"'));
+console.log('Built '+names.length+' assets, native path '+nativeBase);

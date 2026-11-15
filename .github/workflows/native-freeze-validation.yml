@@ -1,0 +1,88 @@
+name: Windows freeze fix validation
+on:
+  push:
+    branches: [fix/native-video-freeze-20261115]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Reuse verified unchanged native GPU binaries
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Invoke-WebRequest 'https://github.com/Kanepiro/pc98-archive-player/releases/download/windows-v0.3.42-rc2/TASL-PC-Boost-v0.3.42-rc2-NativeGPU-Windows-x64.zip' -OutFile baseline.zip
+          if ((Get-FileHash baseline.zip -Algorithm SHA256).Hash.ToLower() -ne '15f3bb7c3f785f76d03a145f1ee89514426b48f46e6e93d0741fd9c1ba76029b') { throw 'Baseline package hash mismatch' }
+          Expand-Archive baseline.zip baseline
+          Add-Content $env:GITHUB_PATH "$pwd/baseline/TASL-PC-Boost"
+      - name: Validate reader, stale cache and original conversion tests
+        shell: pwsh
+        run: |
+          npm ci
+          if ($LASTEXITCODE -ne 0) { throw 'npm ci failed' }
+          npm test
+          if ($LASTEXITCODE -ne 0) { throw 'Unit tests failed' }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { throw 'Build failed' }
+          node tests/native-freeze.browser.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Cache and continuous reading test failed' }
+      - name: Package updated native host and isolated UI
+        shell: pwsh
+        run: |
+          pip install pyinstaller==6.16.0 onnxruntime-directml==1.23.0 numpy==1.26.4 opencv-python-headless==4.11.0.86
+          if ($LASTEXITCODE -ne 0) { throw 'Python runtime installation failed' }
+          python -m PyInstaller --noconfirm --clean --onedir --name TASL-PC-Boost --distpath native-dist --workpath native-temp --collect-all onnxruntime --collect-all cv2 native-boost/bridge.py
+          if ($LASTEXITCODE -ne 0) { throw 'Portable build failed' }
+          $app = 'native-dist/TASL-PC-Boost'
+          Get-ChildItem baseline/TASL-PC-Boost | Where-Object { $_.Name -notin @('app','_internal','TASL-PC-Boost.exe','SHA256SUMS.json','packaged-smoke.log') } | Copy-Item -Destination $app -Recurse -Force
+          Copy-Item dist $app/app -Recurse
+          Copy-Item native-boost/RELEASE-v0.3.43.md $app/README-FIRST-v0.3.43.md
+          python tests/packaged-smoke.py $app
+          if ($LASTEXITCODE -ne 0) { throw 'EXE smoke test failed' }
+          python tests/native-freeze-package.py $app
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged mode 4 export failed' }
+          Copy-Item freeze-validation $app/FREEZE-VALIDATION -Recurse
+          python -c "from pathlib import Path; import hashlib,json; r=Path('native-dist/TASL-PC-Boost'); (r/'SHA256SUMS.json').write_text(json.dumps({p.relative_to(r).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in r.rglob('*') if p.is_file() and p.name!='SHA256SUMS.json'},indent=2))"
+          Compress-Archive -Path $app -DestinationPath TASL-PC-Boost-v0.3.43-Windows-x64.zip
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: freeze-validation
+          path: |
+            freeze-validation/
+            native-dist/TASL-PC-Boost/packaged-smoke.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TASL-PC-Boost-v0.3.43-Windows-x64
+          path: TASL-PC-Boost-v0.3.43-Windows-x64.zip
+  release:
+    needs: windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: TASL-PC-Boost-v0.3.43-Windows-x64
+          path: release-assets
+      - name: Make the tested repair package available
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        run: |
+          branch_head=$(gh api repos/"$GH_REPO"/git/ref/heads/fix/native-video-freeze-20261115 --jq .object.sha)
+          if [ "$branch_head" != "$RELEASE_COMMIT" ]; then echo "Superseded build"; exit 0; fi
+          sha256sum release-assets/*.zip > release-assets/SHA256SUMS.txt
+          gh release create windows-v0.3.43 --prerelease release-assets/* --target "$RELEASE_COMMIT" --title "Windows v0.3.43 — 映像停止対策版" --notes-file native-boost/RELEASE-v0.3.43.md
