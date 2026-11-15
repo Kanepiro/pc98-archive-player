@@ -96,3 +96,29 @@ if(WIN32)
     "$<TARGET_FILE_DIR:${renderer}>/fonts/OFL.txt")
  endforeach()
 endif()
+
+if(WIN32)
+ add_executable(mode4_grid_gpu mode4_grid_gpu.cpp)
+ target_compile_features(mode4_grid_gpu PRIVATE cxx_std_17)
+ target_link_libraries(mode4_grid_gpu PRIVATE d3d11 dxgi d3dcompiler)
+ if(MSVC)
+  target_compile_options(mode4_grid_gpu PRIVATE /O2 /utf-8 /W3)
+  set_property(TARGET mode4_grid_gpu PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+ endif()
+endif()
+
+
+if(WIN32)
+ add_custom_command(TARGET mode4_grid_gpu POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+   "${CMAKE_CURRENT_SOURCE_DIR}/mode4_grid_gpu.hlsl"
+   "$<TARGET_FILE_DIR:mode4_grid_gpu>/mode4_grid_gpu.hlsl")
+ foreach(renderer tsl_render tsl_render_gpu)
+  add_custom_command(TARGET ${renderer} POST_BUILD
+   COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${CMAKE_CURRENT_SOURCE_DIR}/../public/mode4-atlas.bin"
+    "$<TARGET_FILE_DIR:${renderer}>/mode4-atlas.bin")
+ endforeach()
+ add_executable(grid120_launcher WIN32 grid120_launcher.cpp)
+ target_compile_features(grid120_launcher PRIVATE cxx_std_17)
+endif()

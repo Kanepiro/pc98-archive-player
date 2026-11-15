@@ -6,6 +6,7 @@
 #include <windows.h>
 #include <algorithm>
 #include <cstdint>
+#include <cmath>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -18,6 +19,7 @@
 #include <fcntl.h>
 #include <io.h>
 #include "tasl_private_font.hpp"
+#include "mode4_grid_raster.hpp"
 
 static int positive(const std::string& x){
  const int n=std::stoi(x);
@@ -37,7 +39,7 @@ static Params args(int argc,char** argv){
   else if(k=="--nv12")a.nv12=positive(v);
   else throw std::runtime_error("unknown argument");
  }
- if(a.input.empty()||a.fps<5||a.fps>30)throw std::runtime_error("invalid renderer options");
+ if(a.input.empty()||a.fps<1||a.fps>30)throw std::runtime_error("invalid renderer options");
  return a;
 }
 static std::vector<std::string_view> sections(const std::string& bytes){
@@ -64,7 +66,7 @@ struct TSL{
  std::vector<std::string_view> chunks;
  std::vector<int> ticks;
  int count=0,width=0,height=0,durationTicks=0;
- bool native16=false;
+ bool native16=false,mode4Cell120=false;double mode4Fps=0,mode4Duration=0;
  explicit TSL(const std::string& filename){
   std::ifstream src(filename,std::ios::binary);
   if(!src)throw std::runtime_error("TSL file not found");
@@ -77,7 +79,11 @@ struct TSL{
   count=positive(header[1]);width=positive(header[2]);height=positive(header[3]);
   if(count>10000||width>480||height>240||chunks.size()<size_t(count+3))
    throw std::runtime_error("TSL size/count invalid");
-  for(const auto& s:header)if(s=="# PC98_FONT_16X16")native16=true;
+  for(const auto& s:header){if(s=="# PC98_FONT_16X16")native16=true;if(s=="# TASL_MODE4_CELL120")mode4Cell120=true;}
+  for(const auto& s:header)if(s.rfind("# TASL_MODE4_TIMING ",0)==0){
+   std::istringstream is(s.substr(20));is>>mode4Fps>>mode4Duration;
+   if(!is||!std::isfinite(mode4Fps)||mode4Fps<1||mode4Fps>30||!std::isfinite(mode4Duration)||mode4Duration<=0||mode4Duration>7200||int(std::ceil(mode4Duration*mode4Fps))!=count)throw std::runtime_error("Mode4 timing invalid");
+  }
   ticks.reserve(count+1);
   int at=0;
   for(const std::string& line:lines(chunks[1])){
@@ -102,8 +108,9 @@ struct Surface{
  HBRUSH brush=nullptr;
  void* pixels=nullptr;
  int width=0,height=0,cw=0,ch=0;
- Surface(int cols,int rows,bool native){
-  cw=native?8:12;ch=native?16:24;
+ bool mode4Cell120=false;
+ Surface(int cols,int rows,bool native,bool grid120=false):mode4Cell120(grid120){
+  cw=grid120?60:native?8:12;ch=grid120?120:native?16:24;
   width=cols*cw;height=rows*ch;
   if(width<=0||height<=0||width>7680||height>5760)
    throw std::runtime_error("TSL output dimensions invalid");
@@ -141,6 +148,7 @@ struct Surface{
   if(hdc)DeleteDC(hdc);
  }
  void draw(std::string_view frame,int columns,int rows){
+  if(mode4Cell120){grid120Draw(pixels,width,height,frame,rows);return;}
   RECT rect{0,0,width,height};
   FillRect(hdc,&rect,brush);
   size_t pos=0;
@@ -179,15 +187,15 @@ int main(int argc,char** argv){
   _setmode(_fileno(stdout),_O_BINARY);
   const auto a=args(argc,argv);
   const TSL t(a.input);
-  Surface surface(t.width,t.height,t.native16);
-  const int frames=int((int64_t(t.durationTicks)*a.fps+59)/60);
+  Surface surface(t.width,t.height,t.native16,t.mode4Cell120);
+  const int frames=t.mode4Fps?int(std::ceil(t.mode4Duration*a.fps)):int((int64_t(t.durationTicks)*a.fps+59)/60);
   if(frames<1||frames>216000)throw std::runtime_error("bad requested frame count");
   const size_t size=size_t(surface.width)*size_t(surface.height)*4;
   int last=-1;
   for(int i=0;i<frames;i++){
    const int tick=int(int64_t(i)*60/a.fps);
    const auto it=std::upper_bound(t.ticks.begin(),t.ticks.end(),tick);
-   const int n=std::max(0,int(it-t.ticks.begin())-1);
+   const int n=t.mode4Fps?std::min(t.count-1,int(i*t.mode4Fps/a.fps+1e-8)):std::max(0,int(it-t.ticks.begin())-1);
    if(n!=last){surface.draw(t.frame(n),t.width,t.height);last=n;}
    std::cout.write((const char*)surface.pixels,std::streamsize(size));
    if(!std::cout)throw std::runtime_error("writing raw video failed");

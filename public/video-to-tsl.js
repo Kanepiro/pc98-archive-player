@@ -2,7 +2,7 @@ import {ensureTaslFont} from './tasl-font.js';
 import {makePlan,fitRect,densityRamp,TSLWriter,optionsFor,pc98GridFromPixels,pc98SourceDrawRect} from './tsl-converter-core.js';
 import {drawTSL} from './tsl.js';
 import {makeGlyphAtlas} from './tsl-quality.js';
-import {makeArtisanGlyphAtlas} from './tsl-artisan.js';
+import {mode4Grid,makeMode4Atlas,MODE4_ENGINE} from './tsl-mode4-grid.js';
 import {fileIdentity,fingerprint,readCheckpoint,beginCheckpoint,appendCheckpoint} from './tsl-checkpoint.js';
 
 const aborted=()=>new DOMException('変換を中止しました','AbortError');
@@ -55,7 +55,7 @@ function readQualityState(worker,signal){
 }
 export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIssue=()=>{},checkpointConfig={},...input}={}) {
  await ensureTaslFont();
- check(signal);const taskStarted=performance.now();let options=optionsFor(input);
+ check(signal);const taskStarted=performance.now();let options=optionsFor({...input,...(input.conversionMode==='artisan'?{mode4Cell120:true}:{})});
  const {fit='contain',positionX=.5,positionY=.5,sourceGrid=false}=input;
  if(!['contain','cover'].includes(fit)||![positionX,positionY].every(x=>Number.isFinite(x)&&x>=0&&x<=1))throw Error('切り抜き設定が不正です');
  if(!file||file.size===0)throw Error('空のファイルです');
@@ -72,16 +72,17 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   if(video.videoWidth*video.videoHeight>3840*2160)throw Error('動画の解像度は4K（約830万画素）以下にしてください');
   // Source-resolution PC-98 mode always derives the grid from actual decoded
   // video metadata, never a size preset or a stale UI value.
-  if(sourceGrid){
+  if(options.conversionMode==='artisan')options=optionsFor({...options,...mode4Grid(video.videoWidth,video.videoHeight)});
+  else if(sourceGrid){
    const native=pc98GridFromPixels(video.videoWidth,video.videoHeight);
    options=optionsFor({...options,width:native.width,height:native.height,native16:true});
   }
   const plan=makePlan(video.duration,options);
   const canvas=document.createElement('canvas'),sample=options.conversionMode==='artisan'
    ?(plan.width*plan.height<=3000?10:6):options.conversionMode==='quality'?6:4;
-  canvas.width=plan.width*sample;canvas.height=plan.height*sample;
+  canvas.width=options.mode4Cell120?plan.width*60:plan.width*sample;canvas.height=options.mode4Cell120?plan.height*120:plan.height*sample;
   const ctx=canvas.getContext('2d',{willReadFrequently:true,alpha:false});
-  const rect=sourceGrid?
+  const rect=options.mode4Cell120?{x:Math.floor((canvas.width-video.videoWidth)/2),y:Math.floor((canvas.height-video.videoHeight)/2),width:video.videoWidth,height:video.videoHeight}:sourceGrid?
    pc98SourceDrawRect(video.videoWidth,video.videoHeight,canvas.width,canvas.height,positionX,positionY):
    fitRect(video.videoWidth,video.videoHeight,canvas.width,canvas.height,.5,fit,positionX,positionY);
   const ramp=options.conversionMode==='legacy'?calibrateRamp():undefined;
@@ -90,8 +91,8 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   // The video itself is deliberately NOT persisted.
   try{
    const identity=fileIdentity(file);
-   const baseEngineVersion=options.conversionMode==='artisan'?22:options.conversionMode==='quality'?(options.native16?48:47):options.conversionMode==='halftone'?(options.native16?55:54):(options.native16?43:42);
-   const engineVersion=baseEngineVersion+(sourceGrid?20:0);
+   const baseEngineVersion=options.conversionMode==='artisan'?MODE4_ENGINE:options.conversionMode==='quality'?(options.native16?48:47):options.conversionMode==='halftone'?(options.native16?55:54):(options.native16?43:42);
+   const engineVersion=baseEngineVersion+(!options.mode4Cell120&&sourceGrid?20:0);
    const signature=JSON.stringify([engineVersion,identity,await fingerprint(file),
     [options.width,options.height,options.fps,options.brightness,options.contrast,options.gamma,options.edge,options.conversionMode,options.native16,sourceGrid,fit,positionX,positionY],
     [video.videoWidth,video.videoHeight,video.duration,plan.count],!!input.exactNative,!!input.legacyLayout]);
@@ -125,7 +126,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
    worker=new Worker(new URL('./tsl-converter-worker.js',import.meta.url),{type:'module'});
    {
     const atlas=options.conversionMode==='artisan'
-     ?await makeArtisanGlyphAtlas(sample,signal,(done,total)=>onProgress({phase:'atlas',done,total}))
+     ?await makeMode4Atlas()
      :options.conversionMode==='quality'?makeGlyphAtlas(sample):null;
     await new Promise((resolve,reject)=>{
      check(signal);
@@ -143,20 +144,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
       exactNative:input.exactNative===true,legacyLayout:input.legacyLayout===true});
     });
    }
-   if(options.conversionMode==='artisan'){
-    onProgress({phase:'vision',message:'顔・動物・物体の認識モデルを準備しています'});
-    try{
-     const module=await import('./tsl-artisan-vision.js');
-     if(input.exactNative&&!input.legacyLayout){
-      try{const native=await import('./tsl-native-vision.js');vision=await native.createNativeVision({onStatus:message=>onProgress({phase:'vision',message})});}
-      catch(e){onProgress({phase:'vision',message:'DirectML認識を使えません: '+e.message});}
-     }
-     if(!vision)vision=await module.createArtisanVision({onStatus:message=>onProgress({phase:'vision',message})});
-     onProgress({phase:'vision',message:'顔・動物・物体を識別しながらAAを構成します'});
-    }catch(e){
-     onProgress({phase:'vision',message:'画像認識が利用できないため輪郭構造のみで処理します：'+e.message});
-    }
-   }
+
   }
   if(options.conversionMode==='artisan'&&resumeStart<plan.count){
    const {createVideoFrameReader}=await import('./video-frame-reader.js');
@@ -173,7 +161,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
    const detections=await vision?.detect(sourceFrame,rect,canvas.width,canvas.height,time)||[];
    // Recognition affects importance, never the user-selected framing.
    const frameRect=rect,semantic=detections;
-   ctx.fillStyle='#000';ctx.fillRect(0,0,canvas.width,canvas.height);
+   ctx.fillStyle=options.mode4Cell120?'#fff':'#000';ctx.fillRect(0,0,canvas.width,canvas.height);
    ctx.drawImage(sourceFrame,frameRect.x,frameRect.y,frameRect.width,frameRect.height);
    const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data;
    const converted=await convertFrame(worker,pixels,plan.width,plan.height,{...options,ramp,sample,semantic},signal);

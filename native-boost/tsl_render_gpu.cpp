@@ -14,7 +14,7 @@ struct GpuRaster {
  std::unordered_map<std::string,uint32_t> glyphIds;
  uint32_t width,height,cw,ch,ow,oh,fitW,fitH,nv12,byteCount,words;
  std::vector<uint32_t> cellData;
- GpuRaster(const TSL& t,const Params& options):width(t.width),height(t.height),cw(t.native16?8:12),ch(t.native16?16:24){
+ GpuRaster(const TSL& t,const Params& options):width(t.width),height(t.height),cw(t.mode4Cell120?60:t.native16?8:12),ch(t.mode4Cell120?120:t.native16?16:24){
   ow=options.outWidth?options.outWidth:width*cw;oh=options.outHeight?options.outHeight:height*ch;nv12=options.nv12?1:0;
   if(ow>7680||oh>5760||(nv12&&((ow|oh)&1)))throw std::runtime_error("invalid output geometry");
   double scale=std::min(double(ow)/(width*cw),double(oh)/(height*ch));
@@ -31,7 +31,7 @@ struct GpuRaster {
     std::string key=line.substr(i,len);if(!glyphIds.count(key))glyphIds[key]=(uint32_t)glyphIds.size();i+=len;
    }
   if(glyphIds.size()>12000)throw std::runtime_error("glyph atlas too large");
-  Surface font(2,1,t.native16);std::vector<uint32_t> atlas(glyphIds.size()*cw*2*ch);
+  Surface font(2,1,t.native16,t.mode4Cell120);std::vector<uint32_t> atlas(glyphIds.size()*cw*2*ch);
   for(const auto& pair:glyphIds){
    font.draw(pair.first+"\r\n",2,1);GdiFlush();
    std::memcpy(atlas.data()+pair.second*cw*2*ch,font.pixels,cw*2*ch*4);
@@ -83,9 +83,9 @@ int main(int argc,char** argv){
   if(argc==2&&std::string(argv[1])=="--probe"){NativeDirectCompute gpu;std::cout<<"DIRECTCOMPUTE_RASTER "<<gpu.gpuName<<"\n";return 0;}
   _setmode(_fileno(stdout),_O_BINARY);const auto a=args(argc,argv);const TSL t(a.input);GpuRaster raster(t,a);
   std::cerr<<"RASTER_BACKEND DirectCompute "<<raster.gpu.gpuName<<"\n";
-  const int frames=int((int64_t(t.durationTicks)*a.fps+59)/60);int last=-1;std::vector<uint32_t> image;
+  const int frames=t.mode4Fps?int(std::ceil(t.mode4Duration*a.fps)):int((int64_t(t.durationTicks)*a.fps+59)/60);int last=-1;std::vector<uint32_t> image;
   for(int i=0;i<frames;i++){
-   int tick=int(int64_t(i)*60/a.fps),n=std::max(0,int(std::upper_bound(t.ticks.begin(),t.ticks.end(),tick)-t.ticks.begin())-1);
+   int tick=int(int64_t(i)*60/a.fps),n=t.mode4Fps?std::min(t.count-1,int(i*t.mode4Fps/a.fps+1e-8)):std::max(0,int(std::upper_bound(t.ticks.begin(),t.ticks.end(),tick)-t.ticks.begin())-1);
    if(n!=last){image=raster.draw(t.frame(n));last=n;}
    std::cout.write((char*)image.data(),raster.byteCount);if(!std::cout)throw std::runtime_error("video pipe closed");
    if((i+1)%24==0||i+1==frames)std::cerr<<"RENDER "<<i+1<<"/"<<frames<<"\n";

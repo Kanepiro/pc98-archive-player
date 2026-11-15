@@ -53,7 +53,9 @@ export function readCheckpoint(){
   let job=null,chunks=null,qualityState=null,loadedState=false;
   const report=()=>{if(chunks!==null&&loadedState)set(job?{job,chunks,qualityState}:null);};
   tx.objectStore('job').get(KEY).onsuccess=e=>{job=e.target.result||null;report();};
-  tx.objectStore('chunks').getAll().onsuccess=e=>{chunks=e.target.result;report();};
+  tx.objectStore('chunks').getAll().onsuccess=e=>{
+   chunks=e.target.result.map(c=>c.bytes instanceof ArrayBuffer?{...c,blob:new Blob([c.bytes],{type:'application/octet-stream'})}:c);report();
+  };
   tx.objectStore('state').get(KEY).onsuccess=e=>{
    qualityState=e.target.result?.value||null;loadedState=true;report();
   };
@@ -65,14 +67,18 @@ export function beginCheckpoint(job){
   tx.objectStore('job').put({...job,key:KEY,done:0});
  });
 }
-export function appendCheckpoint(job,start,parts,qualityState=null){
- if(!parts.length)return Promise.resolve();
+export async function appendCheckpoint(job,start,parts,qualityState=null){
+ if(!parts.length)return;
+ // Mode 4 uses ArrayBuffer storage: WebKit can reject Blob writes to IndexedDB.
+ // Materialize before opening the transaction; older checkpoints remain readable.
+ const blob=new Blob(parts,{type:'application/octet-stream'});
+ const payload=job.engineVersion===1202?{bytes:await blob.arrayBuffer()}:{blob};
  return transact('readwrite',tx=>{
   const store=tx.objectStore('job');
   store.get(KEY).onsuccess=e=>{
    const active=e.target.result;
    if(!active||active.id!==job.id||active.done!==start){tx.abort();return;}
-   tx.objectStore('chunks').put({start,count:parts.length,blob:new Blob(parts,{type:'application/octet-stream'})});
+   tx.objectStore('chunks').put({start,count:parts.length,...payload});
    if(qualityState)tx.objectStore('state').put({key:KEY,value:qualityState});
    store.put({...active,done:start+parts.length,updatedAt:Date.now()});
   };

@@ -1,6 +1,6 @@
 import {rgbaToASCII} from './tsl-converter-core.js';
 import {QualityConverter} from './tsl-quality.js';
-import {ArtisanComposer} from './tsl-artisan-engine.js';
+import {Grid120Converter} from './tsl-mode4-grid.js';
 import {rgbaToHalftone} from './tsl-halftone.js';
 import {NativeModeConverter} from './tsl-native-modes.js';
 let quality=null,tones=null,gpuUnavailableReason='';
@@ -11,12 +11,12 @@ self.onmessage=async({data:d})=>{
     tones=null;gpuUnavailableReason='';
     try{tones=await NativeModeConverter.create(d.mode==='legacy'?1:2,d.sample,d.width,d.height);}catch(e){gpuUnavailableReason=String(e);}
    }else{
-    quality=d.mode==='artisan'?new ArtisanComposer(d.atlas,d.sample):new QualityConverter(d.atlas,d.sample);
+    quality=d.mode==='artisan'?new Grid120Converter(d.atlas):new QualityConverter(d.atlas,d.sample);
     quality.restore(d.state);
     // PC Boost: real Windows DirectCompute D3D11, NOT WebGPU.
     // Fall back to exact C++ CPU when the native GPU is unavailable.
     if(d.mode==='artisan')
-     await quality.enablePCBoost(d.width,d.height);
+     await quality.enableNativeGPU(d.width,d.height);
     else await quality.enableNativeGPU(d.width,d.height);
     if(d.mode==='artisan'&&d.exactNative&&d.legacyLayout){quality.fullGpuLayout=null;quality.nativeContour=null;}
    }

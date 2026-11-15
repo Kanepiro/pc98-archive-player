@@ -22,7 +22,8 @@ def metadata(tsl):
     native16 = "# PC98_FONT_16X16" in lines
     if not 1 <= width <= 480 or not 1 <= height <= 240:
         raise ValueError("TSL grid out of range")
-    return width * (8 if native16 else 12), height * (16 if native16 else 24)
+    grid120 = "# TASL_MODE4_CELL120" in lines
+    return width * (60 if grid120 else 8 if native16 else 12), height * (120 if grid120 else 16 if native16 else 24)
 
 
 def nvenc_probe(ffmpeg):
@@ -151,7 +152,10 @@ def run_mp4(job, executable):
         # Match original video's shape; PC-98 1920x1072 is padded to 1920x1080.
         out_width = max(2, int(job.plan["sourceWidth"]) // 2 * 2)
         out_height = max(2, int(job.plan["sourceHeight"]) // 2 * 2)
-        fps = max(5, min(30, round(float(job.options.get("fps", 24)))))
+        grid120 = b"# TASL_MODE4_CELL120" in job.output.read_bytes()[:8192]
+        if grid120:
+            out_width, out_height = native_width, native_height
+        fps = max(1 if grid120 else 5, min(30, round(float(job.options.get("fps", 24)))))
         with job.lock:
             job.mp4_total = math.ceil(int(job.plan["ticks"]) * fps / 60)
             job.mp4_width, job.mp4_height = out_width, out_height

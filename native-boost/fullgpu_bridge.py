@@ -148,3 +148,16 @@ class ModesGpuClient(FullGpuClient):
         if len(payload) != expected:
             raise ValueError("Native mode payload length")
         return 48+4*cells+(8*n if mode == 3 else 0)
+
+class Grid120GpuClient(FullGpuClient):
+    program_name = "mode4_grid_gpu"
+    marker = b"DIRECTCOMPUTE_GRID120 "
+    def validate(self, payload):
+        if len(payload) < 32:
+            raise ValueError("Grid120 header missing")
+        magic, version, cells, glyphs, features, _, _, _ = struct.unpack_from("<8I", payload)
+        if magic != 0x30324754 or version != 1 or not 1 <= cells <= 4096 or glyphs != 170 or features != 469:
+            raise ValueError("Grid120 dimensions invalid")
+        if len(payload) != 32 + 4*(cells+glyphs)*features:
+            raise ValueError("Grid120 payload length invalid")
+        return 32 + 4*cells*glyphs
