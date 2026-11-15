@@ -18,8 +18,8 @@ export function shapeDescriptor(mask){
  return out;
 }
 export function glyphScore(t,g){let loss=0;for(let i=0;i<576;i++)loss+=.5*g[i]*t[i+576]+.5*t[i]*g[i+576];return loss;}
-export const MODE4_CELL=60,MODE4_SAMPLE=24,MODE4_ENGINE=6003,MODE4_BLUR_SIGMA=8;
-export const MODE4_LIMIT=0.21,MODE4_EDGE_HIGH=0.025,MODE4_EDGE_LOW=0.0125,MODE4_MIN_EDGE=8;
+export const MODE4_CELL=60,MODE4_SAMPLE=24,MODE4_ENGINE=6004,MODE4_BLUR_SIGMA=8;
+export const MODE4_LIMIT=0.28,MODE4_EDGE_HIGH=0.025,MODE4_EDGE_LOW=0.0125,MODE4_MIN_EDGE=8;
 export const MODE4_SPACE='　';
 const chars=[...MODE4_CHARS],ids=new Map(chars.map((c,i)=>[c,i]));
 const state=globalThis[Symbol.for('tasl.mode4.grid60.v1')]??={promise:null,masks:null,tints:new Map()};
@@ -71,11 +71,15 @@ export function drawMode4Grid(canvas,data,index,{foreground='#e3f4e8',background
  }
 }
 const kernels=new Map();
+function gaussianKernel(sigma){
+ let k=kernels.get(sigma);
+ if(!k){const r=Math.ceil(sigma*3);k=Float32Array.from({length:r*2+1},(_,i)=>Math.exp(-.5*((i-r)/sigma)**2));const sum=k.reduce((a,b)=>a+b);for(let i=0;i<k.length;i++)k[i]/=sum;kernels.set(sigma,k);}
+ return k;
+}
 export function gaussianFrame(src,w,h,sigma=8){
  if(!Number.isFinite(sigma)||sigma<0||sigma>24)throw Error('Gaussian sigma invalid');
  if(sigma===0)return Float32Array.from(src);
- let k=kernels.get(sigma);
- if(!k){const r=Math.ceil(sigma*3);k=Float32Array.from({length:r*2+1},(_,i)=>Math.exp(-.5*((i-r)/sigma)**2));const sum=k.reduce((a,b)=>a+b);for(let i=0;i<k.length;i++)k[i]/=sum;kernels.set(sigma,k);}
+ const k=gaussianKernel(sigma);
  const r=(k.length-1)/2,tmp=new Float32Array(src.length),out=new Float32Array(src.length);
  // The same symmetric Gaussian kernel, with paired taps and unclamped interior loops.
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
@@ -92,6 +96,29 @@ export function gaussianFrame(src,w,h,sigma=8){
  }
  return out;
 }
+// Fuse the existing Gaussian and 2x2 area reduction by linearity.
+// The kernel is still defined in SOURCE pixels (sigma 8, not sigma 4).
+export function gaussianHalfFrame(src,w,h,sigma=8){
+ if(w%2||h%2||src.length!==w*h)throw Error('Gaussian half geometry invalid');
+ if(!Number.isFinite(sigma)||sigma<0||sigma>24)throw Error('Gaussian sigma invalid');
+ const ow=w/2,oh=h/2,out=new Float32Array(ow*oh);
+ if(sigma===0){for(let y=0;y<oh;y++)for(let x=0;x<ow;x++){const i=y*2*w+x*2;out[y*ow+x]=(src[i]+src[i+1]+src[i+w]+src[i+w+1])*.25;}return out;}
+ const k=gaussianKernel(sigma),r=(k.length-1)/2,taps=Float64Array.from({length:k.length+1},(_,i)=>((k[i]??0)+(k[i-1]??0))*.5),tmp=new Float32Array(ow*h);
+ for(let y=0;y<h;y++)for(let x=0;x<ow;x++){
+  const base=x*2-r,row=y*w;let sum=0;
+  if(base>=0&&base+taps.length<=w){for(let j=0;j<taps.length;j++)sum+=src[row+base+j]*taps[j];}
+  else for(let j=0;j<taps.length;j++)sum+=src[row+Math.max(0,Math.min(w-1,base+j))]*taps[j];
+  tmp[y*ow+x]=sum;
+ }
+ for(let y=0;y<oh;y++)for(let x=0;x<ow;x++){
+  const base=y*2-r;let sum=0;
+  if(base>=0&&base+taps.length<=h){for(let j=0;j<taps.length;j++)sum+=tmp[(base+j)*ow+x]*taps[j];}
+  else for(let j=0;j<taps.length;j++)sum+=tmp[Math.max(0,Math.min(h-1,base+j))*ow+x]*taps[j];
+  out[y*ow+x]=sum;
+ }
+ return out;
+}
+
 // Exact area resampling, including fractional 60/24 boundaries.
 export function areaSample(src,w,h,n){
  const out=new Float32Array(n*n),sx=w/n,sy=h/n;
@@ -162,9 +189,8 @@ export function prepareMode4Targets(pixels,width,height,options={}){
  const gray=new Float32Array(W*H);
  for(let i=0;i<gray.length;i++){const k=i*4,a=pixels[k+3]/255;const l=(.2126*pixels[k]+.7152*pixels[k+1]+.0722*pixels[k+2])*a+255*(1-a);
  gray[i]=Math.pow(Math.min(1,Math.max(0,((l-127.5)*(options.contrast??1)+127.5+(options.brightness??0)*2.55)/255)),options.gamma??1);}
- const blurred=gaussianFrame(gray,W,H,options.mode4BlurSigma??MODE4_BLUR_SIGMA),w=W/2,h=H/2;
- const small=new Float32Array(w*h),mag=new Float32Array(w*h),direction=new Uint8Array(w*h),thin=new Float32Array(w*h);
- for(let y=0;y<h;y++)for(let x=0;x<w;x++){const p=y*2*W+x*2;small[y*w+x]=(blurred[p]+blurred[p+1]+blurred[p+W]+blurred[p+W+1])*.25;}
+ const w=W/2,h=H/2,small=gaussianHalfFrame(gray,W,H,options.mode4BlurSigma??MODE4_BLUR_SIGMA);
+ const mag=new Float32Array(w*h),direction=new Uint8Array(w*h),thin=new Float32Array(w*h);
  for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
   const i=y*w+x,gx=(small[i+1]-small[i-1])/2,gy=(small[i+w]-small[i-w])/2;
   mag[i]=Math.hypot(gx,gy);const a=(Math.atan2(gy,gx)*180/Math.PI+180)%180;direction[i]=a<22.5||a>=157.5?0:a<67.5?1:a<112.5?2:3;
