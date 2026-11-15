@@ -3,6 +3,7 @@ import {ensureTaslFont,assertTaslGlyphs} from './tasl-font.js';
 // Export is independent of screen capture and of live AudioWorklet playback.
 import {Output, BufferTarget, Mp4OutputFormat, CanvasSource, AudioBufferSource, AudioSampleSink, AudioSampleSource, EncodedAudioPacketSource, EncodedPacketSink, Input, ALL_FORMATS, BlobSource, Quality, canEncodeAudio} from 'mediabunny';
 import {registerAacEncoder} from '@mediabunny/aac-encoder';
+import {ensureMode4Atlas} from './tsl-mode4-grid.js';
 import {drawTSL, tslFrameAt} from './tsl.js';
 
 const MAX_SECONDS = 300;
@@ -112,6 +113,7 @@ async function exportMag(current, signal, onProgress) {
 async function exportTsl(current, signal, onProgress, onResolution, tslAppearance={}, maxPixels=Infinity, sourceAudioFile=null, onStage=()=>{}) {
   await ensureTaslFont();
   const data=current.data;
+  if(data.mode4Cell120)await ensureMode4Atlas();
   for(const frame of data.frames)assertTaslGlyphs(frame);
   if(data.duration>MAX_SECONDS)throw Error('この作品は5分を超えるためMP4書き出しの対象外です');
   let audioInput=null,audioTrack=null,audioMode=null;
@@ -127,11 +129,11 @@ async function exportTsl(current, signal, onProgress, onResolution, tslAppearanc
       if(audioMode==='sample'&&!(await audioTrack.canDecode()))
         throw Error('元動画の音声コーデックをデコードできません');
     }
-    const nativeWidth=data.width*(data.native16?8:12),nativeHeight=data.height*(data.native16?16:24);
+    const nativeWidth=data.width*(data.mode4Cell120?60:data.native16?8:12),nativeHeight=data.height*(data.mode4Cell120?120:data.native16?16:24);
     const near16x9=data.native16&&Math.abs(nativeWidth/nativeHeight/(16/9)-1)<.02;
     // 240x67 native PC-98 columns/rows yield 1920x1072. Preserve every
     // 16x16 pixel and center it with 4 black rows above/below in 1080p.
-    const sizes=near16x9
+    const sizes=data.mode4Cell120?[{width:nativeWidth,height:nativeHeight}]:near16x9
       ?[{width:1920,height:1080},{width:1280,height:720},...tslExportCandidates(nativeWidth,nativeHeight)]
       :tslExportCandidates(nativeWidth,nativeHeight);
     let canvas,output,video,audio,lastError;

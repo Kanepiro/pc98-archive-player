@@ -2,6 +2,7 @@
 import {qualityColumns,encodeQualityFrame} from './tsl-quality.js';
 import {halftoneColumns,encodeHalftoneFrame} from './tsl-halftone.js';
 import {artisanColumns,encodeArtisanFrame} from './tsl-artisan.js';
+import {validateGridFrame,encodeGridFrame} from './tsl-mode4-grid.js';
 export const CANDIDATE_RAMP = ' .:|/(%YVO8D@0#$';
 export const MAX_FRAMES = 10000;
 export const MAX_OUTPUT_BYTES = 192 * 1024 * 1024;
@@ -9,7 +10,7 @@ export const DEFAULTS = Object.freeze({width:79,height:27,fps:10,brightness:0,co
 export function optionsFor(input={}) {
  const o={...DEFAULTS,...input};
  if(typeof o.native16!=='boolean')throw Error('16ドット表示の設定が不正です');
- for(const [k,min,max] of [['width',4,o.native16?480:160],['height',4,o.native16?240:100],['fps',1,30],['brightness',-100,100],['contrast',.25,3],['gamma',.4,2.5],['edge',0,1]]) {
+ for(const [k,min,max] of [['width',o.mode4Cell120?2:4,o.native16?480:160],['height',o.mode4Cell120?1:4,o.native16?240:100],['fps',1,30],['brightness',-100,100],['contrast',.25,3],['gamma',.4,2.5],['edge',0,1]]) {
   if(!Number.isFinite(o[k])||o[k]<min||o[k]>max)throw Error('設定値が範囲外です: '+k);
  }
  if(!Number.isInteger(o.width)||!Number.isInteger(o.height))throw Error('文字数は整数で指定してください');
@@ -22,12 +23,13 @@ export function makePlan(duration,input={}) {
  const totalTicks=Math.max(1,Math.round(duration*60));
  const bytesPerFrame=(o.width+2)*o.height+3+24;
  const capacity=Math.min(MAX_FRAMES,Math.floor((MAX_OUTPUT_BYTES-4096)/bytesPerFrame));
+ if(o.mode4Cell120&&Math.ceil(duration*o.fps)>capacity)throw Error('指定fpsの全フレームをTSLに保存できる上限を超えています。動画を分割してください');
  const count=Math.min(capacity,totalTicks,Math.max(1,Math.ceil(duration*o.fps)));
  const steps=Array.from({length:count},(_,i)=>{
   const start=Math.round(i*totalTicks/count),end=Math.round((i+1)*totalTicks/count);
-  return {time:start/60,ticks:end-start};
+  return {time:o.mode4Cell120?i/o.fps:start/60,ticks:end-start};
  });
- return {...o,steps,totalTicks,count,duration:totalTicks/60,effectiveFps:count/duration,
+ return {...o,steps,totalTicks,count,sourceDuration:duration,duration:totalTicks/60,effectiveFps:count/duration,
   estimatedBytes:count*bytesPerFrame+4096,reduced:count<Math.ceil(duration*o.fps)};
 }
 export function portraitGrid(aspect=9/16,columns=90) {
@@ -166,14 +168,15 @@ export class TSLWriter {
  append(frame) {
   const lines=frame.split('\r\n');lines.pop();
   const quality=this.plan.conversionMode==='quality',halftone=this.plan.conversionMode==='halftone',artisan=this.plan.conversionMode==='artisan';
-  if(lines.length!==this.plan.height||lines.some(x=>quality?
+  if(this.plan.mode4Cell120)validateGridFrame(lines,this.plan.width,this.plan.height);
+  else if(lines.length!==this.plan.height||lines.some(x=>quality?
     qualityColumns(x)!==this.plan.width:artisan?
     artisanColumns(x)!==this.plan.width:halftone?
     halftoneColumns(x)!==this.plan.width:
     x.length!==this.plan.width||[...x].some(c=>!CANDIDATE_RAMP.includes(c))))
    throw Error('画面データが不正です');
   if(this.frames>=this.plan.count)throw Error('画面数が多すぎます');
-  const part=artisan?encodeArtisanFrame(lines):quality?encodeQualityFrame(lines):halftone?encodeHalftoneFrame(lines):frame+'\f\r\n';this.size+=part.length;
+  const part=this.plan.mode4Cell120?encodeGridFrame(lines):artisan?encodeArtisanFrame(lines):quality?encodeQualityFrame(lines):halftone?encodeHalftoneFrame(lines):frame+'\f\r\n';this.size+=part.length;
   if(this.size>MAX_OUTPUT_BYTES-4096-this.plan.count*24)throw Error('出力サイズ上限を超えました');
   this.batch.push(part);this.frames++;
   if(this.batch.length>=64){this.parts.push(new Blob(this.batch));this.batch=[];}
@@ -188,7 +191,7 @@ export class TSLWriter {
  }
  finish() {
   if(this.frames!==this.plan.count)throw Error('画面データが不足しています');
-  const p=this.plan,header=['1.08',p.count,p.width,p.height,1,-1,p.conversionMode==='quality'?'Video conversion - Quality':p.conversionMode==='halftone'?'Video conversion - Halftone':p.conversionMode==='artisan'?'Video conversion - AA Artisan':'Video conversion',...(p.native16?['# PC98_FONT_16X16']:[]),'\f'].join('\r\n')+'\r\n';
+  const p=this.plan,header=['1.08',p.count,p.width,p.height,1,-1,p.conversionMode==='quality'?'Video conversion - Quality':p.conversionMode==='halftone'?'Video conversion - Halftone':p.conversionMode==='artisan'?'Video conversion - AA Artisan':'Video conversion',...(p.native16?['# PC98_FONT_16X16']:[]),...(p.mode4Cell120?['# TASL_MODE4_CELL120','# TASL_MODE4_TIMING '+p.fps+' '+p.sourceDuration]:[]),'\f'].join('\r\n')+'\r\n';
   const schedule=p.steps.map((s,i)=>(i+1)+' '+s.ticks+'\r\n').join('')+'0 0\r\n\f\r\n';
   return new Blob([header,schedule,...this.parts,...this.batch,'\x1a'],{type:'application/octet-stream'});
  }

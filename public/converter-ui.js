@@ -1,3 +1,4 @@
+import {mode4Grid,MODE4_ENGINE} from './tsl-mode4-grid.js';
 import {convertVideo} from './video-to-tsl.js';
 import {analyzeVideoTone} from './tsl-auto-settings.js';
 import {tslName,portraitGridForPixels,landscapeGridForPixels,native16PortraitGrid,native16LandscapeGrid,pc98GridFromPixels} from './tsl-converter-core.js';
@@ -31,8 +32,8 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  const compatibleCheckpoint=job=>{
   const native16=job?.config?.['video-font-render']==='native16';
   const mode=job?.config?.['video-style'];
-  const version=mode==='artisan'?21:mode==='quality'?(native16?8:7):mode==='halftone'?(native16?15:14):(native16?3:2);
-  return mode!=='outline'&&job?.engineVersion===version+(job?.config?.['video-mode']==='pc98'?20:0);
+  const version=mode==='artisan'?MODE4_ENGINE:mode==='quality'?(native16?8:7):mode==='halftone'?(native16?15:14):(native16?3:2);
+  return mode!=='outline'&&job?.engineVersion===version+(mode!=='artisan'&&job?.config?.['video-mode']==='pc98'?20:0);
  };
  function show(which){
   if(isExporting())return;
@@ -76,6 +77,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   layoutHint();busy(false);
  }
  function selectedGrid(){
+  if($('video-style').value==='artisan'){if(!sourceDimensions)throw Error('元動画の解像度を読み込んでいます');return mode4Grid(sourceDimensions.width,sourceDimensions.height);}
   const mode=$('video-mode').value;
   if(mode==='pc98'){
    if(!sourceDimensions)throw Error(sourceSizeError||'元動画の解像度を読み込んでいます…');
@@ -147,8 +149,8 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
       return;
      }
      if(p.phase==='atlas'){
-      $('converter-status').textContent='モード4：272文字の字形を解析中… '+p.done.toLocaleString()+' / '+p.total.toLocaleString();
-      $('converter-detail').textContent='指定された272文字と余白を描画しています。変換前に一度だけ実行します。';
+      $('converter-status').textContent='モード4：170文字の字形を準備中… '+p.done.toLocaleString()+' / '+p.total.toLocaleString();
+      $('converter-detail').textContent='指定170文字の共通Noto字形を読み込んでいます。';
       return;
      }
      if(p.phase==='resumed'){
@@ -176,7 +178,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
    $('converter-detail').textContent=(mode==='pc98'
     ?'元動画から自動算出 · 全角'+Math.floor(result.plan.width/2)+'×'+result.plan.height+'文字相当（半角'+result.plan.width+'列）'
     :result.plan.width+' × '+result.plan.height+'文字')+
-    (result.plan.native16?' · 全角16×16ドット（半角8×16）':' · 約'+Number($('video-font-px').value)+'px')+
+    (result.plan.mode4Cell120?' · 120×120px固定・170文字':result.plan.native16?' · 全角16×16ドット（半角8×16）':' · 約'+Number($('video-font-px').value)+'px')+
     ' · '+result.plan.count.toLocaleString()+'画面 · '+result.plan.duration.toFixed(2)+'秒 · '+(result.blob.size/1024/1024).toFixed(2)+' MB'+(result.plan.reduced?' · 長尺のためフレームレートを自動調整':'');
    if(directMP4){
     if(result.plan.duration>300)throw Error('音声付きMP4は5分以内の動画に対応しています（TSLは保存可能）');
@@ -262,9 +264,14 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   // Keep the second grid column occupied for both font rendering choices.
   // Hiding this label made every subsequent converter setting jump up a row.
   if(pc&&$('video-font-render').value!=='native16')$('video-font-render').value='native16';
-  $('video-font-render').disabled=pc;
-  $('video-font-px').disabled=pc||native16;
-  $('video-fit').disabled=pc;
+  $('video-font-render').disabled=pc||artisan;
+  $('video-font-px').disabled=pc||native16||artisan;
+  $('video-fit').disabled=pc||artisan;
+  if(artisan){
+   try{const g=selectedGrid();$('layout-hint').textContent='モード4：120×120px固定 / '+g.columns+'×'+g.height+'マス / '+g.columns*g.height+'文字。170文字の形状照合。端数は余白を追加します。';}
+   catch(e){$('layout-hint').textContent='モード4：120×120px固定。'+e.message;}
+   return;
+  }
   if(pc){
    try{
     const g=selectedGrid();
@@ -277,7 +284,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   }
   try{
    const pixels=Number($('video-font-px').value),grid=selectedGrid();
-   const note=(mode==='landscape'?'横16:9・文字は回転しません。':'縦画面の文字アニメです。')+(artisan?'モード4：顔・人物・動物の認識と主輪郭抽出、全画面・複数行のAA組版。272文字＋余白のみ。初回はAI認識用データを読み込みます。':quality?'モード3：XDoG・線追跡・字形照合と時間方向の安定化で映像を文字化。':halftone?'モード2：空白・句点「。」・「ｏ」「○」「◎」の5階調で網点風に変換。':'モード1：従来の濃淡変換。');
+   const note=(mode==='landscape'?'横16:9・文字は回転しません。':'縦画面の文字アニメです。')+(quality?'モード3：XDoG・線追跡・字形照合と時間方向の安定化で映像を文字化。':halftone?'モード2：空白・句点「。」・「ｏ」「○」「◎」の5階調で網点風に変換。':'モード1：従来の濃淡変換。');
    $('layout-hint').textContent=native16
     ?`PC-98実寸：全角16×16ドット／半角8×16ドット → ${grid.width}列 × ${grid.height}行。フルHDで等倍描画または最近傍拡大。${note}実機のROM書体そのものではありません。`
     :`文字サイズ約${pixels}px → ${grid.width}列 × ${grid.height}行で生成（フルHD換算）。${note}Webプレーヤー向けです。`;
@@ -294,7 +301,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
    ordinaryPixelValue=$('video-font-px').value;
    if($('video-mode').value!=='pc98'){
     $('video-font-render').value='legacy';
-    $('video-font-px').value='96';
+    $('video-font-px').value='120';
    }
   }else if(lastStyle==='artisan')$('video-font-px').value=ordinaryPixelValue;
   lastStyle=$('video-style').value;

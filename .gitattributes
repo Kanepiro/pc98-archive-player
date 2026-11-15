@@ -1,0 +1,3 @@
+
+# The supplied CP932 palette is an exact binary authority, including CRLF.
+public/mode4-palette.txt -text -diff

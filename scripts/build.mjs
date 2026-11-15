@@ -10,6 +10,7 @@ await mkdir('dist/mobile',{recursive:true});await cp('public/index.html','dist/m
 await cp('licenses','dist/licenses',{recursive:true});await cp('LICENSE','dist/LICENSE');
 // Bundle the exporter and its AAC fallback locally for offline use; keep license notices.
 await build({entryPoints:['public/mp4-export.js'],outfile:'dist/mp4-export.js',platform:'browser',format:'esm',bundle:true,minify:true,legalComments:'eof'});
+await build({entryPoints:['public/video-frame-reader.js'],outfile:'dist/video-frame-reader.js',platform:'browser',format:'esm',bundle:true,minify:true,legalComments:'eof'});
 await cp('node_modules/mediabunny/LICENSE','dist/licenses/mediabunny.txt');
 await cp('node_modules/@mediabunny/aac-encoder/LICENSE','dist/licenses/mediabunny-aac-encoder.txt');
 await cp('node_modules/@mediabunny/aac-encoder/licenses/ffmpeg','dist/licenses/ffmpeg-aac',{recursive:true});

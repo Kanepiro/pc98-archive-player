@@ -1,5 +1,7 @@
 # TASL Archive Player
 
+この作業ブランチはモード4の120px固定・170文字試験版です。新モード4の仕様と検証範囲は [MODE4_GRID120.md](MODE4_GRID120.md) を参照してください。以下の旧モード4説明は公開版の履歴です。公開版は更新していません。
+
 Windowsネイティブ版とスマホWebGPU版を専用URLで提供します。現在の表示版はWindowsネイティブ版 v0.3.41、スマホWebGPU版 v0.3.40です。Windows版はモード1〜4すべてでDirectComputeを優先し、非対応・失敗時に元のCPU処理へ切り替えます。
 
 **スマホ版:** https://pc98-archive-player-seven.vercel.app/mobile/

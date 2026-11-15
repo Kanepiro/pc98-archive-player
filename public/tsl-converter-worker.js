@@ -1,6 +1,6 @@
 import {rgbaToASCII} from './tsl-converter-core.js';
 import {QualityConverter} from './tsl-quality.js';
-import {ArtisanComposer} from './tsl-artisan-engine.js';
+import {Grid120Converter} from './tsl-mode4-grid.js';
 import {rgbaToHalftone} from './tsl-halftone.js';
 import {GpuToneConverter} from './tsl-tone-webgpu.js';
 let quality=null,tones=null,gpuUnavailableReason='';
@@ -11,9 +11,9 @@ self.onmessage=async({data:d})=>{
     try{tones=await GpuToneConverter.create(d.mode,d.sample,d.width,d.height);}
     catch(e){tones=null;gpuUnavailableReason=String(e);}
    }else{
-    quality=d.mode==='artisan'?new ArtisanComposer(d.atlas,d.sample):new QualityConverter(d.atlas,d.sample);
+    quality=d.mode==='artisan'?new Grid120Converter(d.atlas):new QualityConverter(d.atlas,d.sample);
     quality.restore(d.state);
-    await quality.enableWebGPU(d.width,d.height);
+    if(d.mode!=='artisan')await quality.enableWebGPU(d.width,d.height);
    }
    self.postMessage({ready:true,gpuAvailable:!!quality?.gpuMatcher||!!tones});return;
   }
