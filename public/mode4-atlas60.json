@@ -1,0 +1,2561 @@
+{
+  "cell": 60,
+  "fontSize": 60,
+  "baseline": 51,
+  "paletteCount": 170,
+  "sourceSHA256": "b764b8f920d047cfed428f6550ca6d03b7cdd78ba25d7505d7e5e2b5352458d1",
+  "fontSHA256": "4d01725be822d144cf9a56ade981e6fb920cd7a610b8fc24cc601a920beea5b9",
+  "maskSHA256": "6c1aecb98ffc5e29b1500348c4d62d8fd4135b2cdebf3359e476140eac225d5d",
+  "glyphs": [
+    {
+      "char": "→",
+      "codepoint": "U+2192",
+      "cp932": [
+        129,
+        168
+      ],
+      "bbox": [
+        2,
+        13,
+        58,
+        43
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "←",
+      "codepoint": "U+2190",
+      "cp932": [
+        129,
+        169
+      ],
+      "bbox": [
+        2,
+        13,
+        58,
+        43
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "↑",
+      "codepoint": "U+2191",
+      "cp932": [
+        129,
+        170
+      ],
+      "bbox": [
+        16,
+        0,
+        44,
+        56
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "↓",
+      "codepoint": "U+2193",
+      "cp932": [
+        129,
+        171
+      ],
+      "bbox": [
+        16,
+        0,
+        44,
+        56
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "∈",
+      "codepoint": "U+2208",
+      "cp932": [
+        129,
+        184
+      ],
+      "bbox": [
+        7,
+        8,
+        53,
+        48
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "∋",
+      "codepoint": "U+220B",
+      "cp932": [
+        129,
+        185
+      ],
+      "bbox": [
+        7,
+        8,
+        53,
+        48
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "山",
+      "codepoint": "U+5C71",
+      "cp932": [
+        142,
+        82
+      ],
+      "bbox": [
+        6,
+        1,
+        54,
+        56
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "⊂",
+      "codepoint": "U+2282",
+      "cp932": [
+        129,
+        188
+      ],
+      "bbox": [
+        7,
+        8,
+        53,
+        48
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "⊃",
+      "codepoint": "U+2283",
+      "cp932": [
+        129,
+        189
+      ],
+      "bbox": [
+        7,
+        8,
+        53,
+        48
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "∩",
+      "codepoint": "U+2229",
+      "cp932": [
+        129,
+        191
+      ],
+      "bbox": [
+        10,
+        5,
+        50,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Ｕ",
+      "codepoint": "U+FF35",
+      "cp932": [
+        130,
+        116
+      ],
+      "bbox": [
+        12,
+        7,
+        49,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "几",
+      "codepoint": "U+51E0",
+      "cp932": [
+        153,
+        123
+      ],
+      "bbox": [
+        2,
+        3,
+        58,
+        56
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "∧",
+      "codepoint": "U+2227",
+      "cp932": [
+        129,
+        200
+      ],
+      "bbox": [
+        6,
+        4,
+        54,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "∠",
+      "codepoint": "U+2220",
+      "cp932": [
+        129,
+        218
+      ],
+      "bbox": [
+        6,
+        8,
+        53,
+        50
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "⊿",
+      "codepoint": "U+22BF",
+      "cp932": [
+        135,
+        153
+      ],
+      "bbox": [
+        5,
+        3,
+        52,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Ｖ",
+      "codepoint": "U+FF36",
+      "cp932": [
+        130,
+        117
+      ],
+      "bbox": [
+        10,
+        7,
+        50,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Δ",
+      "codepoint": "U+0394",
+      "cp932": [
+        131,
+        162
+      ],
+      "bbox": [
+        11,
+        7,
+        48,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "コ",
+      "codepoint": "U+30B3",
+      "cp932": [
+        131,
+        82
+      ],
+      "bbox": [
+        9,
+        9,
+        51,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "凵",
+      "codepoint": "U+51F5",
+      "cp932": [
+        153,
+        129
+      ],
+      "bbox": [
+        7,
+        5,
+        53,
+        55
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "匚",
+      "codepoint": "U+531A",
+      "cp932": [
+        153,
+        183
+      ],
+      "bbox": [
+        6,
+        4,
+        57,
+        56
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "冂",
+      "codepoint": "U+5182",
+      "cp932": [
+        153,
+        99
+      ],
+      "bbox": [
+        6,
+        4,
+        55,
+        56
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "己",
+      "codepoint": "U+5DF1",
+      "cp932": [
+        140,
+        200
+      ],
+      "bbox": [
+        8,
+        3,
+        58,
+        55
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "・",
+      "codepoint": "U+30FB",
+      "cp932": [
+        129,
+        69
+      ],
+      "bbox": [
+        23,
+        21,
+        37,
+        34
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "：",
+      "codepoint": "U+FF1A",
+      "cp932": [
+        129,
+        70
+      ],
+      "bbox": [
+        25,
+        9,
+        35,
+        48
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "‥",
+      "codepoint": "U+2025",
+      "cp932": [
+        129,
+        100
+      ],
+      "bbox": [
+        11,
+        24,
+        49,
+        32
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "…",
+      "codepoint": "U+2026",
+      "cp932": [
+        129,
+        99
+      ],
+      "bbox": [
+        6,
+        24,
+        54,
+        32
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "∴",
+      "codepoint": "U+2234",
+      "cp932": [
+        129,
+        136
+      ],
+      "bbox": [
+        9,
+        9,
+        51,
+        47
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "∵",
+      "codepoint": "U+2235",
+      "cp932": [
+        129,
+        230
+      ],
+      "bbox": [
+        9,
+        9,
+        51,
+        47
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "￣",
+      "codepoint": "U+FFE3",
+      "cp932": [
+        129,
+        80
+      ],
+      "bbox": [
+        0,
+        0,
+        60,
+        3
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "＿",
+      "codepoint": "U+FF3F",
+      "cp932": [
+        129,
+        81
+      ],
+      "bbox": [
+        0,
+        56,
+        60,
+        59
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "―",
+      "codepoint": "U+2015",
+      "cp932": [
+        129,
+        92
+      ],
+      "bbox": [
+        4,
+        26,
+        56,
+        29
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "／",
+      "codepoint": "U+FF0F",
+      "cp932": [
+        129,
+        94
+      ],
+      "bbox": [
+        2,
+        0,
+        58,
+        56
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "＼",
+      "codepoint": "U+FF3C",
+      "cp932": [
+        129,
+        95
+      ],
+      "bbox": [
+        2,
+        0,
+        58,
+        56
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "｜",
+      "codepoint": "U+FF5C",
+      "cp932": [
+        129,
+        98
+      ],
+      "bbox": [
+        28,
+        0,
+        32,
+        60
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "┘",
+      "codepoint": "U+2518",
+      "cp932": [
+        132,
+        163
+      ],
+      "bbox": [
+        0,
+        0,
+        32,
+        32
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "└",
+      "codepoint": "U+2514",
+      "cp932": [
+        132,
+        164
+      ],
+      "bbox": [
+        28,
+        0,
+        60,
+        32
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "г",
+      "codepoint": "U+0433",
+      "cp932": [
+        132,
+        115
+      ],
+      "bbox": [
+        21,
+        18,
+        42,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "┌",
+      "codepoint": "U+250C",
+      "cp932": [
+        132,
+        161
+      ],
+      "bbox": [
+        28,
+        26,
+        60,
+        59
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "┐",
+      "codepoint": "U+2510",
+      "cp932": [
+        132,
+        162
+      ],
+      "bbox": [
+        0,
+        26,
+        32,
+        59
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "├",
+      "codepoint": "U+251C",
+      "cp932": [
+        132,
+        165
+      ],
+      "bbox": [
+        28,
+        0,
+        59,
+        60
+      ],
+      "overflowFitScale": 0.967741935483871
+    },
+    {
+      "char": "┬",
+      "codepoint": "U+252C",
+      "cp932": [
+        132,
+        166
+      ],
+      "bbox": [
+        0,
+        26,
+        60,
+        59
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "┤",
+      "codepoint": "U+2524",
+      "cp932": [
+        132,
+        167
+      ],
+      "bbox": [
+        0,
+        0,
+        31,
+        60
+      ],
+      "overflowFitScale": 0.967741935483871
+    },
+    {
+      "char": "┴",
+      "codepoint": "U+2534",
+      "cp932": [
+        132,
+        168
+      ],
+      "bbox": [
+        0,
+        0,
+        60,
+        32
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "⊥",
+      "codepoint": "U+22A5",
+      "cp932": [
+        129,
+        219
+      ],
+      "bbox": [
+        6,
+        6,
+        54,
+        49
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Ｔ",
+      "codepoint": "U+FF34",
+      "cp932": [
+        130,
+        115
+      ],
+      "bbox": [
+        11,
+        7,
+        49,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "∟",
+      "codepoint": "U+221F",
+      "cp932": [
+        135,
+        152
+      ],
+      "bbox": [
+        9,
+        5,
+        53,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Ｘ",
+      "codepoint": "U+FF38",
+      "cp932": [
+        130,
+        119
+      ],
+      "bbox": [
+        11,
+        7,
+        49,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Σ",
+      "codepoint": "U+03A3",
+      "cp932": [
+        131,
+        176
+      ],
+      "bbox": [
+        14,
+        7,
+        46,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "エ",
+      "codepoint": "U+30A8",
+      "cp932": [
+        131,
+        71
+      ],
+      "bbox": [
+        5,
+        10,
+        55,
+        50
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "王",
+      "codepoint": "U+738B",
+      "cp932": [
+        137,
+        164
+      ],
+      "bbox": [
+        3,
+        4,
+        57,
+        54
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "干",
+      "codepoint": "U+5E72",
+      "cp932": [
+        138,
+        177
+      ],
+      "bbox": [
+        3,
+        4,
+        57,
+        57
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "┼",
+      "codepoint": "U+253C",
+      "cp932": [
+        132,
+        169
+      ],
+      "bbox": [
+        0,
+        0,
+        58,
+        60
+      ],
+      "overflowFitScale": 0.967741935483871
+    },
+    {
+      "char": "中",
+      "codepoint": "U+4E2D",
+      "cp932": [
+        146,
+        134
+      ],
+      "bbox": [
+        5,
+        0,
+        55,
+        57
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "土",
+      "codepoint": "U+571F",
+      "cp932": [
+        147,
+        121
+      ],
+      "bbox": [
+        3,
+        0,
+        57,
+        54
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "七",
+      "codepoint": "U+4E03",
+      "cp932": [
+        142,
+        181
+      ],
+      "bbox": [
+        2,
+        1,
+        58,
+        54
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "木",
+      "codepoint": "U+6728",
+      "cp932": [
+        150,
+        216
+      ],
+      "bbox": [
+        1,
+        0,
+        59,
+        57
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "～",
+      "codepoint": "U+FF5E",
+      "cp932": [
+        129,
+        96
+      ],
+      "bbox": [
+        2,
+        20,
+        58,
+        36
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "∥",
+      "codepoint": "U+2225",
+      "cp932": [
+        129,
+        97
+      ],
+      "bbox": [
+        12,
+        5,
+        48,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "廾",
+      "codepoint": "U+5EFE",
+      "cp932": [
+        156,
+        79
+      ],
+      "bbox": [
+        2,
+        1,
+        58,
+        57
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Ｈ",
+      "codepoint": "U+FF28",
+      "cp932": [
+        130,
+        103
+      ],
+      "bbox": [
+        12,
+        7,
+        48,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Ｌ",
+      "codepoint": "U+FF2C",
+      "cp932": [
+        130,
+        107
+      ],
+      "bbox": [
+        18,
+        7,
+        47,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Ｚ",
+      "codepoint": "U+FF3A",
+      "cp932": [
+        130,
+        121
+      ],
+      "bbox": [
+        12,
+        7,
+        48,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Ｗ",
+      "codepoint": "U+FF37",
+      "cp932": [
+        130,
+        118
+      ],
+      "bbox": [
+        1,
+        7,
+        59,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Μ",
+      "codepoint": "U+039C",
+      "cp932": [
+        131,
+        170
+      ],
+      "bbox": [
+        12,
+        7,
+        49,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "И",
+      "codepoint": "U+0418",
+      "cp932": [
+        132,
+        73
+      ],
+      "bbox": [
+        14,
+        7,
+        46,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Ν",
+      "codepoint": "U+039D",
+      "cp932": [
+        131,
+        171
+      ],
+      "bbox": [
+        14,
+        7,
+        46,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "イ",
+      "codepoint": "U+30A4",
+      "cp932": [
+        131,
+        67
+      ],
+      "bbox": [
+        5,
+        4,
+        52,
+        53
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "ノ",
+      "codepoint": "U+30CE",
+      "cp932": [
+        131,
+        109
+      ],
+      "bbox": [
+        8,
+        6,
+        49,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "ハ",
+      "codepoint": "U+30CF",
+      "cp932": [
+        131,
+        110
+      ],
+      "bbox": [
+        4,
+        9,
+        56,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "ヒ",
+      "codepoint": "U+30D2",
+      "cp932": [
+        131,
+        113
+      ],
+      "bbox": [
+        13,
+        4,
+        52,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "フ",
+      "codepoint": "U+30D5",
+      "cp932": [
+        131,
+        116
+      ],
+      "bbox": [
+        8,
+        7,
+        52,
+        53
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "へ",
+      "codepoint": "U+3078",
+      "cp932": [
+        130,
+        214
+      ],
+      "bbox": [
+        3,
+        12,
+        57,
+        49
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "ミ",
+      "codepoint": "U+30DF",
+      "cp932": [
+        131,
+        126
+      ],
+      "bbox": [
+        9,
+        5,
+        49,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "メ",
+      "codepoint": "U+30E1",
+      "cp932": [
+        131,
+        129
+      ],
+      "bbox": [
+        6,
+        5,
+        53,
+        53
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "ヨ",
+      "codepoint": "U+30E8",
+      "cp932": [
+        131,
+        136
+      ],
+      "bbox": [
+        9,
+        8,
+        50,
+        53
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "レ",
+      "codepoint": "U+30EC",
+      "cp932": [
+        131,
+        140
+      ],
+      "bbox": [
+        13,
+        6,
+        55,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "リ",
+      "codepoint": "U+30EA",
+      "cp932": [
+        131,
+        138
+      ],
+      "bbox": [
+        13,
+        5,
+        47,
+        53
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "ワ",
+      "codepoint": "U+30EF",
+      "cp932": [
+        131,
+        143
+      ],
+      "bbox": [
+        7,
+        8,
+        53,
+        54
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "ン",
+      "codepoint": "U+30F3",
+      "cp932": [
+        131,
+        147
+      ],
+      "bbox": [
+        8,
+        6,
+        56,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "ケ",
+      "codepoint": "U+30B1",
+      "cp932": [
+        131,
+        80
+      ],
+      "bbox": [
+        4,
+        2,
+        55,
+        54
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "ス",
+      "codepoint": "U+30B9",
+      "cp932": [
+        131,
+        88
+      ],
+      "bbox": [
+        6,
+        7,
+        54,
+        53
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "タ",
+      "codepoint": "U+30BF",
+      "cp932": [
+        131,
+        94
+      ],
+      "bbox": [
+        5,
+        1,
+        53,
+        54
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "一",
+      "codepoint": "U+4E00",
+      "cp932": [
+        136,
+        234
+      ],
+      "bbox": [
+        2,
+        25,
+        58,
+        30
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "二",
+      "codepoint": "U+4E8C",
+      "cp932": [
+        147,
+        241
+      ],
+      "bbox": [
+        3,
+        9,
+        57,
+        50
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "三",
+      "codepoint": "U+4E09",
+      "cp932": [
+        142,
+        79
+      ],
+      "bbox": [
+        3,
+        6,
+        57,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Ⅰ",
+      "codepoint": "U+2160",
+      "cp932": [
+        135,
+        84
+      ],
+      "bbox": [
+        27,
+        7,
+        33,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Ⅱ",
+      "codepoint": "U+2161",
+      "cp932": [
+        135,
+        85
+      ],
+      "bbox": [
+        18,
+        7,
+        42,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Ⅲ",
+      "codepoint": "U+2162",
+      "cp932": [
+        135,
+        86
+      ],
+      "bbox": [
+        9,
+        7,
+        51,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "ｏ",
+      "codepoint": "U+FF4F",
+      "cp932": [
+        130,
+        143
+      ],
+      "bbox": [
+        12,
+        17,
+        48,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Ｏ",
+      "codepoint": "U+FF2F",
+      "cp932": [
+        130,
+        110
+      ],
+      "bbox": [
+        8,
+        6,
+        52,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "◯",
+      "codepoint": "U+25EF",
+      "cp932": [
+        129,
+        252
+      ],
+      "bbox": [
+        2,
+        0,
+        58,
+        56
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "ロ",
+      "codepoint": "U+30ED",
+      "cp932": [
+        131,
+        141
+      ],
+      "bbox": [
+        8,
+        9,
+        52,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "囗",
+      "codepoint": "U+56D7",
+      "cp932": [
+        154,
+        152
+      ],
+      "bbox": [
+        6,
+        3,
+        54,
+        56
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "っ",
+      "codepoint": "U+3063",
+      "cp932": [
+        130,
+        193
+      ],
+      "bbox": [
+        9,
+        20,
+        52,
+        53
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "つ",
+      "codepoint": "U+3064",
+      "cp932": [
+        130,
+        194
+      ],
+      "bbox": [
+        4,
+        11,
+        55,
+        50
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "∞",
+      "codepoint": "U+221E",
+      "cp932": [
+        129,
+        135
+      ],
+      "bbox": [
+        2,
+        16,
+        58,
+        41
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "８",
+      "codepoint": "U+FF18",
+      "cp932": [
+        130,
+        87
+      ],
+      "bbox": [
+        14,
+        6,
+        46,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Β",
+      "codepoint": "U+0392",
+      "cp932": [
+        131,
+        160
+      ],
+      "bbox": [
+        16,
+        7,
+        47,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Θ",
+      "codepoint": "U+0398",
+      "cp932": [
+        131,
+        166
+      ],
+      "bbox": [
+        11,
+        6,
+        50,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Φ",
+      "codepoint": "U+03A6",
+      "cp932": [
+        131,
+        179
+      ],
+      "bbox": [
+        9,
+        5,
+        51,
+        53
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "З",
+      "codepoint": "U+0417",
+      "cp932": [
+        132,
+        72
+      ],
+      "bbox": [
+        13,
+        6,
+        46,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Ε",
+      "codepoint": "U+0395",
+      "cp932": [
+        131,
+        163
+      ],
+      "bbox": [
+        18,
+        7,
+        45,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "（",
+      "codepoint": "U+FF08",
+      "cp932": [
+        129,
+        105
+      ],
+      "bbox": [
+        41,
+        0,
+        58,
+        58
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "）",
+      "codepoint": "U+FF09",
+      "cp932": [
+        129,
+        106
+      ],
+      "bbox": [
+        2,
+        0,
+        19,
+        58
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "［",
+      "codepoint": "U+FF3B",
+      "cp932": [
+        129,
+        109
+      ],
+      "bbox": [
+        42,
+        0,
+        58,
+        58
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "］",
+      "codepoint": "U+FF3D",
+      "cp932": [
+        129,
+        110
+      ],
+      "bbox": [
+        2,
+        0,
+        18,
+        56
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "冖",
+      "codepoint": "U+5196",
+      "cp932": [
+        153,
+        107
+      ],
+      "bbox": [
+        5,
+        17,
+        55,
+        34
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "⌒",
+      "codepoint": "U+2312",
+      "cp932": [
+        129,
+        220
+      ],
+      "bbox": [
+        1,
+        0,
+        59,
+        17
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "＜",
+      "codepoint": "U+FF1C",
+      "cp932": [
+        129,
+        131
+      ],
+      "bbox": [
+        6,
+        5,
+        53,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "＞",
+      "codepoint": "U+FF1E",
+      "cp932": [
+        129,
+        132
+      ],
+      "bbox": [
+        7,
+        5,
+        54,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "≪",
+      "codepoint": "U+226A",
+      "cp932": [
+        129,
+        225
+      ],
+      "bbox": [
+        3,
+        5,
+        57,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "≫",
+      "codepoint": "U+226B",
+      "cp932": [
+        129,
+        226
+      ],
+      "bbox": [
+        3,
+        5,
+        57,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "〒",
+      "codepoint": "U+3012",
+      "cp932": [
+        129,
+        167
+      ],
+      "bbox": [
+        9,
+        7,
+        51,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "＃",
+      "codepoint": "U+FF03",
+      "cp932": [
+        129,
+        148
+      ],
+      "bbox": [
+        9,
+        5,
+        51,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "キ",
+      "codepoint": "U+30AD",
+      "cp932": [
+        131,
+        76
+      ],
+      "bbox": [
+        6,
+        3,
+        54,
+        54
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "√",
+      "codepoint": "U+221A",
+      "cp932": [
+        129,
+        227
+      ],
+      "bbox": [
+        2,
+        0,
+        60,
+        60
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Ｊ",
+      "codepoint": "U+FF2A",
+      "cp932": [
+        130,
+        105
+      ],
+      "bbox": [
+        14,
+        7,
+        42,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "し",
+      "codepoint": "U+3057",
+      "cp932": [
+        130,
+        181
+      ],
+      "bbox": [
+        14,
+        3,
+        54,
+        54
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Ｐ",
+      "codepoint": "U+FF30",
+      "cp932": [
+        130,
+        111
+      ],
+      "bbox": [
+        15,
+        7,
+        48,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "い",
+      "codepoint": "U+3044",
+      "cp932": [
+        130,
+        162
+      ],
+      "bbox": [
+        7,
+        8,
+        56,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "け",
+      "codepoint": "U+3051",
+      "cp932": [
+        130,
+        175
+      ],
+      "bbox": [
+        7,
+        3,
+        56,
+        55
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "こ",
+      "codepoint": "U+3053",
+      "cp932": [
+        130,
+        177
+      ],
+      "bbox": [
+        10,
+        8,
+        51,
+        53
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "て",
+      "codepoint": "U+3066",
+      "cp932": [
+        130,
+        196
+      ],
+      "bbox": [
+        5,
+        7,
+        53,
+        53
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "乙",
+      "codepoint": "U+4E59",
+      "cp932": [
+        137,
+        179
+      ],
+      "bbox": [
+        5,
+        4,
+        57,
+        54
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "ユ",
+      "codepoint": "U+30E6",
+      "cp932": [
+        131,
+        134
+      ],
+      "bbox": [
+        4,
+        9,
+        56,
+        48
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Ч",
+      "codepoint": "U+0427",
+      "cp932": [
+        132,
+        88
+      ],
+      "bbox": [
+        14,
+        7,
+        45,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "π",
+      "codepoint": "U+03C0",
+      "cp932": [
+        131,
+        206
+      ],
+      "bbox": [
+        11,
+        18,
+        48,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "ρ",
+      "codepoint": "U+03C1",
+      "cp932": [
+        131,
+        207
+      ],
+      "bbox": [
+        17,
+        13,
+        46,
+        60
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "б",
+      "codepoint": "U+0431",
+      "cp932": [
+        132,
+        113
+      ],
+      "bbox": [
+        15,
+        2,
+        46,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "σ",
+      "codepoint": "U+03C3",
+      "cp932": [
+        131,
+        208
+      ],
+      "bbox": [
+        15,
+        18,
+        48,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "τ",
+      "codepoint": "U+03C4",
+      "cp932": [
+        131,
+        209
+      ],
+      "bbox": [
+        16,
+        18,
+        45,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "υ",
+      "codepoint": "U+03C5",
+      "cp932": [
+        131,
+        210
+      ],
+      "bbox": [
+        17,
+        17,
+        44,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "е",
+      "codepoint": "U+0435",
+      "cp932": [
+        132,
+        117
+      ],
+      "bbox": [
+        16,
+        17,
+        44,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "θ",
+      "codepoint": "U+03B8",
+      "cp932": [
+        131,
+        198
+      ],
+      "bbox": [
+        17,
+        2,
+        45,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "φ",
+      "codepoint": "U+03C6",
+      "cp932": [
+        131,
+        211
+      ],
+      "bbox": [
+        10,
+        4,
+        50,
+        60
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "ω",
+      "codepoint": "U+03C9",
+      "cp932": [
+        131,
+        214
+      ],
+      "bbox": [
+        10,
+        17,
+        51,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "д",
+      "codepoint": "U+0434",
+      "cp932": [
+        132,
+        116
+      ],
+      "bbox": [
+        13,
+        15,
+        47,
+        60
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "α",
+      "codepoint": "U+03B1",
+      "cp932": [
+        131,
+        191
+      ],
+      "bbox": [
+        14,
+        17,
+        48,
+        52
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "β",
+      "codepoint": "U+03B2",
+      "cp932": [
+        131,
+        192
+      ],
+      "bbox": [
+        16,
+        0,
+        45,
+        60
+      ],
+      "overflowFitScale": 0.967741935483871
+    },
+    {
+      "char": "γ",
+      "codepoint": "U+03B3",
+      "cp932": [
+        131,
+        193
+      ],
+      "bbox": [
+        14,
+        14,
+        45,
+        60
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "の",
+      "codepoint": "U+306E",
+      "cp932": [
+        130,
+        204
+      ],
+      "bbox": [
+        5,
+        7,
+        55,
+        54
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "ヱ",
+      "codepoint": "U+30F1",
+      "cp932": [
+        131,
+        145
+      ],
+      "bbox": [
+        4,
+        8,
+        56,
+        50
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Κ",
+      "codepoint": "U+039A",
+      "cp932": [
+        131,
+        168
+      ],
+      "bbox": [
+        17,
+        7,
+        50,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Ρ",
+      "codepoint": "U+03A1",
+      "cp932": [
+        131,
+        175
+      ],
+      "bbox": [
+        17,
+        7,
+        47,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "Ψ",
+      "codepoint": "U+03A8",
+      "cp932": [
+        131,
+        181
+      ],
+      "bbox": [
+        11,
+        7,
+        50,
+        51
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "川",
+      "codepoint": "U+5DDD",
+      "cp932": [
+        144,
+        236
+      ],
+      "bbox": [
+        1,
+        3,
+        54,
+        56
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "出",
+      "codepoint": "U+51FA",
+      "cp932": [
+        143,
+        111
+      ],
+      "bbox": [
+        6,
+        0,
+        54,
+        56
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "回",
+      "codepoint": "U+56DE",
+      "cp932": [
+        137,
+        241
+      ],
+      "bbox": [
+        4,
+        2,
+        56,
+        57
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "小",
+      "codepoint": "U+5C0F",
+      "cp932": [
+        143,
+        172
+      ],
+      "bbox": [
+        1,
+        0,
+        59,
+        57
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "目",
+      "codepoint": "U+76EE",
+      "cp932": [
+        150,
+        218
+      ],
+      "bbox": [
+        9,
+        3,
+        51,
+        56
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "日",
+      "codepoint": "U+65E5",
+      "cp932": [
+        147,
+        250
+      ],
+      "bbox": [
+        10,
+        4,
+        50,
+        56
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "个",
+      "codepoint": "U+4E2A",
+      "cp932": [
+        152,
+        162
+      ],
+      "bbox": [
+        1,
+        0,
+        60,
+        56
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "了",
+      "codepoint": "U+4E86",
+      "cp932": [
+        151,
+        185
+      ],
+      "bbox": [
+        5,
+        4,
+        54,
+        56
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "丿",
+      "codepoint": "U+4E3F",
+      "cp932": [
+        152,
+        166
+      ],
+      "bbox": [
+        13,
+        1,
+        36,
+        55
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "八",
+      "codepoint": "U+516B",
+      "cp932": [
+        148,
+        170
+      ],
+      "bbox": [
+        2,
+        5,
+        58,
+        57
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "人",
+      "codepoint": "U+4EBA",
+      "cp932": [
+        144,
+        108
+      ],
+      "bbox": [
+        2,
+        2,
+        59,
+        55
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "乂",
+      "codepoint": "U+4E42",
+      "cp932": [
+        152,
+        167
+      ],
+      "bbox": [
+        2,
+        4,
+        59,
+        56
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "又",
+      "codepoint": "U+53C8",
+      "cp932": [
+        150,
+        148
+      ],
+      "bbox": [
+        2,
+        5,
+        58,
+        57
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "丶",
+      "codepoint": "U+4E36",
+      "cp932": [
+        152,
+        164
+      ],
+      "bbox": [
+        15,
+        13,
+        44,
+        38
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "冫",
+      "codepoint": "U+51AB",
+      "cp932": [
+        153,
+        113
+      ],
+      "bbox": [
+        4,
+        4,
+        23,
+        53
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "彳",
+      "codepoint": "U+5F73",
+      "cp932": [
+        156,
+        101
+      ],
+      "bbox": [
+        12,
+        2,
+        44,
+        56
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "彡",
+      "codepoint": "U+5F61",
+      "cp932": [
+        156,
+        99
+      ],
+      "bbox": [
+        9,
+        2,
+        53,
+        56
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "く",
+      "codepoint": "U+304F",
+      "cp932": [
+        130,
+        173
+      ],
+      "bbox": [
+        12,
+        2,
+        44,
+        55
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "巛",
+      "codepoint": "U+5DDB",
+      "cp932": [
+        155,
+        221
+      ],
+      "bbox": [
+        3,
+        3,
+        56,
+        55
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "屮",
+      "codepoint": "U+5C6E",
+      "cp932": [
+        155,
+        163
+      ],
+      "bbox": [
+        7,
+        0,
+        53,
+        57
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "艸",
+      "codepoint": "U+8278",
+      "cp932": [
+        228,
+        135
+      ],
+      "bbox": [
+        4,
+        0,
+        55,
+        57
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "勿",
+      "codepoint": "U+52FF",
+      "cp932": [
+        150,
+        220
+      ],
+      "bbox": [
+        1,
+        0,
+        56,
+        56
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "厂",
+      "codepoint": "U+5382",
+      "cp932": [
+        153,
+        202
+      ],
+      "bbox": [
+        2,
+        4,
+        57,
+        56
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "勹",
+      "codepoint": "U+52F9",
+      "cp932": [
+        153,
+        175
+      ],
+      "bbox": [
+        2,
+        0,
+        56,
+        58
+      ],
+      "overflowFitScale": 1
+    },
+    {
+      "char": "廴",
+      "codepoint": "U+5EF4",
+      "cp932": [
+        156,
+        77
+      ],
+      "bbox": [
+        1,
+        3,
+        58,
+        56
+      ],
+      "overflowFitScale": 1
+    }
+  ]
+}

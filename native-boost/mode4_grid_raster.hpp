@@ -1,38 +1,41 @@
 #pragma once
 // Canonical Noto 104px masks, unscaled in fixed 120px cells.
 #include <map>
-inline const std::vector<unsigned char>& grid120Masks(){
- static std::vector<unsigned char> masks=[](){
+inline const std::vector<unsigned char>& grid120Masks(int cell=120){
+ static std::map<int,std::vector<unsigned char>> cache;
+ if(cache.count(cell))return cache.at(cell);
+ auto masks=[cell](){
   std::vector<wchar_t> exe(32768);DWORD n=GetModuleFileNameW(nullptr,exe.data(),DWORD(exe.size()));
   auto dir=std::filesystem::path(std::wstring(exe.data(),n)).parent_path();
-  auto path=dir/L"app"/L"mode4-atlas.bin";
-  if(!std::filesystem::is_regular_file(path))path=dir/L"mode4-atlas.bin";
+  const auto name=cell==60?L"mode4-atlas60.bin":L"mode4-atlas.bin";
+  auto path=dir/L"app"/name;
+  if(!std::filesystem::is_regular_file(path))path=dir/name;
   std::ifstream f(path,std::ios::binary);if(!f)throw std::runtime_error("Mode4 canonical masks missing");
   std::vector<unsigned char> b((std::istreambuf_iterator<char>(f)),{});
-  if(b.size()!=170*14400)throw std::runtime_error("Mode4 canonical mask size invalid");
+  if(b.size()!=170*cell*cell)throw std::runtime_error("Mode4 canonical mask size invalid");
   return b;
- }();return masks;
+ }();return cache.emplace(cell,std::move(masks)).first->second;
 }
 inline int grid120Id(unsigned code){
  static const unsigned codes[]={0x81a8,0x81a9,0x81aa,0x81ab,0x81b8,0x81b9,0x8e52,0x81bc,0x81bd,0x81bf,0x8274,0x997b,0x81c8,0x81da,0x8799,0x8275,0x83a2,0x8352,0x9981,0x99b7,0x9963,0x8cc8,0x8145,0x8146,0x8164,0x8163,0x8188,0x81e6,0x8150,0x8151,0x815c,0x815e,0x815f,0x8162,0x84a3,0x84a4,0x8473,0x84a1,0x84a2,0x84a5,0x84a6,0x84a7,0x84a8,0x81db,0x8273,0x8798,0x8277,0x83b0,0x8347,0x89a4,0x8ab1,0x84a9,0x9286,0x9379,0x8eb5,0x96d8,0x8160,0x8161,0x9c4f,0x8267,0x826b,0x8279,0x8276,0x83aa,0x8449,0x83ab,0x8343,0x836d,0x836e,0x8371,0x8374,0x82d6,0x837e,0x8381,0x8388,0x838c,0x838a,0x838f,0x8393,0x8350,0x8358,0x835e,0x88ea,0x93f1,0x8e4f,0x8754,0x8755,0x8756,0x828f,0x826e,0x81fc,0x838d,0x9a98,0x82c1,0x82c2,0x8187,0x8257,0x83a0,0x83a6,0x83b3,0x8448,0x83a3,0x8169,0x816a,0x816d,0x816e,0x996b,0x81dc,0x8183,0x8184,0x81e1,0x81e2,0x81a7,0x8194,0x834c,0x81e3,0x8269,0x82b5,0x826f,0x82a2,0x82af,0x82b1,0x82c4,0x89b3,0x8386,0x8458,0x83ce,0x83cf,0x8471,0x83d0,0x83d1,0x83d2,0x8475,0x83c6,0x83d3,0x83d6,0x8474,0x83bf,0x83c0,0x83c1,0x82cc,0x8391,0x83a8,0x83af,0x83b5,0x90ec,0x8f6f,0x89f1,0x8fac,0x96da,0x93fa,0x98a2,0x97b9,0x98a6,0x94aa,0x906c,0x98a7,0x9694,0x98a4,0x9971,0x9c65,0x9c63,0x82ad,0x9bdd,0x9ba3,0xe487,0x96dc,0x99ca,0x99af,0x9c4d};
  for(int i=0;i<170;i++)if(codes[i]==code)return i;
  throw std::runtime_error("Character outside fixed Mode4 palette");
 }
-inline void grid120Draw(void* buffer,int width,int height,std::string_view frame,int rows){
+inline void grid120Draw(void* buffer,int width,int height,std::string_view frame,int rows,int cell=120){
  auto p=(unsigned char*)buffer;
  for(int i=0;i<width*height;i++){p[4*i]=18;p[4*i+1]=13;p[4*i+2]=8;p[4*i+3]=0;}
- const auto& masks=grid120Masks();int row=0,col=0;
+ const auto& masks=grid120Masks(cell);int row=0,col=0;
  for(size_t i=0;i<frame.size();){
   unsigned a=(unsigned char)frame[i++];
   if(a==13){if(i<frame.size()&&frame[i]==10)i++;row++;col=0;continue;}
   if(a==10){row++;col=0;continue;}
-  if(row>=rows||col*120>=width)throw std::runtime_error("Mode4 grid overflow");
+  if(row>=rows||col*cell>=width)throw std::runtime_error("Mode4 grid overflow");
   // The GPU's internal background atlas entry is not a frame character.
   if(a==32){col++;continue;}
   if(i>=frame.size())throw std::runtime_error("Truncated Mode4 character");
-  unsigned b=(unsigned char)frame[i++];int g=grid120Id(a*256+b);
-  for(int y=0;y<120;y++)for(int x=0;x<120;x++){
-   unsigned ink=masks[g*14400+y*120+x];int d=((row*120+y)*width+col*120+x)*4;
+  unsigned b=(unsigned char)frame[i++];if(cell==60&&a==0x81&&b==0x40){col++;continue;}int g=grid120Id(a*256+b);
+  for(int y=0;y<cell;y++)for(int x=0;x<cell;x++){
+   unsigned ink=masks[g*cell*cell+y*cell+x];int d=((row*cell+y)*width+col*cell+x)*4;
    p[d]=(18*(255-ink)+232*ink+127)/255;
    p[d+1]=(13*(255-ink)+244*ink+127)/255;
    p[d+2]=(8*(255-ink)+227*ink+127)/255;

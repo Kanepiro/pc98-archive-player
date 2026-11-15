@@ -2,7 +2,7 @@ import {ensureTaslFont} from './tasl-font.js';
 import {makePlan,fitRect,densityRamp,TSLWriter,optionsFor,pc98GridFromPixels,pc98SourceDrawRect} from './tsl-converter-core.js';
 import {drawTSL} from './tsl.js';
 import {makeGlyphAtlas} from './tsl-quality.js';
-import {mode4Grid,makeMode4Atlas,MODE4_ENGINE} from './tsl-mode4-grid.js';
+import {mode4Grid,makeMode4Atlas,MODE4_ENGINE} from './tsl-mode4-grid60.js';
 import {fileIdentity,fingerprint,readCheckpoint,beginCheckpoint,appendCheckpoint} from './tsl-checkpoint.js';
 
 const aborted=()=>new DOMException('変換を中止しました','AbortError');
@@ -55,7 +55,7 @@ function readQualityState(worker,signal){
 }
 export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIssue=()=>{},checkpointConfig={},...input}={}) {
  await ensureTaslFont();
- check(signal);const taskStarted=performance.now();let options=optionsFor({...input,...(input.conversionMode==='artisan'?{mode4Cell120:true}:{})});
+ check(signal);const taskStarted=performance.now();let options=optionsFor({...input,...(input.conversionMode==='artisan'?{mode4Cell60:true}:{})});
  const {fit='contain',positionX=.5,positionY=.5,sourceGrid=false}=input;
  if(!['contain','cover'].includes(fit)||![positionX,positionY].every(x=>Number.isFinite(x)&&x>=0&&x<=1))throw Error('切り抜き設定が不正です');
  if(!file||file.size===0)throw Error('空のファイルです');
@@ -80,9 +80,9 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   const plan=makePlan(video.duration,options);
   const canvas=document.createElement('canvas'),sample=options.conversionMode==='artisan'
    ?(plan.width*plan.height<=3000?10:6):options.conversionMode==='quality'?6:4;
-  canvas.width=options.mode4Cell120?plan.width*60:plan.width*sample;canvas.height=options.mode4Cell120?plan.height*120:plan.height*sample;
+  canvas.width=options.mode4Cell60?plan.width*30:plan.width*sample;canvas.height=options.mode4Cell60?plan.height*60:plan.height*sample;
   const ctx=canvas.getContext('2d',{willReadFrequently:true,alpha:false});
-  const rect=options.mode4Cell120?{x:Math.floor((canvas.width-video.videoWidth)/2),y:Math.floor((canvas.height-video.videoHeight)/2),width:video.videoWidth,height:video.videoHeight}:sourceGrid?
+  const rect=options.mode4Cell60?{x:Math.floor((canvas.width-video.videoWidth)/2),y:Math.floor((canvas.height-video.videoHeight)/2),width:video.videoWidth,height:video.videoHeight}:sourceGrid?
    pc98SourceDrawRect(video.videoWidth,video.videoHeight,canvas.width,canvas.height,positionX,positionY):
    fitRect(video.videoWidth,video.videoHeight,canvas.width,canvas.height,.5,fit,positionX,positionY);
   const ramp=options.conversionMode==='legacy'?calibrateRamp():undefined;
@@ -92,9 +92,9 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   try{
    const identity=fileIdentity(file);
    const baseEngineVersion=options.conversionMode==='artisan'?MODE4_ENGINE:options.conversionMode==='quality'?(options.native16?48:47):options.conversionMode==='halftone'?(options.native16?55:54):(options.native16?43:42);
-   const engineVersion=baseEngineVersion+(!options.mode4Cell120&&sourceGrid?20:0);
+   const engineVersion=baseEngineVersion+(!options.mode4Cell60&&sourceGrid?20:0);
    const signature=JSON.stringify([engineVersion,identity,await fingerprint(file),
-    [options.width,options.height,options.fps,options.brightness,options.contrast,options.gamma,options.edge,options.conversionMode,options.native16,sourceGrid,fit,positionX,positionY],
+    [options.mode4ScoreLimit,options.mode4BlurSigma,options.mode4EdgeHigh,options.mode4EdgeLow,options.mode4MinEdge,options.width,options.height,options.fps,options.brightness,options.contrast,options.gamma,options.edge,options.conversionMode,options.native16,sourceGrid,fit,positionX,positionY],
     [video.videoWidth,video.videoHeight,video.duration,plan.count],!!input.exactNative,!!input.legacyLayout]);
    const previous=await readCheckpoint();
    if(previous?.job.signature===signature){
@@ -161,7 +161,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
    const detections=await vision?.detect(sourceFrame,rect,canvas.width,canvas.height,time)||[];
    // Recognition affects importance, never the user-selected framing.
    const frameRect=rect,semantic=detections;
-   ctx.fillStyle=options.mode4Cell120?'#fff':'#000';ctx.fillRect(0,0,canvas.width,canvas.height);
+   ctx.fillStyle=options.mode4Cell60?'#fff':'#000';ctx.fillRect(0,0,canvas.width,canvas.height);
    ctx.drawImage(sourceFrame,frameRect.x,frameRect.y,frameRect.width,frameRect.height);
    const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data;
    const converted=await convertFrame(worker,pixels,plan.width,plan.height,{...options,ramp,sample,semantic},signal);
@@ -186,19 +186,19 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
    const elapsed=(performance.now()-started)/1000,processed=i+1-resumeStart;
    onProgress({phase:'converting',done:i+1,total:plan.count,seconds:time,elapsed,
     remaining:elapsed/processed*(plan.count-i-1),plan,saved,acceleration,
-    visionBackend:vision?(vision.backend||'MediaPipe CPU'):'利用不可',perf:converted.perf,adapterInfo:converted.adapterInfo,gpuReason:converted.gpuReason});
+    visionBackend:vision?(vision.backend||'MediaPipe CPU'):'利用不可',audit:converted.audit,perf:converted.perf,adapterInfo:converted.adapterInfo,gpuReason:converted.gpuReason});
   }
   check(signal);
   const blob=writer.finish();
   let metricsUrl=null;
   if(metricsId)try{
    const r=await fetch('/api/metrics/'+metricsId+'/finish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-    appVersion:'0.3.43',source:{name:file.name,bytes:file.size,width:video.videoWidth,height:video.videoHeight,duration:video.duration},
+    appVersion:'0.3.44-rc.1',source:{name:file.name,bytes:file.size,width:video.videoWidth,height:video.videoHeight,duration:video.duration},
     settings:options,plan,resumedFrom:resumeStart,totalConversionSeconds:(performance.now()-taskStarted)/1000,frames:metricFrames,status:'completed'})});
    if(r.ok){metricsUrl=(await r.json()).url;metricsId=null;}
   }catch{}
   return {blob,plan,ramp,metricsUrl,source:{width:video.videoWidth,height:video.videoHeight,duration:video.duration},elapsed:(performance.now()-started)/1000};
  } finally {
-  if(metricsId)fetch('/api/metrics/'+metricsId+'/finish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({appVersion:'0.3.43',status:'interrupted',frames:metricFrames}),keepalive:true}).catch(()=>{});
+  if(metricsId)fetch('/api/metrics/'+metricsId+'/finish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({appVersion:'0.3.44-rc.1',status:'interrupted',frames:metricFrames}),keepalive:true}).catch(()=>{});
   worker?.terminate();vision?.close();await frameReader?.close();video.pause();video.removeAttribute('src');video.load();URL.revokeObjectURL(url);}
 }

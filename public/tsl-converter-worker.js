@@ -1,6 +1,6 @@
 import {rgbaToASCII} from './tsl-converter-core.js';
 import {QualityConverter} from './tsl-quality.js';
-import {Grid120Converter} from './tsl-mode4-grid.js';
+import {Grid60Converter} from './tsl-mode4-grid60.js';
 import {rgbaToHalftone} from './tsl-halftone.js';
 import {NativeModeConverter} from './tsl-native-modes.js';
 let quality=null,tones=null,gpuUnavailableReason='';
@@ -11,7 +11,7 @@ self.onmessage=async({data:d})=>{
     tones=null;gpuUnavailableReason='';
     try{tones=await NativeModeConverter.create(d.mode==='legacy'?1:2,d.sample,d.width,d.height);}catch(e){gpuUnavailableReason=String(e);}
    }else{
-    quality=d.mode==='artisan'?new Grid120Converter(d.atlas):new QualityConverter(d.atlas,d.sample);
+    quality=d.mode==='artisan'?new Grid60Converter(d.atlas):new QualityConverter(d.atlas,d.sample);
     quality.restore(d.state);
     // PC Boost: real Windows DirectCompute D3D11, NOT WebGPU.
     // Fall back to exact C++ CPU when the native GPU is unavailable.
@@ -42,7 +42,7 @@ self.onmessage=async({data:d})=>{
     ?rgbaToHalftone(pixels,d.width,d.height,d.options)
     :rgbaToASCII(pixels,d.width,d.height,d.options);
   }
-  self.postMessage({frame,acceleration,
+  self.postMessage({frame,acceleration,audit:quality?.lastAudit||null,
    perf:quality?.lastPerf||tones?.lastPerf||null,
    adapterInfo:quality?.nativeGpuInfo||quality?.gpuMatcher?.adapterInfo||tones?.adapterInfo||null,
    gpuReason:quality?.gpuError||gpuUnavailableReason||''});

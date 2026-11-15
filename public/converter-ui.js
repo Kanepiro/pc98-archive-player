@@ -173,7 +173,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
      $('tsl-progress').max=p.total;$('tsl-progress').value=p.done;
      $('converter-status').textContent='変換中 '+Math.floor(p.done/p.total*100)+'% · '+p.done.toLocaleString()+' / '+p.total.toLocaleString()+'画面';
      const gpuName=p.adapterInfo
-      ?p.adapterInfo.identified?'GPU: '+p.adapterInfo.name
+      ?(p.adapterInfo.identified||p.adapterInfo.architecture==='Direct3D 11')?'GPU: '+p.adapterInfo.name
        :'WebGPUアダプターの機種は未識別'
       :/ソフトウェアWebGPU/.test(p.gpuReason||'')
        ?'SwiftShader等のソフトウェアGPUを除外しCPU処理'
@@ -181,22 +181,22 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
      const perf=p.perf?.nativeWallMs!==undefined
       ?' · ネイティブ変換 '+Math.round(p.perf.nativeWallMs)+'ms'+(p.perf.gpuTimestampMs>=0?' / GPU実行 '+Math.round(p.perf.gpuTimestampMs)+'ms':'')
       :p.plan.conversionMode==='artisan'&&p.perf
-      ?' · ぼかし・形状取得 '+Math.round(p.perf.prepareMs)+'ms / 170文字の字形照合 '+Math.round(p.perf.matchMs)+'ms'
+      ?' · ぼかし・形状取得 '+Math.round(p.perf.prepareMs)+'ms / 170文字の字形照合 '+Math.round(p.perf.matchMs)+'ms · 配置 '+p.perf.accepted+' / 空白 '+p.perf.blank+'マス'
       :'';
      const fallback=p.gpuReason?' · フォールバック: '+p.gpuReason:'';
-     $('converter-detail').textContent=(p.plan.reduced?'長尺のため自動調整 · ':'')+p.plan.effectiveFps.toFixed(2)+' fps · '+(p.acceleration==='DirectCompute 120px shape matching'?'WindowsネイティブGPU字形照合（120px）':p.acceleration==='WARP test 120px shape matching'?'WARP検証用字形照合':p.acceleration==='DirectCompute Modes'?'WindowsネイティブGPU変換（DirectCompute）':p.acceleration==='WARP Test Modes'?'ソフトウェア検証 WARP（実GPUではありません）':p.acceleration==='DirectCompute Global'?'WindowsネイティブGPU 全体組版':p.acceleration==='WARP Test Global'?'ソフトウェア検証 WARP（実GPUではありません）':p.acceleration==='DirectCompute'?'WindowsネイティブGPU文字照合（DirectCompute）':p.acceleration==='PC Native Exact'?'正規アルゴリズム C++文字照合':p.acceleration==='WebGPU'?'GPU文字照合（WebGPU）':p.acceleration==='CPU（GPU精度照合）'?'CPU処理（GPUとの精度差）':'CPU処理')+(gpuName?' · '+gpuName:'')+perf+(p.plan.conversionMode!=='artisan'&&p.visionBackend?' · 認識 '+p.visionBackend:'')+fallback+' · 残り約'+Math.ceil(p.remaining)+'秒 · 途中保存済み '+p.saved.toLocaleString()+'画面';
+     $('converter-detail').textContent=(p.plan.reduced?'長尺のため自動調整 · ':'')+p.plan.effectiveFps.toFixed(2)+' fps · '+(p.acceleration==='DirectCompute 60px contour matching'?'WindowsネイティブGPU字形照合（60px）':p.acceleration==='WARP test 60px contour matching'?'WARP検証用字形照合':p.acceleration==='DirectCompute Modes'?'WindowsネイティブGPU変換（DirectCompute）':p.acceleration==='WARP Test Modes'?'ソフトウェア検証 WARP（実GPUではありません）':p.acceleration==='DirectCompute Global'?'WindowsネイティブGPU 全体組版':p.acceleration==='WARP Test Global'?'ソフトウェア検証 WARP（実GPUではありません）':p.acceleration==='DirectCompute'?'WindowsネイティブGPU文字照合（DirectCompute）':p.acceleration==='PC Native Exact'?'正規アルゴリズム C++文字照合':p.acceleration==='WebGPU'?'GPU文字照合（WebGPU）':p.acceleration==='CPU（GPU精度照合）'?'CPU処理（GPUとの精度差）':'CPU処理')+(gpuName?' · '+gpuName:'')+perf+(p.plan.conversionMode!=='artisan'&&p.visionBackend?' · 認識 '+p.visionBackend:'')+fallback+' · 残り約'+Math.ceil(p.remaining)+'秒 · 途中保存済み '+p.saved.toLocaleString()+'画面';
     }});
    downloadUrl=URL.createObjectURL(result.blob);
    const a=$('tsl-download');a.href=downloadUrl;a.download=tslName(file.name,result.plan.conversionMode);
    if(result.metricsUrl){metricsLink.href=result.metricsUrl;metricsLink.hidden=false;}
    $('tsl-result').hidden=false;
    $('converter-status').textContent=directMP4?'TSL完成。元音声付きMP4を作成中…':'変換が完了しました';
-   $('converter-detail').textContent=(result.plan.mode4Cell120
-    ?result.plan.width/2+' × '+result.plan.height+'マス · '+result.plan.width/2*result.plan.height+'文字'
+   $('converter-detail').textContent=(result.plan.mode4Cell60
+    ?result.plan.width/2+' × '+result.plan.height+'マス · '+result.plan.width/2*result.plan.height+'マス（配置上限）'
     :mode==='pc98'
     ?'元動画から自動算出 · 全角'+Math.floor(result.plan.width/2)+'×'+result.plan.height+'文字相当（半角'+result.plan.width+'列）'
     :result.plan.width+' × '+result.plan.height+'文字')+
-    (result.plan.mode4Cell120?' · 120×120px固定・170文字':result.plan.native16?' · 全角16×16ドット（半角8×16）':' · 約'+Number($('video-font-px').value)+'px')+
+    (result.plan.mode4Cell60?' · 60×60px固定・170文字':result.plan.native16?' · 全角16×16ドット（半角8×16）':' · 約'+Number($('video-font-px').value)+'px')+
     ' · '+result.plan.count.toLocaleString()+'画面 · '+result.plan.duration.toFixed(2)+'秒 · '+(result.blob.size/1024/1024).toFixed(2)+' MB'+(result.plan.reduced?' · 長尺のためフレームレートを自動調整':'');
    if(directMP4){
     // ALWAYS encode the TSL returned by the ORIGINAL browser converter.
@@ -316,8 +316,8 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   $('video-font-setting').setAttribute('aria-disabled',String(pc));
   $('video-fit').disabled=pc||artisan;
   if(artisan){
-   try{const g=selectedGrid();$('layout-hint').textContent='モード4：120×120px固定 / '+g.columns+'×'+g.height+'マス / '+g.columns*g.height+'文字。170文字の形状照合。端数は余白を追加します。';}
-   catch(e){$('layout-hint').textContent='モード4：120×120px固定。'+e.message;}
+   try{const g=selectedGrid();$('layout-hint').textContent='モード4：60×60px固定 / '+g.columns+'×'+g.height+'マス / '+g.columns*g.height+'文字。170文字の形状照合。端数は余白を追加します。';}
+   catch(e){$('layout-hint').textContent='モード4：60×60px固定。'+e.message;}
    return;
   }
   if(pc){
@@ -355,7 +355,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
    if($('video-mode').value!=='pc98'){
     $('video-font-render').value='legacy';
     ordinaryFontRenderValue='legacy';
-    $('video-font-px').value='120';
+    $('video-font-px').value='60';
    }
   }else if(lastStyle==='artisan')$('video-font-px').value=ordinaryPixelValue;
   lastStyle=$('video-style').value;

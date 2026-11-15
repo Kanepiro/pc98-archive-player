@@ -1,0 +1,2 @@
+export {GRID120_CHARS as MODE4_CHARS,GRID120_BYTES as MODE4_BYTES} from './mode4-palette.js';
+export const MODE4_MASK_SHA256="6c1aecb98ffc5e29b1500348c4d62d8fd4135b2cdebf3359e476140eac225d5d";

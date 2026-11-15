@@ -17,7 +17,7 @@ struct GridGPU{
  }
  void compute(){
   auto started=std::chrono::steady_clock::now();uint32_t h[8];std::cin.read((char*)h,32);
-  if(!std::cin||h[0]!=0x30324754||h[1]!=1||h[2]<1||h[2]>4096||h[3]!=170||h[4]!=469)throw std::runtime_error("Grid120 protocol");
+  if(!std::cin||h[0]!=0x30324754||h[1]!=1||h[2]<1||h[2]>4096||h[3]!=170||(h[4]!=469&&h[4]!=1152))throw std::runtime_error("Grid120 protocol");
   uint32_t C=h[2],G=h[3],D=h[4],N=C*G;
   std::vector<float> t(C*D),g(G*D);std::cin.read((char*)t.data(),t.size()*4);std::cin.read((char*)g.data(),g.size()*4);
   if(!std::cin)throw std::runtime_error("Grid120 truncated payload");

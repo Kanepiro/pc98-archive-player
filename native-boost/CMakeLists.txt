@@ -117,7 +117,10 @@ if(WIN32)
   add_custom_command(TARGET ${renderer} POST_BUILD
    COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "${CMAKE_CURRENT_SOURCE_DIR}/../public/mode4-atlas.bin"
-    "$<TARGET_FILE_DIR:${renderer}>/mode4-atlas.bin")
+    "$<TARGET_FILE_DIR:${renderer}>/mode4-atlas.bin"
+   COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${CMAKE_CURRENT_SOURCE_DIR}/../public/mode4-atlas60.bin"
+    "$<TARGET_FILE_DIR:${renderer}>/mode4-atlas60.bin")
  endforeach()
  add_executable(grid120_launcher WIN32 grid120_launcher.cpp)
  target_compile_features(grid120_launcher PRIVATE cxx_std_17)
