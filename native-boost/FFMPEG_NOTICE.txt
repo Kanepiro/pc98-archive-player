@@ -1,0 +1,11 @@
+This portable package includes FFmpeg and FFprobe binaries from the
+Gyan.dev FFmpeg Windows essentials build, which is redistributed with its
+applicable third-party and FFmpeg licenses.
+
+Project: https://ffmpeg.org/
+Binary provider: https://www.gyan.dev/ffmpeg/builds/
+Source code / legal notices: https://ffmpeg.org/legal.html
+
+FFmpeg is separate software, not part of the TASL native converter.
+Users must comply with the applicable FFmpeg and third-party licenses.
+The package contains the license file when provided by the binary archive.

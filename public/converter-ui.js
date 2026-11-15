@@ -1,10 +1,15 @@
 import {convertVideo} from './video-to-tsl.js';
+import {convertVideoNative,exportNativeMp4} from './pc-boost.js';
 import {analyzeVideoTone} from './tsl-auto-settings.js';
 import {tslName,portraitGridForPixels,landscapeGridForPixels,native16PortraitGrid,native16LandscapeGrid,pc98GridFromPixels} from './tsl-converter-core.js';
 import {fileIdentity,readCheckpointSummary} from './tsl-checkpoint.js';
 import {exportTslInWorker} from './tsl-export-controller.js';
 export function setupConverter({openPreview,stopPlayback,isExporting,enterImmersive}) {
  const $=id=>document.getElementById(id);
+ const isPC=!/(Android|iPhone|iPad|iPod|Mobile)/i.test(navigator.userAgent)&&navigator.userAgentData?.mobile!==true;
+ const nativeLocal=location.hostname==='127.0.0.1'&&location.port==='39083';
+ $('pc-boost-setting').hidden=!isPC;
+ $('video-pc-boost').checked=isPC&&nativeLocal;
  // A deliberate setting change takes precedence over a saved checkpoint.
  // Automatic restores do not emit input/change events.
  $('converter-settings').addEventListener('input',()=>{userAdjustedSettings=true;});
@@ -53,7 +58,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   };
  }
  function busy(value){
-  for(const id of ['video-file','video-choose','converter-settings','video-direct-mp4'])$(id).disabled=value;
+  for(const id of ['video-file','video-choose','converter-settings','video-direct-mp4','video-pc-boost'])$(id).disabled=value;
   const missingDimensions=$('video-mode').value==='pc98'&&!sourceDimensions;
   $('convert-tsl').disabled=value||!selected||missingDimensions;
   $('cancel-tsl').hidden=!controller;
@@ -65,7 +70,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  function clearResult(){
   result=null;$('tsl-result').hidden=true;
   if(downloadUrl)URL.revokeObjectURL(downloadUrl);downloadUrl=null;
-  if(directMp4Url)URL.revokeObjectURL(directMp4Url);directMp4Url=null;$('direct-mp4-download').hidden=true;
+  if(directMp4Url?.startsWith('blob:'))URL.revokeObjectURL(directMp4Url);directMp4Url=null;$('direct-mp4-download').hidden=true;
  }
  function converterConfig(){
   return Object.fromEntries(['video-mode','video-style','video-font-render','video-font-px','video-fps','video-fit','crop-x','crop-y','video-brightness','video-contrast','video-gamma','video-edge'].map(id=>[id,$(id).value]));
@@ -132,16 +137,26 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
    const mode=$('video-mode').value;
    const grid=selectedGrid();
    const {width,height}=grid;
-   result=await convertVideo(file,{signal:controller.signal,width,height,
+   const converter=$('video-pc-boost').checked&&isPC?convertVideoNative:convertVideo;
+   result=await converter(file,{signal:controller.signal,width,height,
     sourceGrid:mode==='pc98',fps:Number($('video-fps').value),
     brightness:Number($('video-brightness').value),contrast:Number($('video-contrast').value),
     gamma:Number($('video-gamma').value),edge:Number($('video-edge').value),
     conversionMode:$('video-style').value,native16:$('video-font-render').value==='native16',
     fit:$('video-fit').value,positionX:Number($('crop-x').value)/100,positionY:Number($('crop-y').value)/100,
-    checkpointConfig,
+    checkpointConfig,sourceAudioRequired:directMP4,
     onCheckpointIssue:()=>{$('converter-detail').textContent='端末に途中保存できません。変換は続行しますが、閉じると再開できない場合があります。';},
     onProgress:p=>{
      if(p.phase==='loading')return;
+     if(p.phase==='boost-upload'){
+      $('converter-status').textContent='PCブーストへ動画を転送中（PC内のみ）…';return;
+     }
+     if(p.phase==='boost-wait'){
+      $('converter-status').textContent='PCブースト：'+p.message;return;
+     }
+     if(p.phase==='boost-download'){
+      $('converter-status').textContent='PCブーストから完成TSLを受信中…';return;
+     }
      if(p.phase==='vision'){
       $('converter-status').textContent='モード4：'+p.message;
       return;
@@ -167,7 +182,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
      const perf=p.plan.conversionMode==='artisan'&&p.perf
       ?' · 輪郭CPU '+Math.round(p.perf.prepareMs)+'ms / GPU計算・転送 '+Math.round(p.perf.gpuMs)+'ms / 組版CPU '+Math.round(p.perf.layoutMs)+'ms'
       :'';
-     $('converter-detail').textContent=(p.plan.reduced?'長尺のため自動調整 · ':'')+p.plan.effectiveFps.toFixed(2)+' fps · '+(p.acceleration==='WebGPU'?'WebGPU使用':p.acceleration==='CPU（GPU精度照合）'?'CPU処理（GPUとの精度差）':'CPU処理')+(gpuName?' · '+gpuName:'')+perf+' · 残り約'+Math.ceil(p.remaining)+'秒 · 途中保存済み '+p.saved.toLocaleString()+'画面';
+     $('converter-detail').textContent=(p.plan.reduced?'長尺のため自動調整 · ':'')+p.plan.effectiveFps.toFixed(2)+' fps · '+(p.acceleration==='PC Native'?'PCネイティブ C++':p.acceleration==='WebGPU'?'WebGPU使用':p.acceleration==='CPU（GPU精度照合）'?'CPU処理（GPUとの精度差）':'CPU処理')+(gpuName?' · '+gpuName:'')+perf+' · 残り約'+Math.ceil(p.remaining)+'秒 · 途中保存済み '+p.saved.toLocaleString()+'画面';
     }});
    downloadUrl=URL.createObjectURL(result.blob);
    const a=$('tsl-download');a.href=downloadUrl;a.download=tslName(file.name,result.plan.conversionMode);
@@ -179,28 +194,50 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
     (result.plan.native16?' · 全角16×16ドット（半角8×16）':' · 約'+Number($('video-font-px').value)+'px')+
     ' · '+result.plan.count.toLocaleString()+'画面 · '+result.plan.duration.toFixed(2)+'秒 · '+(result.blob.size/1024/1024).toFixed(2)+' MB'+(result.plan.reduced?' · 長尺のためフレームレートを自動調整':'');
    if(directMP4){
-    if(result.plan.duration>300)throw Error('音声付きMP4は5分以内の動画に対応しています（TSLは保存可能）');
-    const bytes=await result.blob.arrayBuffer();
+    const native=!!result.jobId;
+    if(!native&&result.plan.duration>300)throw Error('ブラウザー版のMP4書き出しは5分までです。PCブーストなら長尺も対応します（TSLは保存可能）');
     const started=performance.now();
-    const mp4=await exportTslInWorker({kind:'TSL',bytes},{
-     signal:controller.signal,sourceAudioFile:file,
-     onRetry:()=>{$('converter-status').textContent='高解像度のMP4書き出しが止まったためHDで再試行中…';},
-     onStage:stage=>{$('converter-status').textContent=stage==='reading'?'TSLをMP4用に読み込み中…':
-       stage==='audio-reading'?'元動画の音声を確認中…':
-       stage==='audio-encoding'?'元音声と映像を合成中…':'TSL映像をエンコード中…';},
-     onResolution:(w,h)=>{$('converter-detail').textContent='MP4解像度 '+w+'×'+h+' · TSL '+result.plan.count.toLocaleString()+'画面';},
-     onProgress:(seconds,total)=>{
-      const t=Math.floor(seconds);
-      if(t!==last){last=t;$('converter-status').textContent='音声付きMP4変換中 '+Math.round(seconds/total*100)+'% · '+t+' / '+Math.ceil(total)+'秒';}
-     }
-    });
+    let fileSize=0,encoder='';
+    if(native){
+     const exported=await exportNativeMp4({
+      jobId:result.jobId,signal:controller.signal,
+      onProgress:p=>{
+       const done=p.done||0,total=p.total||0;
+       const percent=total?Math.min(100,Math.floor(done/total*100)):0;
+       const encoderText=p.encoder||'GPU確認中';
+       $('converter-status').textContent='PCブーストMP4 · '+encoderText+' · '+percent+'%';
+       $('converter-detail').textContent=(p.message||'')+
+        (total?' · '+done.toLocaleString()+'/'+total.toLocaleString()+'フレーム':'')+
+        (p.width?' · '+p.width+'×'+p.height:'');
+      }
+     });
+     directMp4Url=exported.url;
+     fileSize=exported.size;
+     encoder=exported.encoder;
+    }else{
+     const bytes=await result.blob.arrayBuffer();
+     const mp4=await exportTslInWorker({kind:'TSL',bytes},{
+      signal:controller.signal,sourceAudioFile:file,
+      onRetry:()=>{$('converter-status').textContent='高解像度のMP4書き出しが止まったためHDで再試行中…';},
+      onStage:stage=>{$('converter-status').textContent=stage==='reading'?'TSLをMP4用に読み込み中…':
+        stage==='audio-reading'?'元動画の音声を確認中…':
+        stage==='audio-encoding'?'元音声と映像を合成中…':'TSL映像をエンコード中…';},
+      onResolution:(w,h)=>{$('converter-detail').textContent='MP4解像度 '+w+'×'+h+' · TSL '+result.plan.count.toLocaleString()+'画面';},
+      onProgress:(seconds,total)=>{
+       const t=Math.floor(seconds);
+       if(t!==last){last=t;$('converter-status').textContent='音声付きMP4変換中 '+Math.round(seconds/total*100)+'% · '+t+' / '+Math.ceil(total)+'秒';}
+      }
+     });
+     directMp4Url=URL.createObjectURL(mp4);
+     fileSize=mp4.size;
+     encoder='ブラウザー';
+    }
     if(controller.signal.aborted)throw new DOMException('変換を中止しました','AbortError');
-    directMp4Url=URL.createObjectURL(mp4);
     const filename=file.name.replace(/\.(mp4|m4v|webm)$/i,'')+'_TASL_音声付き.mp4';
     const link=$('direct-mp4-download');link.href=directMp4Url;link.download=filename;link.hidden=false;
     const a=document.createElement('a');a.href=directMp4Url;a.download=filename;document.body.append(a);a.click();a.remove();
-    $('converter-status').textContent='音声付きMP4の保存準備が完了しました';
-    $('converter-detail').textContent=filename+' · '+(mp4.size/1024/1024).toFixed(1)+' MB · '+Math.round((performance.now()-started)/1000)+'秒でMP4処理完了';
+    $('converter-status').textContent='音声付きMP4の保存準備が完了しました · '+encoder;
+    $('converter-detail').textContent=filename+' · '+(fileSize/1024/1024).toFixed(1)+' MB · '+Math.round((performance.now()-started)/1000)+'秒でMP4処理完了';
    }
   }catch(e){
    const hasTSL=!!result;
