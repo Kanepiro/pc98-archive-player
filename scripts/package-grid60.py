@@ -29,9 +29,9 @@ for src,dst in [('mode4_grid_gpu','mode4_grid_gpu'),('tsl_render_gpu','tsl_rende
  shutil.copy2(o.bin/(src+'.exe'),app/(dst+'.exe'))
 shutil.copy2(r/'native-boost/mode4_grid_gpu.hlsl',app/'mode4_grid_gpu.hlsl')
 (app/'MODE4-60-README.txt').write_text(
- 'TASL モード4 60px検証版 v0.3.44-rc.4（公開版とは別です）\n\n'
+ 'TASL モード4 60px検証版 v0.3.44-rc.5（公開版とは別です）\n\n'
  'ZIP全体を新しいフォルダへ展開し、TASL-PC-Boost.exeを起動してください。\n'
- 'localhost:39091と専用の途中保存領域を使います。フォントのインストールは不要です。\n'
+ 'localhost:39092と専用の途中保存領域を使います。フォントのインストールは不要です。\n'
  '指定170文字・60px固定・Noto Sans Mono CJK JP Regular。\n'
  'Windows 10 / GTX 1050 Tiで字形照合GPU・CPU/GPU描画・MP4出力を検証。\n'
  'この環境ではNVENC API互換性のため圧縮はCPUへ自動切替します。\n'
