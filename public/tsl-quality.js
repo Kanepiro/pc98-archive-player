@@ -60,6 +60,7 @@ export function makeGlyphAtlas(sample=6){
   const data=mini.getImageData(0,0,small.width,small.height).data;
   const mask=new Float32Array(columns*sample*sample);
   for(let i=0;i<mask.length;i++)mask[i]=data[i*4]/255;
+  if(char!==' '&&!mask.some(v=>v>0))throw Error('Notoの字形を描画できません: U+'+char.codePointAt(0).toString(16).toUpperCase());
   items.push({char,columns,mask});
  }
  return items;

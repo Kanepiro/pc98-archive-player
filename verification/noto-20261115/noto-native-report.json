@@ -1,0 +1,47 @@
+{
+  "platform": "win32",
+  "fontBytes": 16424156,
+  "glyphs": 272,
+  "runs": [
+    {
+      "engine": "tsl_render",
+      "native16": false,
+      "width": 384,
+      "height": 408,
+      "stderr": "FONT_FACE Noto Sans Mono CJK JP (process-private bundled OTF)\r\nRENDER 1/1\r\n",
+      "bytes": 626688
+    },
+    {
+      "engine": "tsl_render_gpu",
+      "native16": false,
+      "width": 384,
+      "height": 408,
+      "stderr": "FONT_FACE Noto Sans Mono CJK JP (process-private bundled OTF)\r\nRASTER_BACKEND DirectCompute NVIDIA GeForce GTX 1050 Ti\r\nRENDER 1/1\r\n",
+      "bytes": 626688,
+      "differentBytes": 570,
+      "mp4Bytes": 22396
+    },
+    {
+      "engine": "tsl_render",
+      "native16": true,
+      "width": 256,
+      "height": 272,
+      "stderr": "FONT_FACE Noto Sans Mono CJK JP (process-private bundled OTF)\r\nRENDER 1/1\r\n",
+      "bytes": 278528
+    },
+    {
+      "engine": "tsl_render_gpu",
+      "native16": true,
+      "width": 256,
+      "height": 272,
+      "stderr": "FONT_FACE Noto Sans Mono CJK JP (process-private bundled OTF)\r\nRASTER_BACKEND DirectCompute NVIDIA GeForce GTX 1050 Ti\r\nRENDER 1/1\r\n",
+      "bytes": 278528,
+      "differentBytes": 5253,
+      "mp4Bytes": 14462
+    }
+  ],
+  "warp": false,
+  "missingFontRejected": true,
+  "cpuGpuExact": false,
+  "note": "Conversion and render smoke only. Cell clipping is separately evaluated; this is not a release approval."
+}

@@ -1,0 +1,50 @@
+[
+  {
+    "mode": "legacy",
+    "frames": 4,
+    "width": 16,
+    "height": 8,
+    "mp4Bytes": 177538,
+    "resolution": {
+      "width": 1080,
+      "height": 1080
+    },
+    "resumeSame": true
+  },
+  {
+    "mode": "halftone",
+    "frames": 4,
+    "width": 16,
+    "height": 8,
+    "mp4Bytes": 60118,
+    "resolution": {
+      "width": 1080,
+      "height": 1080
+    },
+    "resumeSame": true
+  },
+  {
+    "mode": "quality",
+    "frames": 4,
+    "width": 16,
+    "height": 8,
+    "mp4Bytes": 201255,
+    "resolution": {
+      "width": 1080,
+      "height": 1080
+    },
+    "resumeSame": true
+  },
+  {
+    "mode": "artisan",
+    "frames": 4,
+    "width": 16,
+    "height": 8,
+    "mp4Bytes": 83960,
+    "resolution": {
+      "width": 1080,
+      "height": 1080
+    },
+    "resumeSame": true
+  }
+]

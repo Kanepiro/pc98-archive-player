@@ -6,7 +6,7 @@ const url=process.env.PLAYER_URL||'http://127.0.0.1:4191/';
 const out=process.env.NOTO_OUT||'noto-validation';
 await mkdir(out,{recursive:true});
 const isWebkit=process.env.NOTO_BROWSER==='webkit';
-const browser=await (isWebkit?webkit:chromium).launch(isWebkit?{headless:true}:{channel:'chrome',headless:true,args:['--no-sandbox']});
+const browser=await (isWebkit?webkit:chromium).launch(isWebkit?{headless:true,executablePath:process.env.NOTO_WEBKIT_PATH}:{channel:'chrome',headless:true,args:['--no-sandbox']});
 const results={browser:isWebkit?'Linux WebKit (not physical iOS)':'Chrome (host OS recorded separately)',url};
 try{
  const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
@@ -21,7 +21,9 @@ try{
   const {makeGlyphAtlas}=await import('/tsl-quality.js');
   const {drawTSL}=await import('/tsl.js');
   assertTaslGlyphs(MODE4_ALLOWED_CHARS);
-  const atlas=await makeArtisanGlyphAtlas(6),quality=makeGlyphAtlas(6);
+  let atlas,quality,atlasError=null;
+  try{atlas=await makeArtisanGlyphAtlas(6);quality=makeGlyphAtlas(6);}catch(e){atlasError=e.message;atlas=[];quality=[];}
+  if(atlasError)return {face:face.family,status:face.status,mode4:MODE4_ALLOWED_CHARS.length,atlasError};
   const blank=atlas.filter(g=>g.char!==' '&&!g.mask.some(v=>v>0)).map(g=>g.char);
   const full=MODE4_ALLOWED_CHARS,canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
   const rows=[];for(let i=0;i<full.length;i+=16)rows.push([...full].slice(i,i+16).join(''));
@@ -37,7 +39,8 @@ try{
   let rejected=false;try{assertTaslGlyphs('\uE000');}catch{rejected=true;}
   return {face:face.family,status:face.status,mode4:full.length,atlas:atlas.length,quality:quality.length,blank,metrics,positions,unsupportedCp932:unsupported,unsupportedRejected:rejected,width:canvas.width,height:canvas.height};
  });
- assert.equal(results.font.mode4,272);assert.equal(results.font.atlas,273);assert.deepEqual(results.font.blank,[]);
+ assert.equal(results.font.atlasError,undefined,'Font raster preparation failed: '+results.font.atlasError);
+ assert.equal(results.font.mode4,272);assert.equal(results.font.atlas,273);
  assert.equal(results.font.status,'loaded');assert.equal(results.font.unsupportedRejected,true);
  assert.deepEqual(results.font.positions.filter(Array.isArray),[['A',0,0,12],['人',12,0,24],['α',36,0,24],['Ф',60,0,24],['ｲ',0,24,12],['０',12,24,24],['B',36,24,12]]);
  results.fontRequests=fontRequests;
@@ -73,6 +76,7 @@ try{
   await offline.close();
  }
  console.log(JSON.stringify({mode4:results.font.mode4,blank:results.font.blank,metricsRange:{top:Math.min(...results.font.metrics.map(m=>m.top)),bottom:Math.max(...results.font.metrics.map(m=>m.bottom))},unsupportedCp932:results.font.unsupportedCp932.length,worker:results.worker,offline:results.offline}));
+ assert.deepEqual(results.font.blank,[],'Empty glyph masks; see font-report.json');
 }finally{
  await writeFile(out+'/font-report.json',JSON.stringify(results,null,2));
  await browser.close();

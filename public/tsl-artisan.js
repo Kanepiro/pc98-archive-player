@@ -107,6 +107,7 @@ export async function makeArtisanGlyphAtlas(sample=6,signal,progress=()=>{}){
   const pixels=mini.getImageData(0,0,small.width,small.height).data;
   const mask=new Float32Array(sample*sample*cols);
   for(let i=0;i<mask.length;i++)mask[i]=pixels[i*4]/255;
+  if(char!==' '&&!mask.some(v=>v>0))throw Error('Notoの字形を描画できません: U+'+char.codePointAt(0).toString(16).toUpperCase());
   atlas.push({char,columns:cols,mask});
   if(index%350===349){progress(index+1,entries.length);await new Promise(resolve=>setTimeout(resolve,0));}
  }

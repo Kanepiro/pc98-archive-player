@@ -26,7 +26,7 @@ for native in [False,True]:
   im.save(out/(engine+'-'+str(native)+'.png'))
   images.append(p.stdout)
   report['runs'].append({'engine':engine,'native16':native,'width':width,'height':height,'stderr':p.stderr.decode(errors='replace'),'bytes':len(p.stdout)})
- assert images[0]==images[1],'CPU/GPU glyph atlas mismatch'
+ report['runs'][-1]['differentBytes']=sum(a!=b for a,b in zip(*images))
  raw=out/('noto-'+str(native)+'.bgra');raw.write_bytes(images[1])
  mp4=out/('noto-'+str(native)+'.mp4')
  subprocess.run([str(app/'ffmpeg.exe'),'-y','-v','error','-f','rawvideo','-pix_fmt','bgra','-s',f'{width}x{height}','-r','5','-i',str(raw),'-c:v','libx264','-pix_fmt','yuv420p',str(mp4)],check=True,timeout=90)
@@ -40,7 +40,9 @@ shutil.copy2(app/'tsl_render.exe',empty/'tsl_render.exe')
 p=subprocess.run([str(empty/'tsl_render.exe'),'--input',str(tsl),'--fps','5'],capture_output=True)
 assert p.returncode!=0 and not p.stdout and b'font is missing' in p.stderr
 report['missingFontRejected']=True
-report['cpuGpuExact']=True
+report['cpuGpuExact']=all(r.get('differentBytes',0)==0 for r in report['runs'])
 report['note']='Conversion and render smoke only. Cell clipping is separately evaluated; this is not a release approval.'
 (out/'native-report.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
 print(json.dumps(report))
+
+assert report['cpuGpuExact'],'CPU/GPU glyph atlas mismatch; see native-report.json'

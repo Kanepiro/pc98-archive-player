@@ -22,7 +22,7 @@ struct TaslPrivateFont {
   if(bytes.size()!=16424156)throw std::runtime_error("Bundled Noto font size mismatch");
   DWORD count=0;
   handle=AddFontMemResourceEx(bytes.data(),DWORD(bytes.size()),nullptr,&count);
-  if(!handle||count!=1)throw std::runtime_error("Cannot register process-private Noto font");
+  if(!handle||count<1)throw std::runtime_error("Cannot register process-private Noto font");
  }
  ~TaslPrivateFont(){if(handle)RemoveFontMemResourceEx(handle);}
  TaslPrivateFont(const TaslPrivateFont&)=delete;
