@@ -1,3 +1,4 @@
+import {ensureTaslFont,assertTaslGlyphs} from './tasl-font.js';
 import {setupImmersive} from './immersive.js';
 import {setupConverter} from './converter-ui.js';
 import {decodeMAG} from './mag.js';
@@ -82,7 +83,7 @@ async function openFile(file){
   let kind,data;
   if(head.startsWith('MAKI02  ')){kind='MAG';data=decodeMAG(bytes);}
   else if(ext==='MMS'){kind='MMS';}
-  else if(ext==='TSL'){kind='TSL';data=parseTSL(new TextDecoder('shift_jis').decode(bytes));}
+  else if(ext==='TSL'){kind='TSL';data=parseTSL(new TextDecoder('shift_jis').decode(bytes));await ensureTaslFont();for(const frame of data.frames)assertTaslGlyphs(frame);if(id!==loadSerial)return;}
   else throw Error('MAG・TSL・MMSのいずれかを選んでください');
   current={kind,data,bytes,name:file.name};Object.assign(metrics,{kind,filename:file.name,frames:0,seconds:0,underruns:0,gapSamples:0});
   $('empty').hidden=true;$('filename').textContent=file.name;$('kind').textContent=kind;$('keys').hidden=kind!=='MMS';

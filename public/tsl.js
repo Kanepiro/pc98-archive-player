@@ -1,3 +1,4 @@
+import {taslCanvasFont,assertTaslGlyphs} from './tasl-font.js';
 // Adapted from the user's TSL_Viewer.html. Timing uses an absolute clock.
 export function parseTSL(text){
  text=text.replace(/\r\n?/g,'\n').replace(/\x1a+$/,'');
@@ -29,10 +30,11 @@ export function tslFrameAt(data,seconds){
  return data.schedule[low].frame;
 }
 export function drawTSL(canvas,data,index,{cellWidth=data.native16?8:12,cellHeight=data.native16?16:24,fontSize=data.native16?16:20,foreground='#e3f4e8',background='#080d12'}={}){
+ assertTaslGlyphs(data.frames[index]);
  const cw=cellWidth,ch=cellHeight,w=Math.round(data.width*cw),h=Math.round(data.height*ch);
  if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
  const c=canvas.getContext('2d');c.fillStyle=background;c.fillRect(0,0,w,h);
- c.fillStyle=foreground;c.font=fontSize+'px monospace';c.textBaseline='top';
+ c.fillStyle=foreground;c.font=taslCanvasFont(fontSize);c.textBaseline='top';
  const lines=data.frames[index].split('\n');
  for(let y=0;y<Math.min(lines.length,data.height);y++){
   let x=0;

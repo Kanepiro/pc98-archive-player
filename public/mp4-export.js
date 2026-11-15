@@ -1,3 +1,4 @@
+import {ensureTaslFont,assertTaslGlyphs} from './tasl-font.js';
 // Direct, deterministic MP4 export from decoded MAG/TSL/MMS data.
 // Export is independent of screen capture and of live AudioWorklet playback.
 import {Output, BufferTarget, Mp4OutputFormat, CanvasSource, AudioBufferSource, AudioSampleSink, AudioSampleSource, EncodedAudioPacketSource, EncodedPacketSink, Input, ALL_FORMATS, BlobSource, Quality, canEncodeAudio} from 'mediabunny';
@@ -109,7 +110,9 @@ async function exportMag(current, signal, onProgress) {
   return result(output);
 }
 async function exportTsl(current, signal, onProgress, onResolution, tslAppearance={}, maxPixels=Infinity, sourceAudioFile=null, onStage=()=>{}) {
+  await ensureTaslFont();
   const data=current.data;
+  for(const frame of data.frames)assertTaslGlyphs(frame);
   if(data.duration>MAX_SECONDS)throw Error('この作品は5分を超えるためMP4書き出しの対象外です');
   let audioInput=null,audioTrack=null,audioMode=null;
   try {

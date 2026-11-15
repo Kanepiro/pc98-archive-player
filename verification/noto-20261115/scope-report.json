@@ -1,0 +1,18 @@
+{
+  "base": "f7e3509",
+  "unchangedFiles": {
+    "public/mode4-allowed.js": "3ed41e8c0336a1eab4ad2b575de64de86ac3f72f893f6edcba758ce118629b1f",
+    "public/tsl-converter-core.js": "b6163fd4a46842cfe219f825ae693bd175c1c6c1e06c390d97e71773c79da554",
+    "public/tsl-halftone.js": "19da30699a8d12844e32645383d220766235e3e1adaf94b0f1f07c782e3677c5",
+    "public/tsl-artisan-engine.js": "685492005222872a25b13de22de0eb94643193158904ae4943db7781d7945cbd",
+    "public/tsl-artisan-structure.js": "23b672c1d0ce72a960c8ec768c180959db5adbef7db1ae874d623ecbf6640002",
+    "public/tsl-webgpu.js": "c1336be0d76d9b823aeb7333bf918c3fe46b2b65998a114067cd8964383d1dd2",
+    "public/tsl-checkpoint.js": "8be69e04e94b6e4e0c2145d07b913d2e641889a556b06080f02068b4c99fd562",
+    "public/tsl-converter-worker.js": "95bea8f3e3abd05435cf4c28f876b52892fa4c1a1937789bea9f02d82d38041f",
+    "public/tsl-export-controller.js": "a1b70e7441ebec0681e63761b0058649d8253d02e93b906bb791cea1b0545993",
+    "public/tsl-export-worker.js": "b21b4fcf69f72a238a413e43c922c65acffe03e62062e3b454bef88d7d329ea7",
+    "public/tsl-artisan-vision.js": "894a7cf896bd0187e824f5522747fac8a603c5233261f61c364c55ac681803d3"
+  },
+  "fontOnlyEditsInMixedFiles": true,
+  "note": "Existing font sizes, cell advances, palette, scores, shaders, TSL format and checkpoint implementation unchanged."
+}

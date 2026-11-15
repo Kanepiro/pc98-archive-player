@@ -1,0 +1,7 @@
+{
+  "repository": "https://github.com/notofonts/noto-cjk",
+  "commit": "f8d157532fbfaeda587e826d4cd5b21a49186f7c",
+  "source": "Sans/Mono/NotoSansMonoCJKjp-Regular.otf",
+  "sha256": "4d01725be822d144cf9a56ade981e6fb920cd7a610b8fc24cc601a920beea5b9",
+  "subset": false
+}

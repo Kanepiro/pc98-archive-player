@@ -1,3 +1,4 @@
+import {taslCanvasFont,assertTaslGlyphs} from './tasl-font.js';
 // Mode 3: contextual, temporally stable glyph matching.
 import {Mode3GpuMatcher} from './tsl-webgpu.js';
 // XDoG (extended difference of Gaussians) + Canny/Edge-Drawing-style
@@ -42,6 +43,7 @@ export function encodeQualityFrame(lines){
 // Returned arrays are serializable/transferable to the converter worker.
 export function makeGlyphAtlas(sample=6){
  if(!Number.isInteger(sample)||sample<4||sample>10)throw Error('標本数が不正です');
+ assertTaslGlyphs(QUALITY_CHARS.join(''));
  const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});
  const small=document.createElement('canvas'),mini=small.getContext('2d',{willReadFrequently:true});
  const items=[];
@@ -49,7 +51,7 @@ export function makeGlyphAtlas(sample=6){
   const columns=cw(char);
   canvas.width=12*columns;canvas.height=24;
   ctx.fillStyle='#000';ctx.fillRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle='#fff';ctx.font='20px monospace';ctx.textBaseline='top';
+  ctx.fillStyle='#fff';ctx.font=taslCanvasFont(20);ctx.textBaseline='top';
   if(char!==' ')ctx.fillText(char,0,0,12*columns);
   small.width=sample*columns;small.height=sample;
   mini.fillStyle='#000';mini.fillRect(0,0,small.width,small.height);
@@ -58,6 +60,7 @@ export function makeGlyphAtlas(sample=6){
   const data=mini.getImageData(0,0,small.width,small.height).data;
   const mask=new Float32Array(columns*sample*sample);
   for(let i=0;i<mask.length;i++)mask[i]=data[i*4]/255;
+  if(char!==' '&&!mask.some(v=>v>0))throw Error('Notoの字形を描画できません: U+'+char.codePointAt(0).toString(16).toUpperCase());
   items.push({char,columns,mask});
  }
  return items;

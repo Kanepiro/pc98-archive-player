@@ -1,3 +1,4 @@
+import {ensureTaslFont} from './tasl-font.js';
 import {makePlan,fitRect,densityRamp,TSLWriter,optionsFor,pc98GridFromPixels,pc98SourceDrawRect} from './tsl-converter-core.js';
 import {drawTSL} from './tsl.js';
 import {makeGlyphAtlas} from './tsl-quality.js';
@@ -53,6 +54,7 @@ function readQualityState(worker,signal){
  });
 }
 export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIssue=()=>{},checkpointConfig={},...input}={}) {
+ await ensureTaslFont();
  check(signal);let options=optionsFor(input);
  const {fit='contain',positionX=.5,positionY=.5,sourceGrid=false}=input;
  if(!['contain','cover'].includes(fit)||![positionX,positionY].every(x=>Number.isFinite(x)&&x>=0&&x<=1))throw Error('切り抜き設定が不正です');
