@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {chromium} from '@playwright/test';
 import {createServer} from 'node:http';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
-import {resolve,extname,join} from 'node:path';
+import {resolve,extname,join,sep} from 'node:path';
 import {execFileSync} from 'node:child_process';
 const out=resolve(process.env.FREEZE_TEST_DIR||'freeze-validation');await mkdir(out,{recursive:true});
 const fixture=join(out,'moving-65s.mp4');
@@ -18,7 +18,7 @@ const server=createServer(async(req,res)=>{
   if(path==='/__fixture.mp4'){res.setHeader('Content-Type','video/mp4');res.end(await readFile(fixture));return;}
   if(path==='/health'||path.startsWith('/api/')){res.writeHead(503,{'Content-Type':'application/json'});res.end('{"error":"CPU test only"}');return;}
   const file=resolve(root,'.'+(path==='/'?'/index.html':path));
-  if(!file.startsWith(root+'/'))throw Error('path');
+  if(!file.startsWith(root+sep))throw Error('path');
   const mime={'.js':'text/javascript','.mjs':'text/javascript','.html':'text/html','.css':'text/css','.wasm':'application/wasm'};
   res.setHeader('Content-Type',mime[extname(file)]||'application/octet-stream');res.end(await readFile(file));
  }catch{res.writeHead(404);res.end();}
