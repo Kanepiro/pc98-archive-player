@@ -16,7 +16,7 @@ with zipfile.ZipFile(o.baseline) as z:
   p=Path(i.filename)
   if p.is_absolute() or '..' in p.parts:raise ValueError('Unsafe archive path')
   rel=p.relative_to(original) if p.is_relative_to(original) else None
-  if rel is not None and rel.parts and rel.parts[0]=='app':continue
+  if rel is not None and rel.parts and rel.parts[0] in {'app','FREEZE-VALIDATION','SHA256SUMS.json'}:continue
   z.extract(i,o.out)
 app=o.out/original
 shutil.copytree(r/'dist',app/'app')
@@ -27,7 +27,7 @@ source=app/'python-source';source.mkdir(exist_ok=True)
 for f in (r/'native-boost').glob('*.py'):shutil.copy2(f,source/f.name)
 for src,dst in [('mode4_grid_gpu','mode4_grid_gpu'),('tsl_render_gpu','tsl_render_gpu'),('tsl_render_win','tsl_render'),('grid120_launcher','TASL-PC-Boost')]:
  shutil.copy2(o.bin/(src+'.exe'),app/(dst+'.exe'))
-for f in (r/'native-boost').glob('*.hlsl'):shutil.copy2(f,app/f.name)
+shutil.copy2(r/'native-boost/mode4_grid_gpu.hlsl',app/'mode4_grid_gpu.hlsl')
 (app/'MODE4-120-README.txt').write_text(
  'TASL モード4 120px試験版（公開版とは別です）\n\n'
  'ZIP全体を新しいフォルダへ展開し、TASL-PC-Boost.exeを起動してください。\n'
