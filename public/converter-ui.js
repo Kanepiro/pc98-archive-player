@@ -1,4 +1,4 @@
-import {mode4Grid,MODE4_ENGINE} from './tsl-mode4-grid.js';
+import {mode4Grid,MODE4_ENGINE} from './tsl-mode4-grid60.js';
 import {convertVideo} from './video-to-tsl.js';
 import {exportFaithfulNativeMp4} from './pc-boost.js';
 import {analyzeVideoTone} from './tsl-auto-settings.js';
@@ -66,7 +66,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  }
  function busy(value){
   for(const id of ['video-file','video-choose','converter-settings','video-direct-mp4','video-pc-boost'])$(id).disabled=value;
-  const missingDimensions=$('video-mode').value==='pc98'&&!sourceDimensions;
+  const missingDimensions=($('video-mode').value==='pc98'||$('video-style').value==='artisan')&&!sourceDimensions;
   $('convert-tsl').disabled=value||!selected||missingDimensions;
   $('cancel-tsl').hidden=!controller;
   $('auto-tune').disabled=!!controller||(!tuningController&&(!selected||missingDimensions));
@@ -144,6 +144,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   let last=0;
   try{
    const mode=$('video-mode').value;
+   if($('video-style').value==='artisan')await sourceSizePromise;
    const grid=selectedGrid();
    const {width,height}=grid;
    result=await convertVideo(file,{signal:controller.signal,width,height,
@@ -316,7 +317,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   $('video-font-setting').setAttribute('aria-disabled',String(pc));
   $('video-fit').disabled=pc||artisan;
   if(artisan){
-   try{const g=selectedGrid();$('layout-hint').textContent='モード4：60×60px固定 / '+g.columns+'×'+g.height+'マス / '+g.columns*g.height+'文字。170文字の形状照合。端数は余白を追加します。';}
+   try{const g=selectedGrid();$('layout-hint').textContent='モード4：60×60px固定 / '+g.columns+'×'+g.height+'マス / '+g.columns*g.height+'マスまで配置可能。不合格は空白。170文字の形状照合。端数は余白を追加します。';}
    catch(e){$('layout-hint').textContent='モード4：60×60px固定。'+e.message;}
    return;
   }

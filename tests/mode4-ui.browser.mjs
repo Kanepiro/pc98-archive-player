@@ -1,0 +1,35 @@
+import assert from 'node:assert/strict';
+import {chromium,webkit} from '@playwright/test';
+import {mkdir,writeFile,readFile} from 'node:fs/promises';
+const out=process.env.OUT||'validation/ui',engine=process.env.ENGINE||'chromium',url=process.env.PLAYER_URL||'http://127.0.0.1:4234/',video=process.env.VIDEO||'__pad-square.mp4';
+const portrait=process.env.PORTRAIT==='1',columns=portrait?18:32,rows=portrait?32:18;
+await mkdir(out,{recursive:true});
+const browser=await(engine==='webkit'?webkit:chromium).launch(engine==='webkit'?{headless:true,executablePath:'/home/kanepiro74/WorkTasks/tasl_noto_tools/webkit-run.sh'}:{headless:true,channel:'chrome',args:['--no-sandbox']});
+try{
+ const page=await browser.newPage(),errors=[],httpErrors=[];page.on('pageerror',e=>errors.push(e.message));page.on('response',r=>{if(r.status()>=400)httpErrors.push({url:r.url(),status:r.status()});});
+ await page.goto(url);await page.locator('#tab-converter').click();
+ const choose=()=>page.evaluate(async name=>{const buffer=await(await fetch('/'+name)).arrayBuffer(),input=document.querySelector('#video-file'),dt=new DataTransfer();dt.items.add(new File([buffer],name,{type:name.endsWith('webm')?'video/webm':'video/mp4',lastModified:1700000000000}));input.files=dt.files;input.dispatchEvent(new Event('change',{bubbles:true}));},video);
+ await page.locator('#video-style').selectOption('artisan');await page.locator('#video-mode').selectOption(portrait?'portrait':'landscape');await page.locator('#video-fps').selectOption('5');await page.locator('#video-direct-mp4').uncheck();
+ await choose();await page.waitForFunction(text=>document.querySelector('#layout-hint').textContent.includes(text),columns+'×'+rows);
+ const hint=await page.locator('#layout-hint').innerText();assert.ok(hint.includes('576')&&hint.includes('不合格は空白'));
+ await page.locator('#convert-tsl').click();
+ await page.waitForFunction(()=>Number(document.querySelector('#tsl-progress').value)>=1&&document.querySelector('#converter-status').textContent.startsWith('変換中'),{},{timeout:120000});
+ const live=await page.locator('#converter-detail').innerText();assert.ok(!live.includes('NaN')&&live.includes('字形照合'));
+ await page.waitForFunction(()=>!document.querySelector('#tsl-result').hidden&&document.querySelector('#cancel-tsl').hidden,{},{timeout:300000});
+ assert.equal(await page.locator('#converter-status').innerText(),'変換が完了しました');
+ const downloadBytes=async()=>{const ready=page.waitForEvent('download');await page.locator('#tsl-download').click();return readFile(await(await ready).path());};
+ const originalBytes=await downloadBytes();
+ const result=await page.evaluate(async bytes=>{const base=document.querySelector('script[type=module]').src,{parseTSL}=await import(new URL('./tsl.js',base));const d=parseTSL(new TextDecoder('shift_jis').decode(new Uint8Array(bytes)));return{width:d.width,height:d.height,frames:d.frames.length,cell60:d.mode4Cell60};},Array.from(originalBytes));
+ assert.equal(result.cell60,true);assert.equal(result.width,columns*2);assert.equal(result.height,rows);assert.equal(result.frames,10);
+ await page.locator('#preview-tsl').click();await page.waitForFunction(([w,h])=>document.querySelector('#screen').width===w&&document.querySelector('#screen').height===h,[columns*60,rows*60]);
+ await page.reload();await page.locator('#tab-converter').click();await choose();
+ await page.waitForFunction(()=>document.querySelector('#convert-tsl').textContent==='結果を復元',{},{timeout:30000});
+ assert.equal(await page.locator('#video-style').inputValue(),'artisan');assert.equal(await page.locator('#video-fps').inputValue(),'5');
+ const restore=await page.locator('#converter-status').innerText();assert.ok(restore.includes('10 / 10'));
+ await page.locator('#convert-tsl').click();await page.waitForFunction(()=>!document.querySelector('#tsl-result').hidden&&document.querySelector('#cancel-tsl').hidden,{},{timeout:60000}).catch(async error=>{console.log('RESTORE_STATE',await page.evaluate(async()=>({status:document.querySelector('#converter-status').textContent,detail:document.querySelector('#converter-detail').textContent,progress:document.querySelector('#tsl-progress').value,checkpoint:await(await import('/tsl-checkpoint.js')).readCheckpointSummary()})));throw error;});
+ const resumed=await downloadBytes();
+ assert.deepEqual(resumed,originalBytes);assert.deepEqual(errors,[]);
+ await writeFile(out+'/ui.TSL',originalBytes);
+ await writeFile(out+'/report.json',JSON.stringify({hint,live,result,restore,restoredBytesEqual:true,previewPixels:[columns*60,rows*60],errors,httpErrors},null,2));
+ console.log('UI PASS '+JSON.stringify({hint,live,result,restore,errors,httpErrors}));
+}finally{await browser.close();}
