@@ -1,0 +1,88 @@
+{
+  "verifiedAt": "2026-11-16T03:34:16.908775+00:00",
+  "version": "0.3.44",
+  "publicURLs": {
+    "mobile": "https://pc98-archive-player-seven.vercel.app/mobile/",
+    "windows": "https://pc98-archive-player-seven.vercel.app/windows/"
+  },
+  "main": "aa20464353766735ccf082a10d3344122eec2120",
+  "windowsSource": "3f0bd408d3e6f47d1e0ea43ccff33265bcf15b94",
+  "productionDeployment": "dpl_59cuJvcRidqtqJvY7GGjcFLRCaiM",
+  "releaseURL": "https://github.com/Kanepiro/pc98-archive-player/releases/tag/windows-v0.3.44",
+  "releaseId": 446573828,
+  "publicAssets": {
+    "count": 80,
+    "hashMismatches": 0
+  },
+  "publicWindowsDownload": {
+    "url": "https://github.com/Kanepiro/pc98-archive-player/releases/download/windows-v0.3.44/TASL-PC-Boost-v0.3.44-Windows-x64.zip",
+    "bytes": 206672227,
+    "sha256": "d38c937aaf917f20168979db6880db279d2a22d2057806b740285b06376b838f"
+  },
+  "chromium": {
+    "hint": "モード4：60×60px固定 / 32×18マス / 576マスまで配置可能。不合格は空白。170文字の形状照合。端数は余白を追加します。",
+    "live": "5.00 fps · CPU処理 · 輪郭CPU 784ms / 170文字の字形照合 759ms · 配置 354 / 空白 222マス · 残り約21秒 · 途中保存済み 0画面",
+    "result": {
+      "width": 64,
+      "height": 18,
+      "frames": 10,
+      "cell60": true
+    },
+    "restore": "動画を選択しました。保存済み 10 / 10画面から再開できます。",
+    "restoredBytesEqual": true,
+    "previewPixels": [
+      1920,
+      1080
+    ],
+    "errors": [],
+    "httpErrors": []
+  },
+  "webkit": {
+    "hint": "モード4：60×60px固定 / 18×32マス / 576マスまで配置可能。不合格は空白。170文字の形状照合。端数は余白を追加します。",
+    "live": "5.00 fps · CPU処理 · 輪郭CPU 729ms / 170文字の字形照合 923ms · 配置 161 / 空白 415マス · 残り約23秒 · 途中保存済み 0画面",
+    "result": {
+      "width": 36,
+      "height": 32,
+      "frames": 10,
+      "cell60": true
+    },
+    "restore": "動画を選択しました。保存済み 10 / 10画面から再開できます。",
+    "restoredBytesEqual": true,
+    "previewPixels": [
+      1080,
+      1920
+    ],
+    "errors": [],
+    "httpErrors": []
+  },
+  "pwa": {
+    "before": {
+      "header": "スマホ WebGPU版 · v0.3.40",
+      "controller": "https://pc98-archive-player-seven.vercel.app/sw.js?v=0.3.40",
+      "caches": [
+        "pc98-448ba8f732eb9aad"
+      ]
+    },
+    "after": {
+      "header": "スマホ版 · v0.3.44 · モード4 60px輪郭AA",
+      "caches": [
+        "pc98-cdbd62e2f5300bda"
+      ]
+    },
+    "engine": {
+      "cell": 60,
+      "engine": 6005,
+      "sigma": 8,
+      "limit": 0.34
+    },
+    "offlineHeader": "スマホ版 · v0.3.44 · モード4 60px輪郭AA",
+    "errors": []
+  },
+  "previousDeployment": "dpl_ABu76EJuTWhHBooeDDZVoQzjKayN",
+  "previousWindowsReleasePreserved": "https://github.com/Kanepiro/pc98-archive-player/releases/tag/windows-v0.3.42-rc2",
+  "actualDevicesNotTested": [
+    "Windows 11",
+    "Android",
+    "iOS"
+  ]
+}
