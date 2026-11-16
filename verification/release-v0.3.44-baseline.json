@@ -1,0 +1,15 @@
+{
+  "recordedAt": "2026-11-16",
+  "publicBase": "https://pc98-archive-player-seven.vercel.app",
+  "previousMain": "f7e3509f2e0c6847503e025c196b1bcaf67075d9",
+  "previousProductionDeployment": "dpl_ABu76EJuTWhHBooeDDZVoQzjKayN",
+  "previousProductionURL": "https://pc98-archive-player-qz8togcim-hiroaki-kanekos-projects.vercel.app",
+  "projectId": "prj_rO5fzYnJMgJxOJb2gUlBC1o2Bogk",
+  "teamId": "team_vqGyF3gbcS1xoxjk2aK7wSO2",
+  "previousWindowsRelease": "windows-v0.3.42-rc2",
+  "previousWindowsAssetSHA256": "15f3bb7c3f785f76d03a145f1ee89514426b48f46e6e93d0741fd9c1ba76029b",
+  "windowsSource": "3f0bd408d3e6f47d1e0ea43ccff33265bcf15b94",
+  "mobileValidatedSource": "cd5504e79794b6e8e5324f574b03a1c272f830d2",
+  "windowsAssetSHA256": "d38c937aaf917f20168979db6880db279d2a22d2057806b740285b06376b838f",
+  "authorization": "User tested the completed build and explicitly instructed publication. Preserve the existing /mobile/ and /windows/ distribution URLs."
+}
