@@ -1,0 +1,3146 @@
+[
+  {
+    "baseline": {
+      "repeats": 3,
+      "stats": {
+        "conversionSeconds": {
+          "median": 16.896,
+          "min": 16.537699999999255,
+          "max": 17.150299999999813
+        },
+        "conversionFPS": {
+          "median": 2.900094696969697,
+          "min": 2.857092878841801,
+          "max": 2.9629271301331026
+        },
+        "mp4Seconds": {
+          "median": 3.5519000000003724,
+          "min": 3.531,
+          "max": 4.14560000000149
+        },
+        "totalSeconds": {
+          "median": 20.681299999999815,
+          "min": 20.447900000000374,
+          "max": 20.683300000000745
+        },
+        "cpuMeanPercent": {
+          "median": 36.68407126938704,
+          "min": 35.667998831090415,
+          "max": 36.74393647008921
+        },
+        "cpuPeakPercent": {
+          "median": 55.58272034686187,
+          "min": 53.28044835972285,
+          "max": 57.30611523196663
+        },
+        "peakRssBytes": {
+          "median": 1552297984,
+          "min": 1512574976,
+          "max": 1591173120
+        },
+        "peakPrivateBytes": {
+          "median": 1968029696,
+          "min": 1777426432,
+          "max": 2169757696
+        },
+        "gpuMeanPercent": {
+          "median": 4.277777777777778,
+          "min": 3.8823529411764706,
+          "max": 5.176470588235294
+        },
+        "gpuPeakPercent": {
+          "median": 13.0,
+          "min": 12.0,
+          "max": 16.0
+        },
+        "peakVramMiB": {
+          "median": 1560.0,
+          "min": 1362.0,
+          "max": 1696.0
+        },
+        "tslBytes": {
+          "median": 794993,
+          "min": 794993,
+          "max": 794993
+        },
+        "mp4Bytes": {
+          "median": 2030500,
+          "min": 2030500,
+          "max": 2030500
+        }
+      }
+    },
+    "candidate": {
+      "repeats": 3,
+      "stats": {
+        "conversionSeconds": {
+          "median": 17.234,
+          "min": 17.11560000000149,
+          "max": 18.188800000000747
+        },
+        "conversionFPS": {
+          "median": 2.843216896831844,
+          "min": 2.693965517241269,
+          "max": 2.862885320993464
+        },
+        "mp4Seconds": {
+          "median": 2.9726000000014903,
+          "min": 2.95089999999851,
+          "max": 4.08789999999851
+        },
+        "totalSeconds": {
+          "median": 21.139699999999255,
+          "min": 20.20660000000149,
+          "max": 21.2035
+        },
+        "cpuMeanPercent": {
+          "median": 35.78095062188007,
+          "min": 35.184483972730014,
+          "max": 35.9052637293348
+        },
+        "cpuPeakPercent": {
+          "median": 58.734377536450154,
+          "min": 51.671337241262044,
+          "max": 61.59825487270209
+        },
+        "peakRssBytes": {
+          "median": 1529131008,
+          "min": 1482371072,
+          "max": 1556668416
+        },
+        "peakPrivateBytes": {
+          "median": 1656549376,
+          "min": 1498935296,
+          "max": 1692725248
+        },
+        "gpuMeanPercent": {
+          "median": 4.055555555555555,
+          "min": 1.588235294117647,
+          "max": 5.166666666666667
+        },
+        "gpuPeakPercent": {
+          "median": 14.0,
+          "min": 4.0,
+          "max": 14.0
+        },
+        "peakVramMiB": {
+          "median": 1655.0,
+          "min": 1592.0,
+          "max": 1725.0
+        },
+        "tslBytes": {
+          "median": 794993,
+          "min": 794993,
+          "max": 794993
+        },
+        "mp4Bytes": {
+          "median": 2070258,
+          "min": 2070258,
+          "max": 2070258
+        }
+      }
+    },
+    "platform": "Windows native",
+    "material": "short",
+    "mode": "legacy",
+    "conversionSpeedup": 0.9803876058953231,
+    "totalSpeedup": 0.97831568092265
+  },
+  {
+    "baseline": {
+      "repeats": 3,
+      "stats": {
+        "conversionSeconds": {
+          "median": 16.334099999999626,
+          "min": 16.173,
+          "max": 17.230099999999627
+        },
+        "conversionFPS": {
+          "median": 2.9998591902829737,
+          "min": 2.843860453508747,
+          "max": 3.0297409262350836
+        },
+        "mp4Seconds": {
+          "median": 3.5249000000003727,
+          "min": 3.512799999999814,
+          "max": 4.136400000000372
+        },
+        "totalSeconds": {
+          "median": 20.309400000000373,
+          "min": 19.84689999999944,
+          "max": 20.755099999999626
+        },
+        "cpuMeanPercent": {
+          "median": 36.75231573626507,
+          "min": 33.94120809287526,
+          "max": 37.630285897263555
+        },
+        "cpuPeakPercent": {
+          "median": 55.04816322280109,
+          "min": 53.696146403395055,
+          "max": 58.922570349956516
+        },
+        "peakRssBytes": {
+          "median": 1489711104,
+          "min": 1408122880,
+          "max": 1775239168
+        },
+        "peakPrivateBytes": {
+          "median": 2056982528,
+          "min": 1667317760,
+          "max": 2099163136
+        },
+        "gpuMeanPercent": {
+          "median": 4.333333333333333,
+          "min": 4.176470588235294,
+          "max": 4.777777777777778
+        },
+        "gpuPeakPercent": {
+          "median": 19.0,
+          "min": 15.0,
+          "max": 19.0
+        },
+        "peakVramMiB": {
+          "median": 1563.0,
+          "min": 1364.0,
+          "max": 1692.0
+        },
+        "tslBytes": {
+          "median": 795004,
+          "min": 795004,
+          "max": 795004
+        },
+        "mp4Bytes": {
+          "median": 723794,
+          "min": 723794,
+          "max": 723794
+        }
+      }
+    },
+    "candidate": {
+      "repeats": 3,
+      "stats": {
+        "conversionSeconds": {
+          "median": 17.33589999999851,
+          "min": 16.680800000000744,
+          "max": 17.863199999999257
+        },
+        "conversionFPS": {
+          "median": 2.8265045368284434,
+          "min": 2.74306955080848,
+          "max": 2.9375089923743354
+        },
+        "mp4Seconds": {
+          "median": 2.36489999999851,
+          "min": 2.353,
+          "max": 2.9352000000029803
+        },
+        "totalSeconds": {
+          "median": 19.688899999998508,
+          "min": 19.045699999999254,
+          "max": 20.798400000002236
+        },
+        "cpuMeanPercent": {
+          "median": 37.2542856460623,
+          "min": 34.81355790673005,
+          "max": 39.98457104660567
+        },
+        "cpuPeakPercent": {
+          "median": 59.19150536302919,
+          "min": 51.68325896818177,
+          "max": 60.06518774321136
+        },
+        "peakRssBytes": {
+          "median": 1658048512,
+          "min": 1475198976,
+          "max": 1659318272
+        },
+        "peakPrivateBytes": {
+          "median": 1722937344,
+          "min": 1489174528,
+          "max": 1758912512
+        },
+        "gpuMeanPercent": {
+          "median": 3.6875,
+          "min": 2.1176470588235294,
+          "max": 4.5625
+        },
+        "gpuPeakPercent": {
+          "median": 16.0,
+          "min": 5.0,
+          "max": 16.0
+        },
+        "peakVramMiB": {
+          "median": 1657.0,
+          "min": 1594.0,
+          "max": 1717.0
+        },
+        "tslBytes": {
+          "median": 795004,
+          "min": 795004,
+          "max": 795004
+        },
+        "mp4Bytes": {
+          "median": 732490,
+          "min": 732490,
+          "max": 732490
+        }
+      }
+    },
+    "platform": "Windows native",
+    "material": "short",
+    "mode": "halftone",
+    "conversionSpeedup": 0.9422124031634371,
+    "totalSpeedup": 1.0315152192353008
+  },
+  {
+    "baseline": {
+      "repeats": 3,
+      "stats": {
+        "conversionSeconds": {
+          "median": 32.802800000000744,
+          "min": 32.7795,
+          "max": 33.90109999999963
+        },
+        "conversionFPS": {
+          "median": 1.4937749216529959,
+          "min": 1.4453808283507183,
+          "max": 1.494836711969371
+        },
+        "mp4Seconds": {
+          "median": 3.6082999999998138,
+          "min": 3.5935,
+          "max": 4.148800000000745
+        },
+        "totalSeconds": {
+          "median": 36.39630000000074,
+          "min": 36.387799999999814,
+          "max": 38.04990000000037
+        },
+        "cpuMeanPercent": {
+          "median": 27.96641034093232,
+          "min": 27.95411848693915,
+          "max": 28.60763953802841
+        },
+        "cpuPeakPercent": {
+          "median": 48.14157392678418,
+          "min": 43.24295900845504,
+          "max": 51.025877157670514
+        },
+        "peakRssBytes": {
+          "median": 1477357568,
+          "min": 1436921856,
+          "max": 1545433088
+        },
+        "peakPrivateBytes": {
+          "median": 1945432064,
+          "min": 1593577472,
+          "max": 2019409920
+        },
+        "gpuMeanPercent": {
+          "median": 10.387096774193548,
+          "min": 8.625,
+          "max": 11.096774193548388
+        },
+        "gpuPeakPercent": {
+          "median": 37.0,
+          "min": 36.0,
+          "max": 38.0
+        },
+        "peakVramMiB": {
+          "median": 1566.0,
+          "min": 1375.0,
+          "max": 1696.0
+        },
+        "tslBytes": {
+          "median": 795003,
+          "min": 795003,
+          "max": 795003
+        },
+        "mp4Bytes": {
+          "median": 1075031,
+          "min": 1075031,
+          "max": 1075031
+        }
+      }
+    },
+    "candidate": {
+      "repeats": 3,
+      "stats": {
+        "conversionSeconds": {
+          "median": 20.02339999999851,
+          "min": 19.845,
+          "max": 20.79760000000149
+        },
+        "conversionFPS": {
+          "median": 2.447136849885816,
+          "min": 2.3560410816631,
+          "max": 2.469135802469136
+        },
+        "mp4Seconds": {
+          "median": 3.0086000000014903,
+          "min": 2.455599999997765,
+          "max": 3.019099999997765
+        },
+        "totalSeconds": {
+          "median": 23.032,
+          "min": 22.300599999997765,
+          "max": 23.816699999999255
+        },
+        "cpuMeanPercent": {
+          "median": 34.87027876340828,
+          "min": 33.43977385604761,
+          "max": 36.58224258562775
+        },
+        "cpuPeakPercent": {
+          "median": 50.91422632174957,
+          "min": 48.8452446858318,
+          "max": 51.08144826003877
+        },
+        "peakRssBytes": {
+          "median": 1449152512,
+          "min": 1425616896,
+          "max": 1559224320
+        },
+        "peakPrivateBytes": {
+          "median": 1611005952,
+          "min": 1567899648,
+          "max": 1707642880
+        },
+        "gpuMeanPercent": {
+          "median": 3.65,
+          "min": 3.3157894736842106,
+          "max": 7.7
+        },
+        "gpuPeakPercent": {
+          "median": 12.0,
+          "min": 9.0,
+          "max": 30.0
+        },
+        "peakVramMiB": {
+          "median": 1723.0,
+          "min": 1665.0,
+          "max": 1724.0
+        },
+        "tslBytes": {
+          "median": 795003,
+          "min": 795003,
+          "max": 795003
+        },
+        "mp4Bytes": {
+          "median": 1104956,
+          "min": 1104956,
+          "max": 1104956
+        }
+      }
+    },
+    "platform": "Windows native",
+    "material": "short",
+    "mode": "quality",
+    "conversionSpeedup": 1.6382232787640054,
+    "totalSpeedup": 1.5802492184786707
+  },
+  {
+    "baseline": {
+      "repeats": 3,
+      "stats": {
+        "conversionSeconds": {
+          "median": 76.1795,
+          "min": 75.38230000000074,
+          "max": 76.68580000000074
+        },
+        "conversionFPS": {
+          "median": 0.6432176635446544,
+          "min": 0.6389709698536042,
+          "max": 0.6500199648989156
+        },
+        "mp4Seconds": {
+          "median": 4.083900000000373,
+          "min": 3.542199999999255,
+          "max": 4.157599999999627
+        },
+        "totalSeconds": {
+          "median": 80.26340000000037,
+          "min": 78.9245,
+          "max": 80.84340000000037
+        },
+        "cpuMeanPercent": {
+          "median": 14.378248378382363,
+          "min": 14.1602284631546,
+          "max": 14.704756522339277
+        },
+        "cpuPeakPercent": {
+          "median": 44.75945970555498,
+          "min": 42.93458988446101,
+          "max": 46.260661154507595
+        },
+        "peakRssBytes": {
+          "median": 1465090048,
+          "min": 1444220928,
+          "max": 1495277568
+        },
+        "peakPrivateBytes": {
+          "median": 2056818688,
+          "min": 1985077248,
+          "max": 2255011840
+        },
+        "gpuMeanPercent": {
+          "median": 29.114285714285714,
+          "min": 28.36111111111111,
+          "max": 29.5
+        },
+        "gpuPeakPercent": {
+          "median": 99.0,
+          "min": 99.0,
+          "max": 99.0
+        },
+        "peakVramMiB": {
+          "median": 1791.0,
+          "min": 1655.0,
+          "max": 1920.0
+        },
+        "tslBytes": {
+          "median": 135291,
+          "min": 135291,
+          "max": 135291
+        },
+        "mp4Bytes": {
+          "median": 424374,
+          "min": 424374,
+          "max": 424374
+        }
+      }
+    },
+    "candidate": {
+      "repeats": 3,
+      "stats": {
+        "conversionSeconds": {
+          "median": 11.7865,
+          "min": 10.813099999999627,
+          "max": 11.933899999999442
+        },
+        "conversionFPS": {
+          "median": 4.157298604335469,
+          "min": 4.1059502761044,
+          "max": 4.53154044631065
+        },
+        "mp4Seconds": {
+          "median": 3.4354000000003726,
+          "min": 3.29289999999851,
+          "max": 3.8765
+        },
+        "totalSeconds": {
+          "median": 15.07939999999851,
+          "min": 14.2485,
+          "max": 15.810399999999442
+        },
+        "cpuMeanPercent": {
+          "median": 33.990589061337026,
+          "min": 30.8980223948137,
+          "max": 36.202215623928204
+        },
+        "cpuPeakPercent": {
+          "median": 49.40763002138536,
+          "min": 47.504908689585136,
+          "max": 56.743010392981404
+        },
+        "peakRssBytes": {
+          "median": 1764089856,
+          "min": 1630568448,
+          "max": 1900359680
+        },
+        "peakPrivateBytes": {
+          "median": 1956134912,
+          "min": 1946349568,
+          "max": 2072469504
+        },
+        "gpuMeanPercent": {
+          "median": 11.384615384615385,
+          "min": 6.833333333333333,
+          "max": 13.384615384615385
+        },
+        "gpuPeakPercent": {
+          "median": 28.0,
+          "min": 14.0,
+          "max": 35.0
+        },
+        "peakVramMiB": {
+          "median": 1736.0,
+          "min": 1732.0,
+          "max": 1983.0
+        },
+        "tslBytes": {
+          "median": 135291,
+          "min": 135291,
+          "max": 135291
+        },
+        "mp4Bytes": {
+          "median": 425434,
+          "min": 425434,
+          "max": 425434
+        }
+      }
+    },
+    "platform": "Windows native",
+    "material": "short",
+    "mode": "artisan",
+    "conversionSpeedup": 6.463284265897426,
+    "totalSpeedup": 5.32271841054739
+  },
+  {
+    "baseline": {
+      "repeats": 2,
+      "stats": {
+        "conversionSeconds": {
+          "median": 105.48305000000074,
+          "min": 104.58270000000111,
+          "max": 106.38340000000038
+        },
+        "conversionFPS": {
+          "median": 5.005908248454572,
+          "min": 4.963180345805813,
+          "max": 5.048636151103332
+        },
+        "mp4Seconds": {
+          "median": 16.00329999999981,
+          "min": 15.7165,
+          "max": 16.290099999999626
+        },
+        "totalSeconds": {
+          "median": 121.48635000000056,
+          "min": 120.87280000000075,
+          "max": 122.09990000000037
+        },
+        "cpuMeanPercent": {
+          "median": 24.514933117116144,
+          "min": 24.329177753140737,
+          "max": 24.700688481091554
+        },
+        "cpuPeakPercent": {
+          "median": 75.23011432024688,
+          "min": 74.69037327805671,
+          "max": 75.76985536243707
+        },
+        "peakRssBytes": {
+          "median": 2356209664.0,
+          "min": 2317131776,
+          "max": 2395287552
+        },
+        "peakPrivateBytes": {
+          "median": 4249468928.0,
+          "min": 3179159552,
+          "max": 5319778304
+        },
+        "gpuMeanPercent": {
+          "median": 2.5119946091644203,
+          "min": 2.481132075471698,
+          "max": 2.5428571428571427
+        },
+        "gpuPeakPercent": {
+          "median": 13.5,
+          "min": 13.0,
+          "max": 14.0
+        },
+        "peakVramMiB": {
+          "median": 2299.0,
+          "min": 1854.0,
+          "max": 2744.0
+        },
+        "tslBytes": {
+          "median": 8566240.0,
+          "min": 8566240,
+          "max": 8566240
+        },
+        "mp4Bytes": {
+          "median": 40416147.0,
+          "min": 40416147,
+          "max": 40416147
+        }
+      }
+    },
+    "candidate": {
+      "repeats": 2,
+      "stats": {
+        "conversionSeconds": {
+          "median": 105.78719999999926,
+          "min": 105.64279999999702,
+          "max": 105.9316000000015
+        },
+        "conversionFPS": {
+          "median": 4.99116134835848,
+          "min": 4.984348390848364,
+          "max": 4.9979743058685955
+        },
+        "mp4Seconds": {
+          "median": 14.071650000000371,
+          "min": 13.198800000000745,
+          "max": 14.9445
+        },
+        "totalSeconds": {
+          "median": 119.85884999999962,
+          "min": 118.84159999999777,
+          "max": 120.87610000000149
+        },
+        "cpuMeanPercent": {
+          "median": 24.99449439363447,
+          "min": 24.88273675466659,
+          "max": 25.106252032602352
+        },
+        "cpuPeakPercent": {
+          "median": 73.9279821633979,
+          "min": 72.4431884040722,
+          "max": 75.41277592272361
+        },
+        "peakRssBytes": {
+          "median": 1536112640.0,
+          "min": 1526960128,
+          "max": 1545265152
+        },
+        "peakPrivateBytes": {
+          "median": 1780768768.0,
+          "min": 1746419712,
+          "max": 1815117824
+        },
+        "gpuMeanPercent": {
+          "median": 2.771705963938974,
+          "min": 2.5142857142857142,
+          "max": 3.029126213592233
+        },
+        "gpuPeakPercent": {
+          "median": 22.0,
+          "min": 22.0,
+          "max": 22.0
+        },
+        "peakVramMiB": {
+          "median": 1909.0,
+          "min": 1749.0,
+          "max": 2069.0
+        },
+        "tslBytes": {
+          "median": 8566240.0,
+          "min": 8566240,
+          "max": 8566240
+        },
+        "mp4Bytes": {
+          "median": 40416726.0,
+          "min": 40416726,
+          "max": 40416726
+        }
+      }
+    },
+    "platform": "Windows native",
+    "material": "medium",
+    "mode": "legacy",
+    "conversionSpeedup": 0.9971248884553281,
+    "totalSpeedup": 1.0135784716773182
+  },
+  {
+    "baseline": {
+      "repeats": 2,
+      "stats": {
+        "conversionSeconds": {
+          "median": 106.43084999999869,
+          "min": 106.18829999999888,
+          "max": 106.67339999999851
+        },
+        "conversionFPS": {
+          "median": 4.960993379539158,
+          "min": 4.949687550973414,
+          "max": 4.9722992081049
+        },
+        "mp4Seconds": {
+          "median": 13.841750000000932,
+          "min": 13.411800000000746,
+          "max": 14.271700000001118
+        },
+        "totalSeconds": {
+          "median": 120.27254999999981,
+          "min": 119.6,
+          "max": 120.94509999999963
+        },
+        "cpuMeanPercent": {
+          "median": 24.26344546892816,
+          "min": 23.633519083095358,
+          "max": 24.893371854760964
+        },
+        "cpuPeakPercent": {
+          "median": 71.66775403026205,
+          "min": 69.14144486624173,
+          "max": 74.19406319428236
+        },
+        "peakRssBytes": {
+          "median": 2310936576.0,
+          "min": 2215383040,
+          "max": 2406490112
+        },
+        "peakPrivateBytes": {
+          "median": 4256391168.0,
+          "min": 3175596032,
+          "max": 5337186304
+        },
+        "gpuMeanPercent": {
+          "median": 2.5512042569081403,
+          "min": 2.451923076923077,
+          "max": 2.650485436893204
+        },
+        "gpuPeakPercent": {
+          "median": 16.0,
+          "min": 14.0,
+          "max": 18.0
+        },
+        "peakVramMiB": {
+          "median": 2319.0,
+          "min": 1894.0,
+          "max": 2744.0
+        },
+        "tslBytes": {
+          "median": 8566251.0,
+          "min": 8566251,
+          "max": 8566251
+        },
+        "mp4Bytes": {
+          "median": 11972879.0,
+          "min": 11972879,
+          "max": 11972879
+        }
+      }
+    },
+    "candidate": {
+      "repeats": 2,
+      "stats": {
+        "conversionSeconds": {
+          "median": 110.21940000000038,
+          "min": 105.14419999999926,
+          "max": 115.2946000000015
+        },
+        "conversionFPS": {
+          "median": 4.8006238361048545,
+          "min": 4.579572677297923,
+          "max": 5.021674994911785
+        },
+        "mp4Seconds": {
+          "median": 12.199900000000373,
+          "min": 10.958400000002236,
+          "max": 13.44139999999851
+        },
+        "totalSeconds": {
+          "median": 122.41930000000073,
+          "min": 116.10260000000149,
+          "max": 128.736
+        },
+        "cpuMeanPercent": {
+          "median": 23.663630351066672,
+          "min": 22.744013515134974,
+          "max": 24.58324718699837
+        },
+        "cpuPeakPercent": {
+          "median": 75.19084540210082,
+          "min": 73.53446496307171,
+          "max": 76.84722584112993
+        },
+        "peakRssBytes": {
+          "median": 1516642304.0,
+          "min": 1496096768,
+          "max": 1537187840
+        },
+        "peakPrivateBytes": {
+          "median": 1765955584.0,
+          "min": 1747836928,
+          "max": 1784074240
+        },
+        "gpuMeanPercent": {
+          "median": 2.345124536301007,
+          "min": 2.2882882882882885,
+          "max": 2.4019607843137254
+        },
+        "gpuPeakPercent": {
+          "median": 13.0,
+          "min": 10.0,
+          "max": 16.0
+        },
+        "peakVramMiB": {
+          "median": 1895.0,
+          "min": 1756.0,
+          "max": 2034.0
+        },
+        "tslBytes": {
+          "median": 8566251.0,
+          "min": 8566251,
+          "max": 8566251
+        },
+        "mp4Bytes": {
+          "median": 11973458.0,
+          "min": 11973458,
+          "max": 11973458
+        }
+      }
+    },
+    "platform": "Windows native",
+    "material": "medium",
+    "mode": "halftone",
+    "conversionSpeedup": 0.9656271944866178,
+    "totalSpeedup": 0.9824639578889856
+  },
+  {
+    "baseline": {
+      "repeats": 2,
+      "stats": {
+        "conversionSeconds": {
+          "median": 289.2157000000011,
+          "min": 287.39920000000114,
+          "max": 291.0322000000011
+        },
+        "conversionFPS": {
+          "median": 1.825699052526156,
+          "min": 1.8142322395940997,
+          "max": 1.8371658654582124
+        },
+        "mp4Seconds": {
+          "median": 14.887599999999628,
+          "min": 14.872,
+          "max": 14.903199999999256
+        },
+        "totalSeconds": {
+          "median": 304.1033000000008,
+          "min": 302.3024000000004,
+          "max": 305.90420000000114
+        },
+        "cpuMeanPercent": {
+          "median": 19.163884398366527,
+          "min": 18.311847495916414,
+          "max": 20.015921300816636
+        },
+        "cpuPeakPercent": {
+          "median": 69.95723870566891,
+          "min": 66.88031065971494,
+          "max": 73.03416675162289
+        },
+        "peakRssBytes": {
+          "median": 2421788672.0,
+          "min": 2306437120,
+          "max": 2537140224
+        },
+        "peakPrivateBytes": {
+          "median": 4299843584.0,
+          "min": 3206688768,
+          "max": 5392998400
+        },
+        "gpuMeanPercent": {
+          "median": 7.337786100707449,
+          "min": 7.207407407407407,
+          "max": 7.468164794007491
+        },
+        "gpuPeakPercent": {
+          "median": 42.5,
+          "min": 38.0,
+          "max": 47.0
+        },
+        "peakVramMiB": {
+          "median": 2375.0,
+          "min": 1958.0,
+          "max": 2792.0
+        },
+        "tslBytes": {
+          "median": 8566250.0,
+          "min": 8566250,
+          "max": 8566250
+        },
+        "mp4Bytes": {
+          "median": 12623169.0,
+          "min": 12623169,
+          "max": 12623169
+        }
+      }
+    },
+    "candidate": {
+      "repeats": 2,
+      "stats": {
+        "conversionSeconds": {
+          "median": 139.0711500000004,
+          "min": 130.0346000000015,
+          "max": 148.10769999999926
+        },
+        "conversionFPS": {
+          "median": 3.812715540966166,
+          "min": 3.564973326842579,
+          "max": 4.060457755089753
+        },
+        "mp4Seconds": {
+          "median": 12.044549999998882,
+          "min": 11.1355,
+          "max": 12.953599999997765
+        },
+        "totalSeconds": {
+          "median": 151.11569999999926,
+          "min": 142.98819999999927,
+          "max": 159.24319999999926
+        },
+        "cpuMeanPercent": {
+          "median": 22.528336819739735,
+          "min": 21.734782773239615,
+          "max": 23.321890866239855
+        },
+        "cpuPeakPercent": {
+          "median": 76.94839012849772,
+          "min": 76.82096289546536,
+          "max": 77.07581736153007
+        },
+        "peakRssBytes": {
+          "median": 1599670272.0,
+          "min": 1526620160,
+          "max": 1672720384
+        },
+        "peakPrivateBytes": {
+          "median": 1783549952.0,
+          "min": 1731997696,
+          "max": 1835102208
+        },
+        "gpuMeanPercent": {
+          "median": 4.570170344560588,
+          "min": 4.560975609756097,
+          "max": 4.579365079365079
+        },
+        "gpuPeakPercent": {
+          "median": 11.5,
+          "min": 11.0,
+          "max": 12.0
+        },
+        "peakVramMiB": {
+          "median": 2151.0,
+          "min": 2033.0,
+          "max": 2269.0
+        },
+        "tslBytes": {
+          "median": 8566250.0,
+          "min": 8566250,
+          "max": 8566250
+        },
+        "mp4Bytes": {
+          "median": 12623748.0,
+          "min": 12623748,
+          "max": 12623748
+        }
+      }
+    },
+    "platform": "Windows native",
+    "material": "medium",
+    "mode": "quality",
+    "conversionSpeedup": 2.0796239910290546,
+    "totalSpeedup": 2.012387197359389
+  },
+  {
+    "baseline": {
+      "repeats": 2,
+      "stats": {
+        "conversionSeconds": {
+          "median": 815.7033999999994,
+          "min": 744.3823999999985,
+          "max": 887.0244000000004
+        },
+        "conversionFPS": {
+          "median": 0.6522807057148694,
+          "min": 0.5952485636246306,
+          "max": 0.7093128478051081
+        },
+        "mp4Seconds": {
+          "median": 16.12460000000056,
+          "min": 13.758,
+          "max": 18.49120000000112
+        },
+        "totalSeconds": {
+          "median": 831.828,
+          "min": 758.1403999999985,
+          "max": 905.5156000000015
+        },
+        "cpuMeanPercent": {
+          "median": 11.680686181146989,
+          "min": 10.637037086209192,
+          "max": 12.724335276084785
+        },
+        "cpuPeakPercent": {
+          "median": 65.31299681085696,
+          "min": 62.33605167788363,
+          "max": 68.28994194383027
+        },
+        "peakRssBytes": {
+          "median": 2366537728.0,
+          "min": 2338840576,
+          "max": 2394234880
+        },
+        "peakPrivateBytes": {
+          "median": 5389182976.0,
+          "min": 5309435904,
+          "max": 5468930048
+        },
+        "gpuMeanPercent": {
+          "median": 30.42086390332689,
+          "min": 27.84318766066838,
+          "max": 32.9985401459854
+        },
+        "gpuPeakPercent": {
+          "median": 99.0,
+          "min": 99.0,
+          "max": 99.0
+        },
+        "peakVramMiB": {
+          "median": 2938.5,
+          "min": 2903.0,
+          "max": 2974.0
+        },
+        "tslBytes": {
+          "median": 1457707.0,
+          "min": 1457707,
+          "max": 1457707
+        },
+        "mp4Bytes": {
+          "median": 7746487.0,
+          "min": 7746487,
+          "max": 7746487
+        }
+      }
+    },
+    "candidate": {
+      "repeats": 2,
+      "stats": {
+        "conversionSeconds": {
+          "median": 105.44760000000056,
+          "min": 101.24440000000037,
+          "max": 109.65080000000074
+        },
+        "conversionFPS": {
+          "median": 5.015194800236812,
+          "min": 4.815286345380028,
+          "max": 5.215103255093596
+        },
+        "mp4Seconds": {
+          "median": 13.219149999999441,
+          "min": 12.054699999999254,
+          "max": 14.383599999999628
+        },
+        "totalSeconds": {
+          "median": 118.66675000000001,
+          "min": 113.29909999999963,
+          "max": 124.03440000000037
+        },
+        "cpuMeanPercent": {
+          "median": 29.78351754627426,
+          "min": 28.243759628115985,
+          "max": 31.323275464432538
+        },
+        "cpuPeakPercent": {
+          "median": 64.65300601996748,
+          "min": 61.776160604258116,
+          "max": 67.52985143567683
+        },
+        "peakRssBytes": {
+          "median": 1652885504.0,
+          "min": 1620344832,
+          "max": 1685426176
+        },
+        "peakPrivateBytes": {
+          "median": 2101321728.0,
+          "min": 2086424576,
+          "max": 2116218880
+        },
+        "gpuMeanPercent": {
+          "median": 25.714186645532,
+          "min": 25.203883495145632,
+          "max": 26.224489795918366
+        },
+        "gpuPeakPercent": {
+          "median": 56.5,
+          "min": 56.0,
+          "max": 57.0
+        },
+        "peakVramMiB": {
+          "median": 2884.0,
+          "min": 2872.0,
+          "max": 2896.0
+        },
+        "tslBytes": {
+          "median": 1457707.0,
+          "min": 1457707,
+          "max": 1457707
+        },
+        "mp4Bytes": {
+          "median": 7747066.0,
+          "min": 7747066,
+          "max": 7747066
+        }
+      }
+    },
+    "platform": "Windows native",
+    "material": "medium",
+    "mode": "artisan",
+    "conversionSpeedup": 7.735627932736213,
+    "totalSpeedup": 7.009781594254497
+  },
+  {
+    "baseline": {
+      "repeats": 1,
+      "stats": {
+        "conversionSeconds": {
+          "median": 239.05519999999925,
+          "min": 239.05519999999925,
+          "max": 239.05519999999925
+        },
+        "conversionFPS": {
+          "median": 12.047426703121326,
+          "min": 12.047426703121326,
+          "max": 12.047426703121326
+        },
+        "mp4Seconds": {
+          "median": 67.68330000000074,
+          "min": 67.68330000000074,
+          "max": 67.68330000000074
+        },
+        "totalSeconds": {
+          "median": 306.7385,
+          "min": 306.7385,
+          "max": 306.7385
+        },
+        "cpuMeanPercent": {
+          "median": 31.520346977573976,
+          "min": 31.520346977573976,
+          "max": 31.520346977573976
+        },
+        "cpuPeakPercent": {
+          "median": 78.49829642709447,
+          "min": 78.49829642709447,
+          "max": 78.49829642709447
+        },
+        "peakRssBytes": {
+          "median": 2409676800,
+          "min": 2409676800,
+          "max": 2409676800
+        },
+        "peakPrivateBytes": {
+          "median": 3642433536,
+          "min": 3642433536,
+          "max": 3642433536
+        },
+        "gpuMeanPercent": {
+          "median": 4.034090909090909,
+          "min": 4.034090909090909,
+          "max": 4.034090909090909
+        },
+        "gpuPeakPercent": {
+          "median": 46.0,
+          "min": 46.0,
+          "max": 46.0
+        },
+        "peakVramMiB": {
+          "median": 1859.0,
+          "min": 1859.0,
+          "max": 1859.0
+        },
+        "tslBytes": {
+          "median": 46726970,
+          "min": 46726970,
+          "max": 46726970
+        },
+        "mp4Bytes": {
+          "median": 200286243,
+          "min": 200286243,
+          "max": 200286243
+        }
+      }
+    },
+    "candidate": {
+      "repeats": 1,
+      "stats": {
+        "conversionSeconds": {
+          "median": 256.2131000000015,
+          "min": 256.2131000000015,
+          "max": 256.2131000000015
+        },
+        "conversionFPS": {
+          "median": 11.240643042842008,
+          "min": 11.240643042842008,
+          "max": 11.240643042842008
+        },
+        "mp4Seconds": {
+          "median": 66.427,
+          "min": 66.427,
+          "max": 66.427
+        },
+        "totalSeconds": {
+          "median": 322.6401000000015,
+          "min": 322.6401000000015,
+          "max": 322.6401000000015
+        },
+        "cpuMeanPercent": {
+          "median": 30.089093716406115,
+          "min": 30.089093716406115,
+          "max": 30.089093716406115
+        },
+        "cpuPeakPercent": {
+          "median": 79.38671791625538,
+          "min": 79.38671791625538,
+          "max": 79.38671791625538
+        },
+        "peakRssBytes": {
+          "median": 1617387520,
+          "min": 1617387520,
+          "max": 1617387520
+        },
+        "peakPrivateBytes": {
+          "median": 1892040704,
+          "min": 1892040704,
+          "max": 1892040704
+        },
+        "gpuMeanPercent": {
+          "median": 5.50561797752809,
+          "min": 5.50561797752809,
+          "max": 5.50561797752809
+        },
+        "gpuPeakPercent": {
+          "median": 28.0,
+          "min": 28.0,
+          "max": 28.0
+        },
+        "peakVramMiB": {
+          "median": 2102.0,
+          "min": 2102.0,
+          "max": 2102.0
+        },
+        "tslBytes": {
+          "median": 46726970,
+          "min": 46726970,
+          "max": 46726970
+        },
+        "mp4Bytes": {
+          "median": 200286243,
+          "min": 200286243,
+          "max": 200286243
+        }
+      }
+    },
+    "platform": "Windows native",
+    "material": "long",
+    "mode": "legacy",
+    "conversionSpeedup": 0.9330326981719431,
+    "totalSpeedup": 0.9507141238798232
+  },
+  {
+    "baseline": {
+      "repeats": 1,
+      "stats": {
+        "conversionSeconds": {
+          "median": 247.6715,
+          "min": 247.6715,
+          "max": 247.6715
+        },
+        "conversionFPS": {
+          "median": 11.628306042479656,
+          "min": 11.628306042479656,
+          "max": 11.628306042479656
+        },
+        "mp4Seconds": {
+          "median": 52.61110000000149,
+          "min": 52.61110000000149,
+          "max": 52.61110000000149
+        },
+        "totalSeconds": {
+          "median": 300.2826000000015,
+          "min": 300.2826000000015,
+          "max": 300.2826000000015
+        },
+        "cpuMeanPercent": {
+          "median": 29.84160430261417,
+          "min": 29.84160430261417,
+          "max": 29.84160430261417
+        },
+        "cpuPeakPercent": {
+          "median": 81.99550154285593,
+          "min": 81.99550154285593,
+          "max": 81.99550154285593
+        },
+        "peakRssBytes": {
+          "median": 2433077248,
+          "min": 2433077248,
+          "max": 2433077248
+        },
+        "peakPrivateBytes": {
+          "median": 3669110784,
+          "min": 3669110784,
+          "max": 3669110784
+        },
+        "gpuMeanPercent": {
+          "median": 5.873076923076923,
+          "min": 5.873076923076923,
+          "max": 5.873076923076923
+        },
+        "gpuPeakPercent": {
+          "median": 45.0,
+          "min": 45.0,
+          "max": 45.0
+        },
+        "peakVramMiB": {
+          "median": 1855.0,
+          "min": 1855.0,
+          "max": 1855.0
+        },
+        "tslBytes": {
+          "median": 46726981,
+          "min": 46726981,
+          "max": 46726981
+        },
+        "mp4Bytes": {
+          "median": 65895669,
+          "min": 65895669,
+          "max": 65895669
+        }
+      }
+    },
+    "candidate": {
+      "repeats": 1,
+      "stats": {
+        "conversionSeconds": {
+          "median": 240.16030000000075,
+          "min": 240.16030000000075,
+          "max": 240.16030000000075
+        },
+        "conversionFPS": {
+          "median": 11.99199034977884,
+          "min": 11.99199034977884,
+          "max": 11.99199034977884
+        },
+        "mp4Seconds": {
+          "median": 53.93389999999851,
+          "min": 53.93389999999851,
+          "max": 53.93389999999851
+        },
+        "totalSeconds": {
+          "median": 294.09419999999926,
+          "min": 294.09419999999926,
+          "max": 294.09419999999926
+        },
+        "cpuMeanPercent": {
+          "median": 29.236162480197834,
+          "min": 29.236162480197834,
+          "max": 29.236162480197834
+        },
+        "cpuPeakPercent": {
+          "median": 77.50201052139248,
+          "min": 77.50201052139248,
+          "max": 77.50201052139248
+        },
+        "peakRssBytes": {
+          "median": 1655623680,
+          "min": 1655623680,
+          "max": 1655623680
+        },
+        "peakPrivateBytes": {
+          "median": 1926742016,
+          "min": 1926742016,
+          "max": 1926742016
+        },
+        "gpuMeanPercent": {
+          "median": 5.975903614457831,
+          "min": 5.975903614457831,
+          "max": 5.975903614457831
+        },
+        "gpuPeakPercent": {
+          "median": 42.0,
+          "min": 42.0,
+          "max": 42.0
+        },
+        "peakVramMiB": {
+          "median": 2112.0,
+          "min": 2112.0,
+          "max": 2112.0
+        },
+        "tslBytes": {
+          "median": 46726981,
+          "min": 46726981,
+          "max": 46726981
+        },
+        "mp4Bytes": {
+          "median": 65895669,
+          "min": 65895669,
+          "max": 65895669
+        }
+      }
+    },
+    "platform": "Windows native",
+    "material": "long",
+    "mode": "halftone",
+    "conversionSpeedup": 1.0312757770539063,
+    "totalSpeedup": 1.0210422374871801
+  },
+  {
+    "baseline": {
+      "repeats": 1,
+      "stats": {
+        "conversionSeconds": {
+          "median": 1281.9651000000015,
+          "min": 1281.9651000000015,
+          "max": 1281.9651000000015
+        },
+        "conversionFPS": {
+          "median": 2.246551017652506,
+          "min": 2.246551017652506,
+          "max": 2.246551017652506
+        },
+        "mp4Seconds": {
+          "median": 57.74309999999777,
+          "min": 57.74309999999777,
+          "max": 57.74309999999777
+        },
+        "totalSeconds": {
+          "median": 1339.7081999999994,
+          "min": 1339.7081999999994,
+          "max": 1339.7081999999994
+        },
+        "cpuMeanPercent": {
+          "median": 18.530631925922712,
+          "min": 18.530631925922712,
+          "max": 18.530631925922712
+        },
+        "cpuPeakPercent": {
+          "median": 78.07619268063054,
+          "min": 78.07619268063054,
+          "max": 78.07619268063054
+        },
+        "peakRssBytes": {
+          "median": 2476277760,
+          "min": 2476277760,
+          "max": 2476277760
+        },
+        "peakPrivateBytes": {
+          "median": 3653992448,
+          "min": 3653992448,
+          "max": 3653992448
+        },
+        "gpuMeanPercent": {
+          "median": 14.47953216374269,
+          "min": 14.47953216374269,
+          "max": 14.47953216374269
+        },
+        "gpuPeakPercent": {
+          "median": 57.0,
+          "min": 57.0,
+          "max": 57.0
+        },
+        "peakVramMiB": {
+          "median": 1874.0,
+          "min": 1874.0,
+          "max": 1874.0
+        },
+        "tslBytes": {
+          "median": 46726980,
+          "min": 46726980,
+          "max": 46726980
+        },
+        "mp4Bytes": {
+          "median": 64896348,
+          "min": 64896348,
+          "max": 64896348
+        }
+      }
+    },
+    "candidate": {
+      "repeats": 1,
+      "stats": {
+        "conversionSeconds": {
+          "median": 427.9236000000015,
+          "min": 427.9236000000015,
+          "max": 427.9236000000015
+        },
+        "conversionFPS": {
+          "median": 6.730173330005613,
+          "min": 6.730173330005613,
+          "max": 6.730173330005613
+        },
+        "mp4Seconds": {
+          "median": 54.28059999999776,
+          "min": 54.28059999999776,
+          "max": 54.28059999999776
+        },
+        "totalSeconds": {
+          "median": 482.2041000000015,
+          "min": 482.2041000000015,
+          "max": 482.2041000000015
+        },
+        "cpuMeanPercent": {
+          "median": 23.180107210154866,
+          "min": 23.180107210154866,
+          "max": 23.180107210154866
+        },
+        "cpuPeakPercent": {
+          "median": 76.87067731850236,
+          "min": 76.87067731850236,
+          "max": 76.87067731850236
+        },
+        "peakRssBytes": {
+          "median": 1590829056,
+          "min": 1590829056,
+          "max": 1590829056
+        },
+        "peakPrivateBytes": {
+          "median": 1876078592,
+          "min": 1876078592,
+          "max": 1876078592
+        },
+        "gpuMeanPercent": {
+          "median": 11.574117647058824,
+          "min": 11.574117647058824,
+          "max": 11.574117647058824
+        },
+        "gpuPeakPercent": {
+          "median": 32.0,
+          "min": 32.0,
+          "max": 32.0
+        },
+        "peakVramMiB": {
+          "median": 2117.0,
+          "min": 2117.0,
+          "max": 2117.0
+        },
+        "tslBytes": {
+          "median": 46726980,
+          "min": 46726980,
+          "max": 46726980
+        },
+        "mp4Bytes": {
+          "median": 64896348,
+          "min": 64896348,
+          "max": 64896348
+        }
+      }
+    },
+    "platform": "Windows native",
+    "material": "long",
+    "mode": "quality",
+    "conversionSpeedup": 2.9957803215340237,
+    "totalSpeedup": 2.778301138459825
+  },
+  {
+    "baseline": {
+      "repeats": 1,
+      "stats": {
+        "conversionSeconds": {
+          "median": 4309.684099999998,
+          "min": 4309.684099999998,
+          "max": 4309.684099999998
+        },
+        "conversionFPS": {
+          "median": 0.6682624371470757,
+          "min": 0.6682624371470757,
+          "max": 0.6682624371470757
+        },
+        "mp4Seconds": {
+          "median": 67.38970000000297,
+          "min": 67.38970000000297,
+          "max": 67.38970000000297
+        },
+        "totalSeconds": {
+          "median": 4377.073800000001,
+          "min": 4377.073800000001,
+          "max": 4377.073800000001
+        },
+        "cpuMeanPercent": {
+          "median": 11.84451510629048,
+          "min": 11.84451510629048,
+          "max": 11.84451510629048
+        },
+        "cpuPeakPercent": {
+          "median": 72.42999230296392,
+          "min": 72.42999230296392,
+          "max": 72.42999230296392
+        },
+        "peakRssBytes": {
+          "median": 2494160896,
+          "min": 2494160896,
+          "max": 2494160896
+        },
+        "peakPrivateBytes": {
+          "median": 5894733824,
+          "min": 5894733824,
+          "max": 5894733824
+        },
+        "gpuMeanPercent": {
+          "median": 34.016705217167825,
+          "min": 34.016705217167825,
+          "max": 34.016705217167825
+        },
+        "gpuPeakPercent": {
+          "median": 100.0,
+          "min": 100.0,
+          "max": 100.0
+        },
+        "peakVramMiB": {
+          "median": 3030.0,
+          "min": 3030.0,
+          "max": 3030.0
+        },
+        "tslBytes": {
+          "median": 7955342,
+          "min": 7955342,
+          "max": 7955342
+        },
+        "mp4Bytes": {
+          "median": 35445869,
+          "min": 35445869,
+          "max": 35445869
+        }
+      }
+    },
+    "candidate": {
+      "repeats": 1,
+      "stats": {
+        "conversionSeconds": {
+          "median": 663.2933000000007,
+          "min": 663.2933000000007,
+          "max": 663.2933000000007
+        },
+        "conversionFPS": {
+          "median": 4.341970588275197,
+          "min": 4.341970588275197,
+          "max": 4.341970588275197
+        },
+        "mp4Seconds": {
+          "median": 67.08929999999702,
+          "min": 67.08929999999702,
+          "max": 67.08929999999702
+        },
+        "totalSeconds": {
+          "median": 730.3825999999978,
+          "min": 730.3825999999978,
+          "max": 730.3825999999978
+        },
+        "cpuMeanPercent": {
+          "median": 27.489439351678723,
+          "min": 27.489439351678723,
+          "max": 27.489439351678723
+        },
+        "cpuPeakPercent": {
+          "median": 71.44549586721321,
+          "min": 71.44549586721321,
+          "max": 71.44549586721321
+        },
+        "peakRssBytes": {
+          "median": 1802039296,
+          "min": 1802039296,
+          "max": 1802039296
+        },
+        "peakPrivateBytes": {
+          "median": 2192007168,
+          "min": 2192007168,
+          "max": 2192007168
+        },
+        "gpuMeanPercent": {
+          "median": 19.177619893428062,
+          "min": 19.177619893428062,
+          "max": 19.177619893428062
+        },
+        "gpuPeakPercent": {
+          "median": 61.0,
+          "min": 61.0,
+          "max": 61.0
+        },
+        "peakVramMiB": {
+          "median": 1960.0,
+          "min": 1960.0,
+          "max": 1960.0
+        },
+        "tslBytes": {
+          "median": 7955342,
+          "min": 7955342,
+          "max": 7955342
+        },
+        "mp4Bytes": {
+          "median": 35445869,
+          "min": 35445869,
+          "max": 35445869
+        }
+      }
+    },
+    "platform": "Windows native",
+    "material": "long",
+    "mode": "artisan",
+    "conversionSpeedup": 6.497403335749047,
+    "totalSpeedup": 5.992850596386078
+  },
+  {
+    "baseline": {
+      "repeats": 4,
+      "stats": {
+        "conversionSeconds": {
+          "median": 0.5835000000074506,
+          "min": 0.5160999999940395,
+          "max": 0.6064000000059605
+        },
+        "conversionFPS": {
+          "median": 56.625847611514345,
+          "min": 54.419525065428154,
+          "max": 63.941096687427084
+        },
+        "mp4Seconds": {
+          "median": 0.7908000000044704,
+          "min": 0.7710999999940396,
+          "max": 0.818
+        },
+        "totalSeconds": {
+          "median": 1.3780500000044702,
+          "min": 1.2910999999940396,
+          "max": 1.4247999999970198
+        },
+        "cpuMeanPercent": {
+          "median": 34.2581870957917,
+          "min": 33.19982704985837,
+          "max": 45.96408950260438
+        },
+        "cpuPeakPercent": {
+          "median": 47.758136167608235,
+          "min": 44.77084746306895,
+          "max": 48.091467896968936
+        },
+        "peakRssBytes": {
+          "median": 1561088000.0,
+          "min": 1538482176,
+          "max": 1588674560
+        },
+        "peakPrivateBytes": null,
+        "gpuMeanPercent": null,
+        "gpuPeakPercent": null,
+        "peakVramMiB": null,
+        "tslBytes": {
+          "median": 15608.0,
+          "min": 15608,
+          "max": 15608
+        },
+        "mp4Bytes": {
+          "median": 95741.0,
+          "min": 95741,
+          "max": 95741
+        }
+      }
+    },
+    "candidate": {
+      "repeats": 4,
+      "stats": {
+        "conversionSeconds": {
+          "median": 0.5580499999970198,
+          "min": 0.5068000000119209,
+          "max": 0.6157999999970197
+        },
+        "conversionFPS": {
+          "median": 59.54704454704198,
+          "min": 53.5888275416689,
+          "max": 65.11444356595062
+        },
+        "mp4Seconds": {
+          "median": 0.7893000000044703,
+          "min": 0.7542999999970198,
+          "max": 0.8085999999940395
+        },
+        "totalSeconds": {
+          "median": 1.3494500000029803,
+          "min": 1.2677000000029803,
+          "max": 1.4251000000089407
+        },
+        "cpuMeanPercent": {
+          "median": 36.482834807023934,
+          "min": 34.365553222388755,
+          "max": 37.37751211662504
+        },
+        "cpuPeakPercent": {
+          "median": 50.62234102308439,
+          "min": 47.79579633327093,
+          "max": 54.15444577683498
+        },
+        "peakRssBytes": {
+          "median": 1581989888.0,
+          "min": 1568505856,
+          "max": 1613742080
+        },
+        "peakPrivateBytes": null,
+        "gpuMeanPercent": null,
+        "gpuPeakPercent": null,
+        "peakVramMiB": null,
+        "tslBytes": {
+          "median": 15608.0,
+          "min": 15608,
+          "max": 15608
+        },
+        "mp4Bytes": {
+          "median": 95741.0,
+          "min": 95741,
+          "max": 95741
+        }
+      }
+    },
+    "platform": "Linux Chromium CPU fallback",
+    "material": "short",
+    "mode": "legacy",
+    "conversionSpeedup": 1.045605232524983,
+    "totalSpeedup": 1.0211938197053811
+  },
+  {
+    "baseline": {
+      "repeats": 4,
+      "stats": {
+        "conversionSeconds": {
+          "median": 0.5454999999925494,
+          "min": 0.4971000000089407,
+          "max": 0.5935
+        },
+        "conversionFPS": {
+          "median": 60.87143590325937,
+          "min": 55.60235888795282,
+          "max": 66.3850331913226
+        },
+        "mp4Seconds": {
+          "median": 0.7556000000014901,
+          "min": 0.735,
+          "max": 0.774
+        },
+        "totalSeconds": {
+          "median": 1.3045500000044705,
+          "min": 1.2403999999910593,
+          "max": 1.3672999999970197
+        },
+        "cpuMeanPercent": {
+          "median": 33.022561153304224,
+          "min": 31.164505320297927,
+          "max": 34.55588156609095
+        },
+        "cpuPeakPercent": {
+          "median": 46.03069084266626,
+          "min": 45.04792499686107,
+          "max": 46.98221504236466
+        },
+        "peakRssBytes": {
+          "median": 1569028096.0,
+          "min": 1544298496,
+          "max": 1582743552
+        },
+        "peakPrivateBytes": null,
+        "gpuMeanPercent": null,
+        "gpuPeakPercent": null,
+        "peakVramMiB": null,
+        "tslBytes": {
+          "median": 15619.0,
+          "min": 15619,
+          "max": 15619
+        },
+        "mp4Bytes": {
+          "median": 69811.0,
+          "min": 69811,
+          "max": 69811
+        }
+      }
+    },
+    "candidate": {
+      "repeats": 4,
+      "stats": {
+        "conversionSeconds": {
+          "median": 0.5637999999970198,
+          "min": 0.5177000000029802,
+          "max": 0.604
+        },
+        "conversionFPS": {
+          "median": 58.781825385513585,
+          "min": 54.63576158940398,
+          "max": 63.743480780007786
+        },
+        "mp4Seconds": {
+          "median": 0.7612499999925495,
+          "min": 0.7453999999910593,
+          "max": 0.7827000000029802
+        },
+        "totalSeconds": {
+          "median": 1.3286999999955298,
+          "min": 1.2655,
+          "max": 1.387
+        },
+        "cpuMeanPercent": {
+          "median": 37.10587890431805,
+          "min": 34.26920354531787,
+          "max": 47.874172284689045
+        },
+        "cpuPeakPercent": {
+          "median": 51.929351047434025,
+          "min": 51.585579704316096,
+          "max": 55.91730054106715
+        },
+        "peakRssBytes": {
+          "median": 1574453248.0,
+          "min": 1563426816,
+          "max": 1584631808
+        },
+        "peakPrivateBytes": null,
+        "gpuMeanPercent": null,
+        "gpuPeakPercent": null,
+        "peakVramMiB": null,
+        "tslBytes": {
+          "median": 15619.0,
+          "min": 15619,
+          "max": 15619
+        },
+        "mp4Bytes": {
+          "median": 69811.0,
+          "min": 69811,
+          "max": 69811
+        }
+      }
+    },
+    "platform": "Linux Chromium CPU fallback",
+    "material": "short",
+    "mode": "halftone",
+    "conversionSpeedup": 0.9675416814392211,
+    "totalSpeedup": 0.9818243395867084
+  },
+  {
+    "baseline": {
+      "repeats": 4,
+      "stats": {
+        "conversionSeconds": {
+          "median": 1.445200000010431,
+          "min": 1.3562000000029801,
+          "max": 1.5161000000089406
+        },
+        "conversionFPS": {
+          "median": 22.86335610096527,
+          "min": 21.766374249591316,
+          "max": 24.33269429282369
+        },
+        "mp4Seconds": {
+          "median": 0.7781000000014902,
+          "min": 0.7705,
+          "max": 0.7815999999940395
+        },
+        "totalSeconds": {
+          "median": 2.2200500000044703,
+          "min": 2.137600000008941,
+          "max": 2.3009000000059605
+        },
+        "cpuMeanPercent": {
+          "median": 35.012252682012914,
+          "min": 33.638628164644274,
+          "max": 35.83006088167499
+        },
+        "cpuPeakPercent": {
+          "median": 45.394954005732615,
+          "min": 43.88607294301165,
+          "max": 47.691004085475086
+        },
+        "peakRssBytes": {
+          "median": 1584857088.0,
+          "min": 1562095616,
+          "max": 1592147968
+        },
+        "peakPrivateBytes": null,
+        "gpuMeanPercent": null,
+        "gpuPeakPercent": null,
+        "peakVramMiB": null,
+        "tslBytes": {
+          "median": 15618.0,
+          "min": 15618,
+          "max": 15618
+        },
+        "mp4Bytes": {
+          "median": 72397.0,
+          "min": 72397,
+          "max": 72397
+        }
+      }
+    },
+    "candidate": {
+      "repeats": 4,
+      "stats": {
+        "conversionSeconds": {
+          "median": 1.3282999999970198,
+          "min": 1.2044000000059605,
+          "max": 1.4202000000029802
+        },
+        "conversionFPS": {
+          "median": 24.91042025596125,
+          "min": 23.236163920525808,
+          "max": 27.399535038057692
+        },
+        "mp4Seconds": {
+          "median": 0.7711500000059605,
+          "min": 0.7647000000029802,
+          "max": 0.7760999999940396
+        },
+        "totalSeconds": {
+          "median": 2.1003499999940396,
+          "min": 1.9825,
+          "max": 2.1901000000089406
+        },
+        "cpuMeanPercent": {
+          "median": 35.4527462081838,
+          "min": 35.21476459310584,
+          "max": 37.043535487471765
+        },
+        "cpuPeakPercent": {
+          "median": 47.121726384727495,
+          "min": 44.79838342160561,
+          "max": 50.755066809572035
+        },
+        "peakRssBytes": {
+          "median": 1575348224.0,
+          "min": 1559871488,
+          "max": 1604358144
+        },
+        "peakPrivateBytes": null,
+        "gpuMeanPercent": null,
+        "gpuPeakPercent": null,
+        "peakVramMiB": null,
+        "tslBytes": {
+          "median": 15618.0,
+          "min": 15618,
+          "max": 15618
+        },
+        "mp4Bytes": {
+          "median": 72397.0,
+          "min": 72397,
+          "max": 72397
+        }
+      }
+    },
+    "platform": "Linux Chromium CPU fallback",
+    "material": "short",
+    "mode": "quality",
+    "conversionSpeedup": 1.0880072272932872,
+    "totalSpeedup": 1.0569905015881973
+  },
+  {
+    "baseline": {
+      "repeats": 4,
+      "stats": {
+        "conversionSeconds": {
+          "median": 2.29779999999702,
+          "min": 2.2353999999910594,
+          "max": 2.36820000000298
+        },
+        "conversionFPS": {
+          "median": 14.362143064188057,
+          "min": 13.934633899146387,
+          "max": 14.762458620440183
+        },
+        "mp4Seconds": {
+          "median": 0.7720999999940396,
+          "min": 0.7612000000029803,
+          "max": 0.783800000011921
+        },
+        "totalSeconds": {
+          "median": 3.0779500000029802,
+          "min": 2.9992999999970196,
+          "max": 3.14779999999702
+        },
+        "cpuMeanPercent": {
+          "median": 30.53671573839478,
+          "min": 29.92777481786701,
+          "max": 32.253456243366
+        },
+        "cpuPeakPercent": {
+          "median": 41.649360440267536,
+          "min": 39.885596520280245,
+          "max": 43.24037148777135
+        },
+        "peakRssBytes": {
+          "median": 1629356032.0,
+          "min": 1593126912,
+          "max": 1639366656
+        },
+        "peakPrivateBytes": null,
+        "gpuMeanPercent": null,
+        "gpuPeakPercent": null,
+        "peakVramMiB": null,
+        "tslBytes": {
+          "median": 4222.0,
+          "min": 4222,
+          "max": 4222
+        },
+        "mp4Bytes": {
+          "median": 58129.0,
+          "min": 58129,
+          "max": 58129
+        }
+      }
+    },
+    "candidate": {
+      "repeats": 4,
+      "stats": {
+        "conversionSeconds": {
+          "median": 2.1200999999940393,
+          "min": 2.043,
+          "max": 2.1775
+        },
+        "conversionFPS": {
+          "median": 15.570279314476199,
+          "min": 15.15499425947187,
+          "max": 16.152716593245227
+        },
+        "mp4Seconds": {
+          "median": 0.76425,
+          "min": 0.7537000000029802,
+          "max": 0.7778999999910593
+        },
+        "totalSeconds": {
+          "median": 2.8962499999925493,
+          "min": 2.8069000000059603,
+          "max": 2.934100000008941
+        },
+        "cpuMeanPercent": {
+          "median": 31.250877286889953,
+          "min": 30.215304114554336,
+          "max": 32.3730969241509
+        },
+        "cpuPeakPercent": {
+          "median": 40.915557304647635,
+          "min": 37.41655034480927,
+          "max": 47.60955956252599
+        },
+        "peakRssBytes": {
+          "median": 1639292928.0,
+          "min": 1617432576,
+          "max": 1651400704
+        },
+        "peakPrivateBytes": null,
+        "gpuMeanPercent": null,
+        "gpuPeakPercent": null,
+        "peakVramMiB": null,
+        "tslBytes": {
+          "median": 4222.0,
+          "min": 4222,
+          "max": 4222
+        },
+        "mp4Bytes": {
+          "median": 58129.0,
+          "min": 58129,
+          "max": 58129
+        }
+      }
+    },
+    "platform": "Linux Chromium CPU fallback",
+    "material": "short",
+    "mode": "artisan",
+    "conversionSpeedup": 1.0838168010959295,
+    "totalSpeedup": 1.0627362969394556
+  },
+  {
+    "baseline": {
+      "repeats": 2,
+      "stats": {
+        "conversionSeconds": {
+          "median": 23.88605000000447,
+          "min": 23.82320000000298,
+          "max": 23.94890000000596
+        },
+        "conversionFPS": {
+          "median": 8.038220187495046,
+          "min": 8.017069677519729,
+          "max": 8.059370697470364
+        },
+        "mp4Seconds": {
+          "median": 2.1973499999940396,
+          "min": 2.178699999988079,
+          "max": 2.216
+        },
+        "totalSeconds": {
+          "median": 26.09110000000149,
+          "min": 26.00979999999702,
+          "max": 26.17240000000596
+        },
+        "cpuMeanPercent": {
+          "median": 48.74387521832466,
+          "min": 48.646925768751,
+          "max": 48.84082466789832
+        },
+        "cpuPeakPercent": {
+          "median": 52.68112288137361,
+          "min": 52.19803785751278,
+          "max": 53.16420790523444
+        },
+        "peakRssBytes": {
+          "median": 1814300672.0,
+          "min": 1786843136,
+          "max": 1841758208
+        },
+        "peakPrivateBytes": null,
+        "gpuMeanPercent": null,
+        "gpuPeakPercent": null,
+        "peakVramMiB": null,
+        "tslBytes": {
+          "median": 348255.0,
+          "min": 348255,
+          "max": 348255
+        },
+        "mp4Bytes": {
+          "median": 1288038.0,
+          "min": 1288038,
+          "max": 1288038
+        }
+      }
+    },
+    "candidate": {
+      "repeats": 2,
+      "stats": {
+        "conversionSeconds": {
+          "median": 23.662149999998512,
+          "min": 23.53089999999106,
+          "max": 23.79340000000596
+        },
+        "conversionFPS": {
+          "median": 8.114474277049398,
+          "min": 8.069464641453171,
+          "max": 8.159483912645625
+        },
+        "mp4Seconds": {
+          "median": 2.14945000000298,
+          "min": 2.1417999999970196,
+          "max": 2.1571000000089406
+        },
+        "totalSeconds": {
+          "median": 25.82195000000298,
+          "min": 25.69979999999702,
+          "max": 25.94410000000894
+        },
+        "cpuMeanPercent": {
+          "median": 49.261454170936716,
+          "min": 49.21891453695445,
+          "max": 49.30399380491899
+        },
+        "cpuPeakPercent": {
+          "median": 54.56016667673005,
+          "min": 52.340235074192655,
+          "max": 56.780098279267435
+        },
+        "peakRssBytes": {
+          "median": 1804857344.0,
+          "min": 1787146240,
+          "max": 1822568448
+        },
+        "peakPrivateBytes": null,
+        "gpuMeanPercent": null,
+        "gpuPeakPercent": null,
+        "peakVramMiB": null,
+        "tslBytes": {
+          "median": 348255.0,
+          "min": 348255,
+          "max": 348255
+        },
+        "mp4Bytes": {
+          "median": 1288038.0,
+          "min": 1288038,
+          "max": 1288038
+        }
+      }
+    },
+    "platform": "Linux Chromium CPU fallback",
+    "material": "medium",
+    "mode": "legacy",
+    "conversionSpeedup": 1.0094623692270555,
+    "totalSpeedup": 1.0104233026552403
+  },
+  {
+    "baseline": {
+      "repeats": 2,
+      "stats": {
+        "conversionSeconds": {
+          "median": 23.76279999999702,
+          "min": 23.71089999999106,
+          "max": 23.81470000000298
+        },
+        "conversionFPS": {
+          "median": 8.079894452207377,
+          "min": 8.062247267443048,
+          "max": 8.097541636971705
+        },
+        "mp4Seconds": {
+          "median": 1.53860000000149,
+          "min": 1.5257999999970198,
+          "max": 1.5514000000059605
+        },
+        "totalSeconds": {
+          "median": 25.31075,
+          "min": 25.27079999999702,
+          "max": 25.35070000000298
+        },
+        "cpuMeanPercent": {
+          "median": 50.0303660632528,
+          "min": 49.09882084181508,
+          "max": 50.96191128469051
+        },
+        "cpuPeakPercent": {
+          "median": 54.30654574800489,
+          "min": 53.683341012192464,
+          "max": 54.929750483817315
+        },
+        "peakRssBytes": {
+          "median": 1806905344.0,
+          "min": 1789800448,
+          "max": 1824010240
+        },
+        "peakPrivateBytes": null,
+        "gpuMeanPercent": null,
+        "gpuPeakPercent": null,
+        "peakVramMiB": null,
+        "tslBytes": {
+          "median": 348266.0,
+          "min": 348266,
+          "max": 348266
+        },
+        "mp4Bytes": {
+          "median": 1118412.0,
+          "min": 1118412,
+          "max": 1118412
+        }
+      }
+    },
+    "candidate": {
+      "repeats": 2,
+      "stats": {
+        "conversionSeconds": {
+          "median": 23.852799999997018,
+          "min": 23.6605,
+          "max": 24.04509999999404
+        },
+        "conversionFPS": {
+          "median": 8.049892668697243,
+          "min": 7.984994863820387,
+          "max": 8.1147904735741
+        },
+        "mp4Seconds": {
+          "median": 1.5174000000059604,
+          "min": 1.5071000000089407,
+          "max": 1.5277000000029803
+        },
+        "totalSeconds": {
+          "median": 25.38020000000298,
+          "min": 25.19870000000298,
+          "max": 25.56170000000298
+        },
+        "cpuMeanPercent": {
+          "median": 49.44924388769103,
+          "min": 49.091176354384,
+          "max": 49.80731142099807
+        },
+        "cpuPeakPercent": {
+          "median": 54.45434647564949,
+          "min": 54.123170898769814,
+          "max": 54.78552205252917
+        },
+        "peakRssBytes": {
+          "median": 1804689408.0,
+          "min": 1789161472,
+          "max": 1820217344
+        },
+        "peakPrivateBytes": null,
+        "gpuMeanPercent": null,
+        "gpuPeakPercent": null,
+        "peakVramMiB": null,
+        "tslBytes": {
+          "median": 348266.0,
+          "min": 348266,
+          "max": 348266
+        },
+        "mp4Bytes": {
+          "median": 1118412.0,
+          "min": 1118412,
+          "max": 1118412
+        }
+      }
+    },
+    "platform": "Linux Chromium CPU fallback",
+    "material": "medium",
+    "mode": "halftone",
+    "conversionSpeedup": 0.9962268580627848,
+    "totalSpeedup": 0.9972636149438155
+  },
+  {
+    "baseline": {
+      "repeats": 2,
+      "stats": {
+        "conversionSeconds": {
+          "median": 38.208949999995525,
+          "min": 38.15589999999106,
+          "max": 38.262
+        },
+        "conversionFPS": {
+          "median": 5.025010373749939,
+          "min": 5.01803355809942,
+          "max": 5.03198718940046
+        },
+        "mp4Seconds": {
+          "median": 1.5738999999985097,
+          "min": 1.5635,
+          "max": 1.5842999999970198
+        },
+        "totalSeconds": {
+          "median": 39.78884999999404,
+          "min": 39.74579999999702,
+          "max": 39.83189999999106
+        },
+        "cpuMeanPercent": {
+          "median": 40.20529301793937,
+          "min": 40.1548827199523,
+          "max": 40.255703315926446
+        },
+        "cpuPeakPercent": {
+          "median": 45.313894857423335,
+          "min": 44.7096051031502,
+          "max": 45.91818461169647
+        },
+        "peakRssBytes": {
+          "median": 1767395328.0,
+          "min": 1756258304,
+          "max": 1778532352
+        },
+        "peakPrivateBytes": null,
+        "gpuMeanPercent": null,
+        "gpuPeakPercent": null,
+        "peakVramMiB": null,
+        "tslBytes": {
+          "median": 348265.0,
+          "min": 348265,
+          "max": 348265
+        },
+        "mp4Bytes": {
+          "median": 1195908.0,
+          "min": 1195908,
+          "max": 1195908
+        }
+      }
+    },
+    "candidate": {
+      "repeats": 2,
+      "stats": {
+        "conversionSeconds": {
+          "median": 35.66510000000149,
+          "min": 35.62829999999702,
+          "max": 35.70190000000596
+        },
+        "conversionFPS": {
+          "median": 5.38341976929541,
+          "min": 5.377865043596222,
+          "max": 5.388974494994599
+        },
+        "mp4Seconds": {
+          "median": 1.5859500000029803,
+          "min": 1.5852000000029802,
+          "max": 1.5867000000029803
+        },
+        "totalSeconds": {
+          "median": 37.25685000000149,
+          "min": 37.2195,
+          "max": 37.29420000000298
+        },
+        "cpuMeanPercent": {
+          "median": 41.312681847127095,
+          "min": 41.2570097571576,
+          "max": 41.3683539370966
+        },
+        "cpuPeakPercent": {
+          "median": 46.29462528936881,
+          "min": 45.67734731763,
+          "max": 46.91190326110762
+        },
+        "peakRssBytes": {
+          "median": 1782630400.0,
+          "min": 1755037696,
+          "max": 1810223104
+        },
+        "peakPrivateBytes": null,
+        "gpuMeanPercent": null,
+        "gpuPeakPercent": null,
+        "peakVramMiB": null,
+        "tslBytes": {
+          "median": 348265.0,
+          "min": 348265,
+          "max": 348265
+        },
+        "mp4Bytes": {
+          "median": 1195908.0,
+          "min": 1195908,
+          "max": 1195908
+        }
+      }
+    },
+    "platform": "Linux Chromium CPU fallback",
+    "material": "medium",
+    "mode": "quality",
+    "conversionSpeedup": 1.0713260302086334,
+    "totalSpeedup": 1.0679606568991327
+  },
+  {
+    "baseline": {
+      "repeats": 2,
+      "stats": {
+        "conversionSeconds": {
+          "median": 31.66254999999702,
+          "min": 31.4875,
+          "max": 31.83759999999404
+        },
+        "conversionFPS": {
+          "median": 6.064131561362448,
+          "min": 6.0306053220103255,
+          "max": 6.097657800714569
+        },
+        "mp4Seconds": {
+          "median": 1.1601499999985099,
+          "min": 1.1462000000029802,
+          "max": 1.1740999999940396
+        },
+        "totalSeconds": {
+          "median": 32.82584999999404,
+          "min": 32.63779999999702,
+          "max": 33.01389999999106
+        },
+        "cpuMeanPercent": {
+          "median": 26.817957446614017,
+          "min": 26.81179374197833,
+          "max": 26.824121151249702
+        },
+        "cpuPeakPercent": {
+          "median": 42.2382785528341,
+          "min": 41.853677422865346,
+          "max": 42.62287968280287
+        },
+        "peakRssBytes": {
+          "median": 1790265344.0,
+          "min": 1778929664,
+          "max": 1801601024
+        },
+        "peakPrivateBytes": null,
+        "gpuMeanPercent": null,
+        "gpuPeakPercent": null,
+        "peakVramMiB": null,
+        "tslBytes": {
+          "median": 68441.0,
+          "min": 68441,
+          "max": 68441
+        },
+        "mp4Bytes": {
+          "median": 557711.0,
+          "min": 557711,
+          "max": 557711
+        }
+      }
+    },
+    "candidate": {
+      "repeats": 2,
+      "stats": {
+        "conversionSeconds": {
+          "median": 22.18475,
+          "min": 22.06229999999702,
+          "max": 22.30720000000298
+        },
+        "conversionFPS": {
+          "median": 8.65485748348658,
+          "min": 8.607086501218188,
+          "max": 8.702628465754973
+        },
+        "mp4Seconds": {
+          "median": 1.16714999999851,
+          "min": 1.151699999988079,
+          "max": 1.1826000000089407
+        },
+        "totalSeconds": {
+          "median": 23.355,
+          "min": 23.21729999999702,
+          "max": 23.49270000000298
+        },
+        "cpuMeanPercent": {
+          "median": 27.857782816098517,
+          "min": 27.707710548634385,
+          "max": 28.00785508356265
+        },
+        "cpuPeakPercent": {
+          "median": 38.667359740571115,
+          "min": 37.91689784489265,
+          "max": 39.41782163624957
+        },
+        "peakRssBytes": {
+          "median": 1809383424.0,
+          "min": 1795182592,
+          "max": 1823584256
+        },
+        "peakPrivateBytes": null,
+        "gpuMeanPercent": null,
+        "gpuPeakPercent": null,
+        "peakVramMiB": null,
+        "tslBytes": {
+          "median": 68441.0,
+          "min": 68441,
+          "max": 68441
+        },
+        "mp4Bytes": {
+          "median": 557711.0,
+          "min": 557711,
+          "max": 557711
+        }
+      }
+    },
+    "platform": "Linux Chromium CPU fallback",
+    "material": "medium",
+    "mode": "artisan",
+    "conversionSpeedup": 1.4272214020891385,
+    "totalSpeedup": 1.4055170199098284
+  },
+  {
+    "baseline": {
+      "repeats": 1,
+      "stats": {
+        "conversionSeconds": {
+          "median": 84.16119999998809,
+          "min": 84.16119999998809,
+          "max": 84.16119999998809
+        },
+        "conversionFPS": {
+          "median": 10.693763872189647,
+          "min": 10.693763872189647,
+          "max": 10.693763872189647
+        },
+        "mp4Seconds": {
+          "median": 4.32379999999702,
+          "min": 4.32379999999702,
+          "max": 4.32379999999702
+        },
+        "totalSeconds": {
+          "median": 88.49679999999702,
+          "min": 88.49679999999702,
+          "max": 88.49679999999702
+        },
+        "cpuMeanPercent": {
+          "median": 51.07341249345653,
+          "min": 51.07341249345653,
+          "max": 51.07341249345653
+        },
+        "cpuPeakPercent": {
+          "median": 53.65770690356824,
+          "min": 53.65770690356824,
+          "max": 53.65770690356824
+        },
+        "peakRssBytes": {
+          "median": 1908850688,
+          "min": 1908850688,
+          "max": 1908850688
+        },
+        "peakPrivateBytes": null,
+        "gpuMeanPercent": null,
+        "gpuPeakPercent": null,
+        "peakVramMiB": null,
+        "tslBytes": {
+          "median": 901767,
+          "min": 901767,
+          "max": 901767
+        },
+        "mp4Bytes": {
+          "median": 3202816,
+          "min": 3202816,
+          "max": 3202816
+        }
+      }
+    },
+    "candidate": {
+      "repeats": 1,
+      "stats": {
+        "conversionSeconds": {
+          "median": 84.6795,
+          "min": 84.6795,
+          "max": 84.6795
+        },
+        "conversionFPS": {
+          "median": 10.628310275804651,
+          "min": 10.628310275804651,
+          "max": 10.628310275804651
+        },
+        "mp4Seconds": {
+          "median": 4.32909999999404,
+          "min": 4.32909999999404,
+          "max": 4.32909999999404
+        },
+        "totalSeconds": {
+          "median": 89.021,
+          "min": 89.021,
+          "max": 89.021
+        },
+        "cpuMeanPercent": {
+          "median": 51.0535970055395,
+          "min": 51.0535970055395,
+          "max": 51.0535970055395
+        },
+        "cpuPeakPercent": {
+          "median": 53.894055764413274,
+          "min": 53.894055764413274,
+          "max": 53.894055764413274
+        },
+        "peakRssBytes": {
+          "median": 1910566912,
+          "min": 1910566912,
+          "max": 1910566912
+        },
+        "peakPrivateBytes": null,
+        "gpuMeanPercent": null,
+        "gpuPeakPercent": null,
+        "peakVramMiB": null,
+        "tslBytes": {
+          "median": 901767,
+          "min": 901767,
+          "max": 901767
+        },
+        "mp4Bytes": {
+          "median": 3202816,
+          "min": 3202816,
+          "max": 3202816
+        }
+      }
+    },
+    "platform": "Linux Chromium CPU fallback",
+    "material": "long",
+    "mode": "legacy",
+    "conversionSpeedup": 0.9938792742043597,
+    "totalSpeedup": 0.9941115017804453
+  },
+  {
+    "baseline": {
+      "repeats": 1,
+      "stats": {
+        "conversionSeconds": {
+          "median": 84.56379999999702,
+          "min": 84.56379999999702,
+          "max": 84.56379999999702
+        },
+        "conversionFPS": {
+          "median": 10.642851905898643,
+          "min": 10.642851905898643,
+          "max": 10.642851905898643
+        },
+        "mp4Seconds": {
+          "median": 2.7711000000089405,
+          "min": 2.7711000000089405,
+          "max": 2.7711000000089405
+        },
+        "totalSeconds": {
+          "median": 87.34760000000894,
+          "min": 87.34760000000894,
+          "max": 87.34760000000894
+        },
+        "cpuMeanPercent": {
+          "median": 51.43863499981202,
+          "min": 51.43863499981202,
+          "max": 51.43863499981202
+        },
+        "cpuPeakPercent": {
+          "median": 53.228955968316285,
+          "min": 53.228955968316285,
+          "max": 53.228955968316285
+        },
+        "peakRssBytes": {
+          "median": 1910149120,
+          "min": 1910149120,
+          "max": 1910149120
+        },
+        "peakPrivateBytes": null,
+        "gpuMeanPercent": null,
+        "gpuPeakPercent": null,
+        "peakVramMiB": null,
+        "tslBytes": {
+          "median": 901778,
+          "min": 901778,
+          "max": 901778
+        },
+        "mp4Bytes": {
+          "median": 2790592,
+          "min": 2790592,
+          "max": 2790592
+        }
+      }
+    },
+    "candidate": {
+      "repeats": 1,
+      "stats": {
+        "conversionSeconds": {
+          "median": 84.49660000000894,
+          "min": 84.49660000000894,
+          "max": 84.49660000000894
+        },
+        "conversionFPS": {
+          "median": 10.65131614763085,
+          "min": 10.65131614763085,
+          "max": 10.65131614763085
+        },
+        "mp4Seconds": {
+          "median": 2.7295,
+          "min": 2.7295,
+          "max": 2.7295
+        },
+        "totalSeconds": {
+          "median": 87.2395,
+          "min": 87.2395,
+          "max": 87.2395
+        },
+        "cpuMeanPercent": {
+          "median": 51.54846166085993,
+          "min": 51.54846166085993,
+          "max": 51.54846166085993
+        },
+        "cpuPeakPercent": {
+          "median": 53.877311337915245,
+          "min": 53.877311337915245,
+          "max": 53.877311337915245
+        },
+        "peakRssBytes": {
+          "median": 1908953088,
+          "min": 1908953088,
+          "max": 1908953088
+        },
+        "peakPrivateBytes": null,
+        "gpuMeanPercent": null,
+        "gpuPeakPercent": null,
+        "peakVramMiB": null,
+        "tslBytes": {
+          "median": 901778,
+          "min": 901778,
+          "max": 901778
+        },
+        "mp4Bytes": {
+          "median": 2790592,
+          "min": 2790592,
+          "max": 2790592
+        }
+      }
+    },
+    "platform": "Linux Chromium CPU fallback",
+    "material": "long",
+    "mode": "halftone",
+    "conversionSpeedup": 1.0007952982722153,
+    "totalSpeedup": 1.0012391176016475
+  },
+  {
+    "baseline": {
+      "repeats": 1,
+      "stats": {
+        "conversionSeconds": {
+          "median": 122.61670000000298,
+          "min": 122.61670000000298,
+          "max": 122.61670000000298
+        },
+        "conversionFPS": {
+          "median": 7.339946353147476,
+          "min": 7.339946353147476,
+          "max": 7.339946353147476
+        },
+        "mp4Seconds": {
+          "median": 3.0562000000029803,
+          "min": 3.0562000000029803,
+          "max": 3.0562000000029803
+        },
+        "totalSeconds": {
+          "median": 125.68410000000894,
+          "min": 125.68410000000894,
+          "max": 125.68410000000894
+        },
+        "cpuMeanPercent": {
+          "median": 43.16559844380002,
+          "min": 43.16559844380002,
+          "max": 43.16559844380002
+        },
+        "cpuPeakPercent": {
+          "median": 47.876048901463314,
+          "min": 47.876048901463314,
+          "max": 47.876048901463314
+        },
+        "peakRssBytes": {
+          "median": 2061893632,
+          "min": 2061893632,
+          "max": 2061893632
+        },
+        "peakPrivateBytes": null,
+        "gpuMeanPercent": null,
+        "gpuPeakPercent": null,
+        "peakVramMiB": null,
+        "tslBytes": {
+          "median": 901777,
+          "min": 901777,
+          "max": 901777
+        },
+        "mp4Bytes": {
+          "median": 3077872,
+          "min": 3077872,
+          "max": 3077872
+        }
+      }
+    },
+    "candidate": {
+      "repeats": 1,
+      "stats": {
+        "conversionSeconds": {
+          "median": 116.84980000001192,
+          "min": 116.84980000001192,
+          "max": 116.84980000001192
+        },
+        "conversionFPS": {
+          "median": 7.7021954680274005,
+          "min": 7.7021954680274005,
+          "max": 7.7021954680274005
+        },
+        "mp4Seconds": {
+          "median": 3.0325999999940394,
+          "min": 3.0325999999940394,
+          "max": 3.0325999999940394
+        },
+        "totalSeconds": {
+          "median": 119.89220000000299,
+          "min": 119.89220000000299,
+          "max": 119.89220000000299
+        },
+        "cpuMeanPercent": {
+          "median": 44.154991937300245,
+          "min": 44.154991937300245,
+          "max": 44.154991937300245
+        },
+        "cpuPeakPercent": {
+          "median": 48.45951532738862,
+          "min": 48.45951532738862,
+          "max": 48.45951532738862
+        },
+        "peakRssBytes": {
+          "median": 2065530880,
+          "min": 2065530880,
+          "max": 2065530880
+        },
+        "peakPrivateBytes": null,
+        "gpuMeanPercent": null,
+        "gpuPeakPercent": null,
+        "peakVramMiB": null,
+        "tslBytes": {
+          "median": 901777,
+          "min": 901777,
+          "max": 901777
+        },
+        "mp4Bytes": {
+          "median": 3077872,
+          "min": 3077872,
+          "max": 3077872
+        }
+      }
+    },
+    "platform": "Linux Chromium CPU fallback",
+    "material": "long",
+    "mode": "quality",
+    "conversionSpeedup": 1.0493531011605537,
+    "totalSpeedup": 1.04830923112601
+  },
+  {
+    "baseline": {
+      "repeats": 1,
+      "stats": {
+        "conversionSeconds": {
+          "median": 89.17690000000596,
+          "min": 89.17690000000596,
+          "max": 89.17690000000596
+        },
+        "conversionFPS": {
+          "median": 10.092299687474446,
+          "min": 10.092299687474446,
+          "max": 10.092299687474446
+        },
+        "mp4Seconds": {
+          "median": 1.8893000000119209,
+          "min": 1.8893000000119209,
+          "max": 1.8893000000119209
+        },
+        "totalSeconds": {
+          "median": 91.07010000000894,
+          "min": 91.07010000000894,
+          "max": 91.07010000000894
+        },
+        "cpuMeanPercent": {
+          "median": 26.660552019575295,
+          "min": 26.660552019575295,
+          "max": 26.660552019575295
+        },
+        "cpuPeakPercent": {
+          "median": 44.670252980678185,
+          "min": 44.670252980678185,
+          "max": 44.670252980678185
+        },
+        "peakRssBytes": {
+          "median": 2103906304,
+          "min": 2103906304,
+          "max": 2103906304
+        },
+        "peakPrivateBytes": null,
+        "gpuMeanPercent": null,
+        "gpuPeakPercent": null,
+        "peakVramMiB": null,
+        "tslBytes": {
+          "median": 211398,
+          "min": 211398,
+          "max": 211398
+        },
+        "mp4Bytes": {
+          "median": 1721404,
+          "min": 1721404,
+          "max": 1721404
+        }
+      }
+    },
+    "candidate": {
+      "repeats": 1,
+      "stats": {
+        "conversionSeconds": {
+          "median": 65.7385,
+          "min": 65.7385,
+          "max": 65.7385
+        },
+        "conversionFPS": {
+          "median": 13.690607482677578,
+          "min": 13.690607482677578,
+          "max": 13.690607482677578
+        },
+        "mp4Seconds": {
+          "median": 1.9117000000029802,
+          "min": 1.9117000000029802,
+          "max": 1.9117000000029802
+        },
+        "totalSeconds": {
+          "median": 67.65429999999702,
+          "min": 67.65429999999702,
+          "max": 67.65429999999702
+        },
+        "cpuMeanPercent": {
+          "median": 27.69152330304617,
+          "min": 27.69152330304617,
+          "max": 27.69152330304617
+        },
+        "cpuPeakPercent": {
+          "median": 49.75834285169805,
+          "min": 49.75834285169805,
+          "max": 49.75834285169805
+        },
+        "peakRssBytes": {
+          "median": 2140966912,
+          "min": 2140966912,
+          "max": 2140966912
+        },
+        "peakPrivateBytes": null,
+        "gpuMeanPercent": null,
+        "gpuPeakPercent": null,
+        "peakVramMiB": null,
+        "tslBytes": {
+          "median": 211398,
+          "min": 211398,
+          "max": 211398
+        },
+        "mp4Bytes": {
+          "median": 1721404,
+          "min": 1721404,
+          "max": 1721404
+        }
+      }
+    },
+    "platform": "Linux Chromium CPU fallback",
+    "material": "long",
+    "mode": "artisan",
+    "conversionSpeedup": 1.3565399271356353,
+    "totalSpeedup": 1.34610955992469
+  }
+]

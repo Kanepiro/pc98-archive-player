@@ -1,0 +1,82 @@
+[
+  {
+    "mode": "legacy",
+    "hashes": {
+      "normal": {
+        "baseline": "20e2e1e6cd6addf2c86c4adbeeb04a22852de6df0229a7894acfa1e05be8ca13",
+        "candidate": "20e2e1e6cd6addf2c86c4adbeeb04a22852de6df0229a7894acfa1e05be8ca13"
+      },
+      "no-gpu": {
+        "baseline": "20e2e1e6cd6addf2c86c4adbeeb04a22852de6df0229a7894acfa1e05be8ca13",
+        "candidate": "20e2e1e6cd6addf2c86c4adbeeb04a22852de6df0229a7894acfa1e05be8ca13"
+      },
+      "gpu-failure": {
+        "baseline": "20e2e1e6cd6addf2c86c4adbeeb04a22852de6df0229a7894acfa1e05be8ca13",
+        "candidate": "20e2e1e6cd6addf2c86c4adbeeb04a22852de6df0229a7894acfa1e05be8ca13"
+      }
+    },
+    "baselineGpuEqualsCpu": true,
+    "candidateGpuEqualsCpu": true,
+    "allSameBackendPairsIdentical": true
+  },
+  {
+    "mode": "halftone",
+    "hashes": {
+      "normal": {
+        "baseline": "d6d653f85cb45991c00933351c877d435a6cc0f3b85acaa7c4db5a4e39e4347a",
+        "candidate": "d6d653f85cb45991c00933351c877d435a6cc0f3b85acaa7c4db5a4e39e4347a"
+      },
+      "no-gpu": {
+        "baseline": "d6d653f85cb45991c00933351c877d435a6cc0f3b85acaa7c4db5a4e39e4347a",
+        "candidate": "d6d653f85cb45991c00933351c877d435a6cc0f3b85acaa7c4db5a4e39e4347a"
+      },
+      "gpu-failure": {
+        "baseline": "d6d653f85cb45991c00933351c877d435a6cc0f3b85acaa7c4db5a4e39e4347a",
+        "candidate": "d6d653f85cb45991c00933351c877d435a6cc0f3b85acaa7c4db5a4e39e4347a"
+      }
+    },
+    "baselineGpuEqualsCpu": true,
+    "candidateGpuEqualsCpu": true,
+    "allSameBackendPairsIdentical": true
+  },
+  {
+    "mode": "quality",
+    "hashes": {
+      "normal": {
+        "baseline": "75e7a77e5ccb6247b43b84f44fe8f8ff3ce6bcc94dcab3856d3ea5a44df9228f",
+        "candidate": "75e7a77e5ccb6247b43b84f44fe8f8ff3ce6bcc94dcab3856d3ea5a44df9228f"
+      },
+      "no-gpu": {
+        "baseline": "9f32df80cdcf3b5648dfa9c3a9e38c358f7c45798c8593188df5ea28af0d8531",
+        "candidate": "9f32df80cdcf3b5648dfa9c3a9e38c358f7c45798c8593188df5ea28af0d8531"
+      },
+      "gpu-failure": {
+        "baseline": "acd8a03cb40190677f2ac55f75bd7089e24e9c913afb33923d928b9c76248d32",
+        "candidate": "acd8a03cb40190677f2ac55f75bd7089e24e9c913afb33923d928b9c76248d32"
+      }
+    },
+    "baselineGpuEqualsCpu": false,
+    "candidateGpuEqualsCpu": false,
+    "allSameBackendPairsIdentical": true
+  },
+  {
+    "mode": "artisan",
+    "hashes": {
+      "normal": {
+        "baseline": "795ff3a3d2d45eda1baa4c13dfff6e371ccd17420fcf2a35191f8e1aec1e51ce",
+        "candidate": "795ff3a3d2d45eda1baa4c13dfff6e371ccd17420fcf2a35191f8e1aec1e51ce"
+      },
+      "no-gpu": {
+        "baseline": "bfece72e0859c3964af3da0c3f7bb7cf0a6b59469b771fb6780f874d21e7b946",
+        "candidate": "bfece72e0859c3964af3da0c3f7bb7cf0a6b59469b771fb6780f874d21e7b946"
+      },
+      "gpu-failure": {
+        "baseline": "7f88f958e573c4567d277a9bbf70b5603dee9186431a38a7ad43747c6bc2c4b2",
+        "candidate": "7f88f958e573c4567d277a9bbf70b5603dee9186431a38a7ad43747c6bc2c4b2"
+      }
+    },
+    "baselineGpuEqualsCpu": false,
+    "candidateGpuEqualsCpu": false,
+    "allSameBackendPairsIdentical": true
+  }
+]

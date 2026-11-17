@@ -1,7 +1,7 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><title>TASL スマホ版 — 変更履歴</title></head><body><main>
-<header><div><h1>TASL スマホ版</h1><p>v0.3.44 · 2026-11-16</p></div></header>
-<section class="controls"><h2>v0.3.44 · 60pxの輪郭AA</h2><p>モード4は元動画にガウシアンぼかしをかけ、重要な輪郭を抽出し、60×60pxごとに指定170文字を比較します。合格した文字だけを配置し、輪郭がない場所や適切な文字がない場所は空白にします。文字をマス内に収め、端数には余白を追加します。</p><p>Noto Sans Mono CJK JP Regularを同梱し、文字選択・プレビュー・TSL再生・MP4出力を統一しました。モード1〜3の変換方式は変更していません。TSLの保存・再生・途中再開に対応します。</p><h2>対応環境・処理方式</h2><p>Android Chrome・iOS Safariなど、必要なブラウザー機能に対応する環境で動作します。モード4の60px字形照合はスマホ版ではCPUで実行します。その他の既存GPU対応処理は、利用できない場合にCPUへ切り替えます。処理時間は動画と端末によって変わります。</p><p>動画→TSL、TSL再生、MP4保存は端末内で行います。MP4出力には対応コーデックが必要です。初回はアプリとフォントのダウンロード通信が発生しますが、素材を変換サーバーへ送信しません。</p><h2>確認した動作</h2><p>ChromiumとWebKitで、横・縦の60pxグリッド、変換、TSLダウンロード、プレビュー、再読み込み後の復元を確認しました。Android・iOS実機の互換性と性能は未検証です。</p><h2>更新するとき</h2><p>ページを開き直し、画面がv0.3.44になっていることを確認してください。「更新を適用」が表示された場合は押してください。既存TSLは再生できます。新しいモード4の文字位置を正確に再生するには、受け取り側もv0.3.44を使用してください。旧方式のモード4途中データは引き継がず、新しい方式で変換し直します。</p></section>
-<section class="controls"><h2>以前の変更</h2><p>v0.3.40：元映像の構図と輪郭を保持する修正。</p><p>v0.3.39：スマホ入口 /mobile/ とWindowsダウンロード入口 /windows/ を分離。</p></section>
-<footer><p><a href="/mobile/">スマホ版へ戻る</a> · <a href="/windows/">Windows版</a></p></footer>
-</main></body></html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><title>TASL Archive Player v0.3.45 — 更新履歴</title></head><body><main>
+<header><h1>Web/PWA v0.3.45</h1><p>2026-11-17 · 公開版Boost</p></header>
+<section class="controls"><h2>変更内容</h2><p>完成済み候補版v0.3.45-rc.1を正式化しました。モード3・4を中心に処理とメモリ使用を改善し、モード1〜4、文字パレット・フォント、変換精度、既存TSL、保存・中断・再開を維持しています。MP4の従来設定を維持します。</p><p>モード4は60px・指定170文字の輪郭AAです。Linux ChromiumのCPU処理による8秒・640×360・24fps素材の代表測定では、MP4完成までモード4が約1.41倍、モード3が約1.07倍。モード1・2の改善は一貫しません。Windowsネイティブ版の約7.01倍という結果はWeb/PWAや全端末の性能を示すものではありません。</p></section>
+<section class="controls"><h2>検証と未確認項目</h2><p>Linux ChromiumでのCPU変換、モバイル画面幅、TSL一致、MP4、旧TSL、途中保存・再開、PWAオフラインを検証しました。Android/iOS実機、端末別のGPU、発熱・電力は未検証です。</p><p>Linux WebKitでは、モード3の細線文字が縮小描画で消える既存問題が公開版・候補版の双方にあります。モード1・2・4は同環境で一致しました。実機iOSの検証結果ではありません。</p></section>
+<section class="controls"><h2>更新方法</h2><p>オンラインで開き、「更新を適用」が表示されたら押してください。v0.3.45の表示と「オフライン準備済み」を確認してください。保存済みの作品や設定データを削除する必要はありません。</p></section>
+<p><a href="https://github.com/Kanepiro/pc98-archive-player/releases/tag/windows-v0.3.45">正式リリース・詳しい測定条件と制限</a></p><p><a href="/mobile/">プレーヤーへ戻る</a> · <a href="/windows/">Windows版</a></p></main></body></html>

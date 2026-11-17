@@ -1,18 +1,15 @@
 # TASL Archive Player
+公開版 Boost **v0.3.45**。Windowsネイティブ版とWeb/PWA版を提供します。モード1〜4、既存TSL、文字パレット・フォント・変換品質、保存・中断・再開、CPUフォールバックを維持した高速化版です。モード4は60px・指定170文字の輪郭AAです。
 
-この作業ブランチはモード4の120px固定・170文字試験版です。新モード4の仕様と検証範囲は [MODE4_GRID120.md](MODE4_GRID120.md) を参照してください。以下の旧モード4説明は公開版の履歴です。公開版は更新していません。
+- [Web/PWA（Android / iOS向け）](https://pc98-archive-player-seven.vercel.app/mobile/)
+- [Windows版](https://pc98-archive-player-seven.vercel.app/windows/)
+- [正式リリース・ダウンロード](https://github.com/Kanepiro/pc98-archive-player/releases/tag/windows-v0.3.45)
+- [更新内容・測定条件・未検証環境](RELEASE-v0.3.45.md)
+- [ビルド・配布手順](BUILD-RELEASE.md)
 
-Windowsネイティブ版とスマホWebGPU版を専用URLで提供します。現在の表示版はWindowsネイティブ版 v0.3.41、スマホWebGPU版 v0.3.40です。Windows版はモード1〜4すべてでDirectComputeを優先し、非対応・失敗時に元のCPU処理へ切り替えます。
+Windows 10 / Phenom II X6 / GTX 1050 Tiで、22秒1080p/24fps素材のモード4がMP4完成まで約7.01倍（831.828→118.667秒）。モード3は約2.01倍。モード1・2の総時間改善は一貫せず、全環境での倍率を保証するものではありません。Android/iOS・Windows 11等の実機は未検証です。素材の変換は端末内で行います。
 
-**スマホ版:** https://pc98-archive-player-seven.vercel.app/mobile/
-
-**Windows版:** https://pc98-archive-player-seven.vercel.app/windows/
-
-モード4の自動ズーム・定型顔の描き直し・顔の外の輪郭抑制を修正し、元映像の構図と輪郭を保持します。画像認識、272文字と全体組版を維持しています。
-
-Windows版の実機未検証範囲・CPU処理工程は配布ページに明記しています。2系統とも素材の変換は端末内で行います。
-
-**GitHub:** https://github.com/Kanepiro/pc98-archive-player （公開）
+以下は操作説明と既存機能の履歴です。今回の検証結果は上記リリース詳細を参照してください。
 
 ## 使い方
 
@@ -25,7 +22,7 @@ Windows版の実機未検証範囲・CPU処理工程は配布ページに明記�
 
 MP4保存：MAGは5秒の静止動画、TSLは無音アニメーション、MMSは映像と内蔵音声を変換します。画面録画ではなく作品データから直接生成するため、操作ボタンや通知バーは映りません。MMSはキー未入力の既定経路を出力します。映像・音声が止まったままキー入力を待つ作品（例：『ｽﾜﾝ.MMS』）は、3秒間新しい映像・音声がないことを検知し、最後の内容から0.6秒後までを書き出します。実際に3秒以上の無音・静止を演出として含む作品では途中で切れる可能性があります。インタラクティブ作品・無限ループは最後まで自動書き出しできない場合があり、上限は5分です。H.264対応のChromeが必要です。AAC非対応ブラウザーでは同梱のWebAssembly AACエンコーダーを使います。Android実機での機種別動作は未検証です。
 
-v0.3.4以降では旧PWAキャッシュに新旧ファイルが混在しないよう、更新ごとにアセットを一意のURLで取得します。旧版を使っている場合は https://pc98-archive-player-seven.vercel.app/mobile/?v=0.3.40 をオンラインで一度開いて更新してください。
+v0.3.4以降では旧PWAキャッシュに新旧ファイルが混在しないよう、更新ごとにアセットを一意のURLで取得します。旧版を使っている場合は https://pc98-archive-player-seven.vercel.app/mobile/?v=0.3.45 をオンラインで一度開いて更新してください。
 
 Chromeメニューの「ホーム画面に追加」でアプリとして起動できます。「オフライン準備済み」表示後はアプリ本体をオフラインで開けます。作品は端末からその都度選びます。画面を離れると停止します。停止後の再生は先頭からです。
 

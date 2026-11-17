@@ -144,24 +144,60 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
    }
 
   }
-  if(options.mode4Cell60&&resumeStart<plan.count){
+  // Modes 1-3 retain the public HTMLVideo seek/color-conversion path.
+  // Direct samples differed on a 15 fps source; only overlap identical captures.
+  if(options.conversionMode==='artisan'&&resumeStart<plan.count){
    const {createVideoFrameReader}=await import('./video-frame-reader.js');
-   frameReader=await createVideoFrameReader(file,plan.steps.slice(resumeStart).map(s=>s.time),{signal});
+   frameReader=await createVideoFrameReader(file,
+    plan.steps.slice(resumeStart).map(s=>s.time),{signal});
   }
-  for(let i=resumeStart;i<plan.count;i++){
+  const readAhead=()=>{const start=performance.now();return frameReader.read().then(frame=>({frame,decodeMs:performance.now()-start}),error=>({error}));};
+  let nextRead=frameReader&&resumeStart<plan.count?readAhead():null;
+  // One captured frame may overlap the previous worker/GPU conversion.
+  // The same video surface, canvas, pixels and frame order are retained.
+  const captureFrame=async i=>{
    check(signal);
    const time=Math.min(plan.steps[i].time,Math.max(0,video.duration-.001));
-   let sourceFrame=video;
-   if(frameReader)sourceFrame=(await frameReader.read()).image;
+   let sourceFrame=video,decodedFrame=null,decodeMs=0;const decodeWaitStart=performance.now();
+   if(frameReader){
+    const decoded=await nextRead;
+    if(decoded.error){
+     if(decoded.error.name==='AbortError'||options.mode4Cell60)throw decoded.error;
+     await frameReader.close();frameReader=null;
+     await mediaEvent(video,'seeked',signal,()=>{video.currentTime=time;});
+    }else{decodedFrame=decoded.frame;decodeMs=decoded.decodeMs;sourceFrame=decodedFrame.image;}
+   }
    else if(i>0||time!==video.currentTime)await mediaEvent(video,'seeked',signal,()=>{video.currentTime=time;});
    check(signal);
-   const detections=vision?.detect(video,rect,canvas.width,canvas.height,time)||[];
+   const decodeWaitMs=performance.now()-decodeWaitStart,captureStart=performance.now();
+   const detections=await vision?.detect(sourceFrame,rect,canvas.width,canvas.height,time)||[];
    // Recognition affects importance, never the user-selected framing.
    const frameRect=rect,semantic=detections;
    ctx.fillStyle=options.mode4Cell60?'#fff':'#000';ctx.fillRect(0,0,canvas.width,canvas.height);
-   ctx.drawImage(sourceFrame,frameRect.x,frameRect.y,frameRect.width,frameRect.height);
+   if(decodedFrame?.draw)decodedFrame.draw(ctx,frameRect.x,frameRect.y,frameRect.width,frameRect.height);
+   else ctx.drawImage(sourceFrame,frameRect.x,frameRect.y,frameRect.width,frameRect.height);
    const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data;
-   const converted=await convertFrame(worker,pixels,plan.width,plan.height,{...options,ramp,sample,semantic},signal);
+   decodedFrame?.close?.();
+   const captureMs=performance.now()-captureStart;
+   if(frameReader&&i+1<plan.count)nextRead=readAhead();
+   return {pixels,semantic,time,decodedSecond:decodedFrame?.timestamp??null,decodeMs,decodeWaitMs,captureMs,
+    visionMetric:vision?{backend:vision.backend||'MediaPipe CPU',timing:vision.timing}:null};
+  };
+  // Only CanvasSink-owned frames may overlap conversion. HTMLVideo seeks stay
+  // serial: overlap exposed a stale frame at 90 s in the 120 s parity test.
+  const capturePipeline=!!frameReader&&input.capturePipeline!==false;
+  const prefetch=i=>captureFrame(i).then(value=>({value}),error=>({error}));
+  let captured=null;
+  for(let i=resumeStart;i<plan.count;i++){
+   check(signal);
+   const ready=captured?await captured:{value:await captureFrame(i)};
+   if(ready.error)throw ready.error;
+   const {pixels,semantic,time,decodedSecond,decodeMs,decodeWaitMs,captureMs,visionMetric}=ready.value;
+   // This canvas has alpha:false, so its alpha channel is exactly 255.
+   const converting=convertFrame(worker,pixels,plan.width,plan.height,{...options,ramp,sample,semantic,mode4Opaque:true},signal);
+   captured=capturePipeline&&i+1<plan.count?prefetch(i+1):null;
+   const converted=await converting;
+   if(converted.perf)Object.assign(converted.perf,{decodeMs,decodeWaitMs,captureMs,capturePipeline});
    acceleration=converted.acceleration||'CPU';
    pending.push(writer.append(converted.frame,converted.offsets));
    // Commit small batches atomically; at most 15 latest frames are lost on an abrupt close.
