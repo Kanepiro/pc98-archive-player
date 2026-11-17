@@ -87,6 +87,13 @@ def parse_mp4_plan(header):
             if not isinstance(value, int) or isinstance(value, bool) or not 1 <= value <= maximum:
                 raise ValueError("MP4 metadata field is invalid: " + key)
             result[key] = value
+        if "outputWidth" in raw or "outputHeight" in raw:
+            output = (raw.get("outputWidth"), raw.get("outputHeight"))
+            if any(type(v) is not int for v in output) or output not in ((1080, 1440), (1440, 1080)):
+                raise ValueError("Requested output must be 1080x1440 or 1440x1080")
+            if result["width"] * output[1] != result["height"] * 2 * output[0]:
+                raise ValueError("Requested output aspect does not match the TSL grid")
+            result["outputWidth"], result["outputHeight"] = output
         fps = raw.get("fps")
         if not isinstance(fps, (float, int)) or not math.isfinite(fps) or not 1 <= fps <= 30:
             raise ValueError("MP4 fps is invalid")
@@ -219,7 +226,7 @@ atexit.register(GPU.close)
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TASL-FullGPU-Boost/0.3.45"
+    server_version = "TASL-FullGPU-Boost/0.3.46"
     protocol_version = "HTTP/1.1"
     disable_nagle_algorithm = True
 
@@ -324,7 +331,7 @@ class Handler(BaseHTTPRequestHandler):
         if route == "/health":
             return self.response(200, {
                 "name": "TASL Native GPU PC Boost",
-                "version": "0.3.45", "originalMode4": False,
+                "version": "0.3.46", "originalMode4": False,
                 "mode4Engine": 6005, "mode4CellSize": 60, "mode4PaletteCount": 170,
                 "nativeExact": bool(executable("mode4_score_exact")),
                 "nativeGpu": GPU.probe(),

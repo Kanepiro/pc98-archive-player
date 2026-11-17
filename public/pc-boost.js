@@ -29,7 +29,8 @@ export async function exportFaithfulNativeMp4({
   width:plan.width,height:plan.height,
   count:plan.count,ticks:plan.totalTicks,
   native16:plan.native16,fps:plan.fps,
-  sourceWidth:source.width,sourceHeight:source.height
+  sourceWidth:source.width,sourceHeight:source.height,
+  ...(plan.outputWidth?{outputWidth:plan.outputWidth,outputHeight:plan.outputHeight}:{})
  };
  onProgress({state:'uploading',message:'元動画をPC側へ転送中'});
  const job=await json(ROOT,{method:'POST',body:file,signal,

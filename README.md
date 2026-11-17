@@ -1,13 +1,15 @@
 # TASL Archive Player
-公開版 Boost **v0.3.45**。Windowsネイティブ版とWeb/PWA版を提供します。モード1〜4、既存TSL、文字パレット・フォント・変換品質、保存・中断・再開、CPUフォールバックを維持した高速化版です。モード4は60px・指定170文字の輪郭AAです。
+公開版 Boost **v0.3.46**。縦3:4（1080×1440）・横4:3（1440×1080）の生成モードを追加。モード1〜4に対応し、既存の変換精度とBoost高速化を維持しました。Windowsネイティブ版とWeb/PWA版を提供します。モード1〜4、既存TSL、文字パレット・フォント・変換品質、保存・中断・再開、CPUフォールバックを維持した高速化版です。モード4は60px・指定170文字の輪郭AAです。
 
 - [Web/PWA（Android / iOS向け）](https://pc98-archive-player-seven.vercel.app/mobile/)
 - [Windows版](https://pc98-archive-player-seven.vercel.app/windows/)
-- [正式リリース・ダウンロード](https://github.com/Kanepiro/pc98-archive-player/releases/tag/windows-v0.3.45)
-- [更新内容・測定条件・未検証環境](RELEASE-v0.3.45.md)
+- [正式リリース・ダウンロード](https://github.com/Kanepiro/pc98-archive-player/releases/tag/windows-v0.3.46)
+- [更新内容・測定条件・未検証環境](RELEASE-v0.3.46.md)
 - [ビルド・配布手順](BUILD-RELEASE.md)
 
-Windows 10 / Phenom II X6 / GTX 1050 Tiで、22秒1080p/24fps素材のモード4がMP4完成まで約7.01倍（831.828→118.667秒）。モード3は約2.01倍。モード1・2の総時間改善は一貫せず、全環境での倍率を保証するものではありません。Android/iOS・Windows 11等の実機は未検証です。素材の変換は端末内で行います。
+前版v0.3.45の測定では、Windows 10 / Phenom II X6 / GTX 1050 Tiで、22秒1080p/24fps素材のモード4がMP4完成まで約7.01倍（831.828→118.667秒）。モード3は約2.01倍。モード1・2の総時間改善は一貫せず、全環境での倍率を保証するものではありません。Android/iOS・Windows 11等の実機は未検証です。素材の変換は端末内で行います。
+
+新しい縦3:4・横4:3は「全体を表示」が初期値です。保存したTSLを開き直した後もMP4は指定解像度を保ちます。モード4は縦18×24／横24×18の60pxセルです。新2モードで指定解像度を出せない場合はエラーを表示します。
 
 以下は操作説明と既存機能の履歴です。今回の検証結果は上記リリース詳細を参照してください。
 

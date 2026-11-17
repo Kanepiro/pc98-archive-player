@@ -184,6 +184,8 @@ def run_mp4(job, executable):
         grid120 = any(tag in header for tag in [b"# TASL_MODE4_CELL120",b"# TASL_MODE4_CELL60"])
         if grid120:
             out_width, out_height = native_width, native_height
+        if "outputWidth" in job.plan:
+            out_width, out_height = job.plan["outputWidth"], job.plan["outputHeight"]
         fps = max(1 if grid120 else 5, min(30, round(float(job.options.get("fps", 24)))))
         timing = re.search(rb"# TASL_MODE4_TIMING\s+([0-9.]+)\s+([0-9.]+)", header)
         total_frames = math.ceil(float(timing.group(2)) * fps) if grid120 and timing else math.ceil(int(job.plan["ticks"]) * fps / 60)
@@ -244,7 +246,7 @@ def run_mp4(job, executable):
              message=str(exc)[:800])
     finally:
         try:
-            report=metrics.finish(measurement,{"appVersion":"0.3.45","stage":"MP4","status":job.mp4_state,
+            report=metrics.finish(measurement,{"appVersion":"0.3.46","stage":"MP4","status":job.mp4_state,
                 "totalMp4Seconds":time.perf_counter()-started,"encoder":job.mp4_encoder,"message":job.mp4_message,
                 "attempts":getattr(job,"mp4_attempts",[]),"preparation":getattr(job,"mp4_preparation",{}),"plan":job.plan})
             job.output.with_suffix(".mp4-report.json").write_bytes(report.read_bytes())

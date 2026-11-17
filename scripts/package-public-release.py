@@ -10,8 +10,8 @@ a=p.parse_args();source=Path(__file__).resolve().parents[1]
 version=json.loads((source/'package.json').read_text(encoding='utf-8'))['version']
 def sha(path):
  with path.open('rb') as f:return hashlib.file_digest(f,'sha256').hexdigest()
-expected='d38c937aaf917f20168979db6880db279d2a22d2057806b740285b06376b838f'
-assert sha(a.baseline_zip)==expected,'Use the official windows-v0.3.44 runtime ZIP'
+expected='1f3ff4a1df2e47f3b938220e0e951b7de0257e7b19344a3043251f78aed9b3f7'
+assert sha(a.baseline_zip)==expected,'Use the official windows-v0.3.45 runtime ZIP'
 for name in ['native_modes.exe','portable_engine.exe','tsl_render.exe','tsl_render_gpu.exe','TASL-PC-Boost.exe','native_modes.hlsl','portable_match.hlsl','tsl_render_gpu.hlsl']:
  assert (a.native_build/name).is_file(),name
 dist=source/'dist';index=(dist/'index.html').read_text(encoding='utf-8')
@@ -38,7 +38,7 @@ for path in dist.rglob('*'):
 for path in (source/'native-boost').glob('*.py'):shutil.copy2(path,app/'python-source'/path.name)
 for path in a.native_build.iterdir():
  if path.suffix in {'.exe','.hlsl'}:shutil.copy2(path,app/path.name)
-metadata={'version':version,'baselineVersion':'0.3.44','baselineWindowsCommit':'3f0bd408d3e6f47d1e0ea43ccff33265bcf15b94','baselineRuntimeZipSHA256':expected,'nativeAssets':native_assets,'nativeBuild':json.loads((a.native_build/'build-report.json').read_text(encoding='utf-8'))}
+metadata={'version':version,'baselineVersion':'0.3.45','baselineWindowsCommit':'4a323dc0dc2885edce4c72bdbca5292404df0745','baselineRuntimeZipSHA256':expected,'nativeAssets':native_assets,'nativeBuild':json.loads((a.native_build/'build-report.json').read_text(encoding='utf-8'))}
 (app/'RELEASE-BUILD.json').write_text(json.dumps(metadata,indent=2),encoding='utf-8')
 (app/'README-RELEASE.txt').write_text('TASL Archive Player v'+version+'\n\nLaunch TASL-PC-Boost.exe. Official public Boost release.\nDefault port: 39083\nData: %LOCALAPPDATA%\\TASL-Faithful-Boost\nExtract into a new directory and close the old app before launching. Refer to the performance reports for validation and limitations.\n',encoding='utf-8')
 manifest={path.relative_to(app).as_posix():sha(path) for path in sorted(app.rglob('*')) if path.is_file()}

@@ -18,7 +18,7 @@ for name,source,libs,extra in [
  print('BUILD '+name,flush=True);subprocess.run(command,check=True);commands.append(command)
 for name in ['native_modes.hlsl','mode4_directcompute.hlsl','portable_match.hlsl','tsl_render_gpu.hlsl']:
  shutil.copy2(r/'native-boost'/name,out/name)
-report={'baseWindowsCommit':'3f0bd408d3e6f47d1e0ea43ccff33265bcf15b94','compiler':subprocess.check_output([str(tool/'clang++.exe'),'--version'],text=True),'commands':commands,
+report={'baseWindowsCommit':'4a323dc0dc2885edce4c72bdbca5292404df0745','compiler':subprocess.check_output([str(tool/'clang++.exe'),'--version'],text=True),'commands':commands,
  'sha256':{f.name:hashlib.sha256(f.read_bytes()).hexdigest() for f in out.glob('*.exe')}}
 (out/'build-report.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
 print('BUILD COMPLETE',flush=True)

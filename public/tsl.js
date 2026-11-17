@@ -1,3 +1,4 @@
+import {validateOutputSize} from './tsl-output-presets.js';
 import {parsePositions} from './mode4-position60.js';
 import {drawMode4Grid as draw60,validateGridFrame as validate60} from './tsl-mode4-grid60.js';
 import {drawMode4Grid,validateGridFrame} from './tsl-mode4-grid.js';
@@ -11,6 +12,8 @@ export function parseTSL(text){
  const timing=chunks[0].match(/^# TASL_MODE4_TIMING ([0-9.]+) ([0-9.]+)$/m);
  const mode4Cell60=chunks[0].split('\n').some(line=>line.trim()==='# TASL_MODE4_CELL60');
  const mode4Cell120=chunks[0].split('\n').some(line=>line.trim()==='# TASL_MODE4_CELL120');
+ const outputTag=chunks[0].match(/^# TASL_OUTPUT_SIZE (\d+) (\d+)$/m);
+ const outputSize=outputTag?validateOutputSize(Number(outputTag[1]),Number(outputTag[2])):{};
  const hdr=[],names=[];
  for(const line of chunks[0].split('\n')){
   const val=line.trim();if(!val||val.startsWith('#'))continue;
@@ -37,7 +40,8 @@ export function parseTSL(text){
   if(!Number.isFinite(mode4Fps)||mode4Fps<1||mode4Fps>30||!Number.isFinite(seconds)||seconds<=0||seconds>7200||Math.ceil(seconds*mode4Fps)!==count)throw Error('モード4の時刻情報が不正です');
   schedule.length=0;for(let i=0;i<count;i++)schedule.push({frame:i,start:i/mode4Fps});duration=seconds;
  }
- return {frames,schedule,duration,width,height,title:names.join(' / '),version:hdr[0],native16,mode4Cell60,mode4Cell120,mode4Fps,mode4Offsets};
+ if(outputSize.outputWidth&&width*.5/height!==outputSize.outputWidth/outputSize.outputHeight)throw Error('TSLの出力比率と文字グリッドが一致しません');
+ return {...outputSize,frames,schedule,duration,width,height,title:names.join(' / '),version:hdr[0],native16,mode4Cell60,mode4Cell120,mode4Fps,mode4Offsets};
 }
 export function tslFrameAt(data,seconds){
  let low=0,high=data.schedule.length;

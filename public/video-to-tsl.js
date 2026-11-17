@@ -72,7 +72,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   if(video.videoWidth*video.videoHeight>3840*2160)throw Error('動画の解像度は4K（約830万画素）以下にしてください');
   // Source-resolution PC-98 mode always derives the grid from actual decoded
   // video metadata, never a size preset or a stale UI value.
-  if(options.conversionMode==='artisan')options=optionsFor({...options,...mode4Grid(video.videoWidth,video.videoHeight)});
+  if(options.conversionMode==='artisan')options=optionsFor({...options,...mode4Grid(options.outputWidth||video.videoWidth,options.outputHeight||video.videoHeight)});
   else if(sourceGrid){
    const native=pc98GridFromPixels(video.videoWidth,video.videoHeight);
    options=optionsFor({...options,width:native.width,height:native.height,native16:true});
@@ -82,7 +82,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
    ?(plan.width*plan.height<=3000?10:6):options.conversionMode==='quality'?6:4;
   canvas.width=options.mode4Cell60?plan.width*30:plan.width*sample;canvas.height=options.mode4Cell60?plan.height*60:plan.height*sample;
   const ctx=canvas.getContext('2d',{willReadFrequently:true,alpha:false});
-  const rect=options.mode4Cell60?{x:Math.floor((canvas.width-video.videoWidth)/2),y:Math.floor((canvas.height-video.videoHeight)/2),width:video.videoWidth,height:video.videoHeight}:sourceGrid?
+  const rect=options.mode4Cell60&&options.outputWidth?fitRect(video.videoWidth,video.videoHeight,canvas.width,canvas.height,1,fit,positionX,positionY):options.mode4Cell60?{x:Math.floor((canvas.width-video.videoWidth)/2),y:Math.floor((canvas.height-video.videoHeight)/2),width:video.videoWidth,height:video.videoHeight}:sourceGrid?
    pc98SourceDrawRect(video.videoWidth,video.videoHeight,canvas.width,canvas.height,positionX,positionY):
    fitRect(video.videoWidth,video.videoHeight,canvas.width,canvas.height,.5,fit,positionX,positionY);
   const ramp=options.conversionMode==='legacy'?calibrateRamp():undefined;
@@ -94,7 +94,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
    const baseEngineVersion=options.conversionMode==='artisan'?MODE4_ENGINE:options.conversionMode==='quality'?(options.native16?48:47):options.conversionMode==='halftone'?(options.native16?55:54):(options.native16?43:42);
    const engineVersion=baseEngineVersion+(!options.mode4Cell60&&sourceGrid?20:0);
    const signature=JSON.stringify([engineVersion,identity,await fingerprint(file),
-    [options.mode4ScoreLimit,options.mode4BlurSigma,options.mode4EdgeHigh,options.mode4EdgeLow,options.mode4MinEdge,options.width,options.height,options.fps,options.brightness,options.contrast,options.gamma,options.edge,options.conversionMode,options.native16,sourceGrid,fit,positionX,positionY],
+    [options.mode4ScoreLimit,options.mode4BlurSigma,options.mode4EdgeHigh,options.mode4EdgeLow,options.mode4MinEdge,options.width,options.height,options.fps,options.brightness,options.contrast,options.gamma,options.edge,options.conversionMode,options.native16,sourceGrid,fit,positionX,positionY,...(options.outputWidth?[options.outputWidth,options.outputHeight]:[])],
     [video.videoWidth,video.videoHeight,video.duration,plan.count],!!input.exactNative,!!input.legacyLayout]);
    const previous=await readCheckpoint();
    if(previous?.job.signature===signature){
