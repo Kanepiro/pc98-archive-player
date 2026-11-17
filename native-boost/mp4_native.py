@@ -1,6 +1,6 @@
 """Actual GPU video output for the standalone Windows PC Boost player.
 
-FFmpeg 8.1.2 is pinned for Pascal (GTX 1050 Ti) NVENC API 13.0 support.
+FFmpeg and codec quality settings are preserved from public v0.3.44.
 A native Win32 renderer streams CP932 glyph frames to FFmpeg. Hardware NVENC is
 selected only after a real one-frame encoding probe, with libx264 failover.
 """
@@ -10,7 +10,27 @@ from pathlib import Path
 import re
 import subprocess
 import time
+import threading
 from gpu_metrics import RunMetrics
+from portable_pipe import large_pipe
+
+_probe_cache={}
+_probe_lock=threading.Lock()
+def cached_probe(kind,path,probe):
+    try:
+        stat=Path(path).stat();key=(kind,str(Path(path).resolve()),stat.st_size,stat.st_mtime_ns)
+    except OSError:return probe()
+    with _probe_lock:
+        if key in _probe_cache:return _probe_cache[key]
+        result=probe()
+        if result[0]:_probe_cache[key]=result
+        return result
+
+def raster_probe(path):
+    try:
+        p=subprocess.run([path,"--probe"],capture_output=True,timeout=15,creationflags=subprocess.CREATE_NO_WINDOW)
+        return p.returncode==0 and p.stdout.startswith(b"DIRECTCOMPUTE_RASTER "),p.stderr.decode("utf-8","replace")[-400:]
+    except (OSError,subprocess.TimeoutExpired) as e:return False,str(e)
 
 def metadata(tsl):
     with tsl.open("rb") as f:
@@ -35,7 +55,7 @@ def nvenc_probe(ffmpeg):
            "-preset", "p4", "-f", "null", "-"]
     try:
         p = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
-                           timeout=12, check=False)
+                           timeout=12, check=False, creationflags=subprocess.CREATE_NO_WINDOW)
         return p.returncode == 0, p.stderr.decode("utf-8", "replace")[-400:]
     except (OSError, subprocess.TimeoutExpired) as exc:
         return False, str(exc)[-400:]
@@ -72,6 +92,7 @@ def _encode(job, executable, fps, native_width, native_height,
     _log(job, state="encoding", message=f"MP4変換中 · {codec} · " + ("描画・拡大縮小・色変換 DirectCompute" if gpu_raster else "描画 GDI CPU"), encoder=codec, done=0)
     frame_size = f"{out_width}x{out_height}" if gpu_raster else f"{native_width}x{native_height}"
     pixel_format = "nv12" if gpu_raster else "bgr0"
+    audio_opts=["-c:a","aac","-b:a","192k"]
     cmd = [ffmpeg, "-nostdin", "-hide_banner", "-loglevel", "error",
            "-f", "rawvideo", "-pixel_format", pixel_format,
            "-video_size", frame_size, "-framerate", str(fps),
@@ -79,24 +100,27 @@ def _encode(job, executable, fps, native_width, native_height,
            "-i", str(job.source),
            "-map", "0:v:0", "-map", "1:a:0?",
            *(["-vf", vf] if not gpu_raster else []), *encoder_opts, "-pix_fmt", "nv12" if gpu_raster else "yuv420p",
-           "-c:a", "aac", "-b:a", "192k",
-           "-movflags", "+faststart", "-shortest",
+           *audio_opts,
+           "-movflags", "+faststart",
            "-stats_period", "0.5", "-progress", "pipe:2",
            "-y", str(target)]
     render_log = job.output.with_suffix(".render.log")
     renderer = encoder = None
+    pipe_read = pipe_write = None
     attempt_started=time.perf_counter()
     last_lines = []
     try:
         with render_log.open("wb") as log:
+            pipe_read, pipe_write = large_pipe()
             renderer = subprocess.Popen(
                 [renderer_bin, "--input", str(job.output), "--fps", str(fps)]+(["--output-width",str(out_width),"--output-height",str(out_height),"--nv12","1"] if gpu_raster else []),
-                stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=log,
-                bufsize=1024 * 1024)
-            encoder = subprocess.Popen(cmd, stdin=renderer.stdout,
+                stdin=subprocess.DEVNULL, stdout=pipe_write, stderr=log,
+                creationflags=subprocess.CREATE_NO_WINDOW)
+            encoder = subprocess.Popen(cmd, stdin=pipe_read,
                                        stdout=subprocess.DEVNULL,
-                                       stderr=subprocess.PIPE, bufsize=65536)
-            renderer.stdout.close()
+                                       stderr=subprocess.PIPE, bufsize=65536, creationflags=subprocess.CREATE_NO_WINDOW)
+            pipe_write.close(); pipe_write = None
+            pipe_read.close(); pipe_read = None
             with job.lock:
                 job.mp4_procs = [encoder, renderer]
                 cancelled = job.mp4_cancel
@@ -124,6 +148,8 @@ def _encode(job, executable, fps, native_width, native_height,
             return False, "MP4ファイルの作成に失敗しました"
         return True, ""
     finally:
+        for stream in (pipe_read, pipe_write):
+            if stream: stream.close()
         for proc in (encoder, renderer):
             if proc and proc.poll() is None:
                 proc.terminate()
@@ -153,26 +179,31 @@ def run_mp4(job, executable):
         # Match original video's shape; PC-98 1920x1072 is padded to 1920x1080.
         out_width = max(2, int(job.plan["sourceWidth"]) // 2 * 2)
         out_height = max(2, int(job.plan["sourceHeight"]) // 2 * 2)
-        grid120 = any(tag in job.output.read_bytes()[:8192] for tag in [b"# TASL_MODE4_CELL120",b"# TASL_MODE4_CELL60"])
+        with job.output.open("rb") as stream:
+            header = stream.read(8192)
+        grid120 = any(tag in header for tag in [b"# TASL_MODE4_CELL120",b"# TASL_MODE4_CELL60"])
         if grid120:
             out_width, out_height = native_width, native_height
         fps = max(1 if grid120 else 5, min(30, round(float(job.options.get("fps", 24)))))
+        timing = re.search(rb"# TASL_MODE4_TIMING\s+([0-9.]+)\s+([0-9.]+)", header)
+        total_frames = math.ceil(float(timing.group(2)) * fps) if grid120 and timing else math.ceil(int(job.plan["ticks"]) * fps / 60)
+        if not grid120 and int(job.plan["count"])==total_frames+1:total_frames=int(job.plan["count"])
         with job.lock:
-            job.mp4_total = math.ceil(int(job.plan["ticks"]) * fps / 60)
+            job.mp4_total = total_frames
             job.mp4_width, job.mp4_height = out_width, out_height
         mp4 = job.output.with_suffix(".mp4")
         if mp4.exists() and mp4.stat().st_size > 1024:
             _log(job, state="done", encoder="キャッシュ済み", message="完成済みMP4を再利用",
                  done=job.mp4_total)
             return
-        gpu_ok, gpu_detail = nvenc_probe(executable("ffmpeg"))
+        probe_started=time.perf_counter()
+        gpu_ok, gpu_detail = cached_probe("nvenc",executable("ffmpeg"),lambda:nvenc_probe(executable("ffmpeg")))
+        job.mp4_preparation={"nvencProbeSeconds":time.perf_counter()-probe_started}
+        probe_started=time.perf_counter()
         raster_ok = False
         if executable("tsl_render_gpu"):
-            try:
-                probe = subprocess.run([executable("tsl_render_gpu"), "--probe"], capture_output=True, timeout=15)
-                raster_ok = probe.returncode == 0 and probe.stdout.startswith(b"DIRECTCOMPUTE_RASTER ")
-            except (OSError, subprocess.TimeoutExpired):
-                pass
+            raster_ok,_ = cached_probe("raster",executable("tsl_render_gpu"),lambda:raster_probe(executable("tsl_render_gpu")))
+        job.mp4_preparation["rasterProbeSeconds"]=time.perf_counter()-probe_started
         if not gpu_ok:
             _log(job, message="NVENCが使用できないためCPUエンコードに切替")
         gpu_target = job.output.with_suffix(".gpu.tmp.mp4")
@@ -213,9 +244,9 @@ def run_mp4(job, executable):
              message=str(exc)[:800])
     finally:
         try:
-            report=metrics.finish(measurement,{"appVersion":"0.3.44","stage":"MP4","status":job.mp4_state,
+            report=metrics.finish(measurement,{"appVersion":"0.3.45","stage":"MP4","status":job.mp4_state,
                 "totalMp4Seconds":time.perf_counter()-started,"encoder":job.mp4_encoder,"message":job.mp4_message,
-                "attempts":getattr(job,"mp4_attempts",[]),"plan":job.plan})
+                "attempts":getattr(job,"mp4_attempts",[]),"preparation":getattr(job,"mp4_preparation",{}),"plan":job.plan})
             job.output.with_suffix(".mp4-report.json").write_bytes(report.read_bytes())
         except Exception:
             pass

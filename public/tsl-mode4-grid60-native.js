@@ -1,8 +1,10 @@
+import {PortableNative} from './tsl-portable-native.js';
 export class NativeGrid60{
  static async create(){
   if(!['127.0.0.1','localhost','[::1]'].includes(location.hostname))return null;
-  const response=await fetch('/health',{signal:AbortSignal.timeout(100000)});
+  const response=await fetch('/health/mode4',{signal:AbortSignal.timeout(100000)});
   if(!response.ok)return null;const h=await response.json();
+  if(h.portable)return new PortableNative(h);
   if(!h.grid120)return null;return new NativeGrid60(h);
  }
  constructor(h){this.adapterInfo={name:h.grid120Name,software:!!h.grid120Software,architecture:'Direct3D 11'};}

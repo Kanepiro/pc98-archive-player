@@ -24,7 +24,7 @@ self.onmessage=async({data:d})=>{
   }
   if(d.type==='snapshot'){
    if(!quality)throw Error('モード3が初期化されていません');
-   self.postMessage({state:quality.snapshot()});return;
+   self.postMessage({state:await quality.snapshot()});return;
   }
   const pixels=new Uint8ClampedArray(d.pixels);
   let frame,acceleration='CPU';

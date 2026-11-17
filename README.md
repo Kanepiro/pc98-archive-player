@@ -1,10 +1,15 @@
-# PC-98 Archive Player
+# TASL Archive Player
+公開版 Boost **v0.3.45**。Windowsネイティブ版とWeb/PWA版を提供します。モード1〜4、既存TSL、文字パレット・フォント・変換品質、保存・中断・再開、CPUフォールバックを維持した高速化版です。モード4は60px・指定170文字の輪郭AAです。
 
-MAG画像・TSLテキストアニメ・M-MASL (.MMS) を、AndroidのChromeから開く統合プレーヤーです。バージョン0.3.35は検証版です。APKではなく、ホーム画面に追加できるPWAです。
+- [Web/PWA（Android / iOS向け）](https://pc98-archive-player-seven.vercel.app/mobile/)
+- [Windows版](https://pc98-archive-player-seven.vercel.app/windows/)
+- [正式リリース・ダウンロード](https://github.com/Kanepiro/pc98-archive-player/releases/tag/windows-v0.3.45)
+- [更新内容・測定条件・未検証環境](RELEASE-v0.3.45.md)
+- [ビルド・配布手順](BUILD-RELEASE.md)
 
-**起動URL:** https://pc98-archive-player-seven.vercel.app/
+Windows 10 / Phenom II X6 / GTX 1050 Tiで、22秒1080p/24fps素材のモード4がMP4完成まで約7.01倍（831.828→118.667秒）。モード3は約2.01倍。モード1・2の総時間改善は一貫せず、全環境での倍率を保証するものではありません。Android/iOS・Windows 11等の実機は未検証です。素材の変換は端末内で行います。
 
-**GitHub:** https://github.com/Kanepiro/pc98-archive-player （公開）
+以下は操作説明と既存機能の履歴です。今回の検証結果は上記リリース詳細を参照してください。
 
 ## 使い方
 

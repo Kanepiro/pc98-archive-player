@@ -1,0 +1,7 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><title>TASL Archive Player v0.3.45 — 更新履歴</title></head><body><main>
+<header><h1>Web/PWA v0.3.45</h1><p>2026-11-17 · 公開版Boost</p></header>
+<section class="controls"><h2>変更内容</h2><p>完成済み候補版v0.3.45-rc.1を正式化しました。モード3・4を中心に処理とメモリ使用を改善し、モード1〜4、文字パレット・フォント、変換精度、既存TSL、保存・中断・再開を維持しています。MP4の従来設定を維持します。</p><p>モード4は60px・指定170文字の輪郭AAです。Linux ChromiumのCPU処理による8秒・640×360・24fps素材の代表測定では、MP4完成までモード4が約1.41倍、モード3が約1.07倍。モード1・2の改善は一貫しません。Windowsネイティブ版の約7.01倍という結果はWeb/PWAや全端末の性能を示すものではありません。</p></section>
+<section class="controls"><h2>検証と未確認項目</h2><p>Linux ChromiumでのCPU変換、モバイル画面幅、TSL一致、MP4、旧TSL、途中保存・再開、PWAオフラインを検証しました。Android/iOS実機、端末別のGPU、発熱・電力は未検証です。</p><p>Linux WebKitでは、モード3の細線文字が縮小描画で消える既存問題が公開版・候補版の双方にあります。モード1・2・4は同環境で一致しました。実機iOSの検証結果ではありません。</p></section>
+<section class="controls"><h2>更新方法</h2><p>オンラインで開き、「更新を適用」が表示されたら押してください。v0.3.45の表示と「オフライン準備済み」を確認してください。保存済みの作品や設定データを削除する必要はありません。</p></section>
+<p><a href="https://github.com/Kanepiro/pc98-archive-player/releases/tag/windows-v0.3.45">正式リリース・詳しい測定条件と制限</a></p><p><a href="/mobile/">プレーヤーへ戻る</a> · <a href="/windows/">Windows版</a></p></main></body></html>

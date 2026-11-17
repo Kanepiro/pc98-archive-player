@@ -199,14 +199,15 @@ int main(int argc,char** argv){
   const auto a=args(argc,argv);
   const TSL t(a.input);
   Surface surface(t.width,t.height,t.native16,t.mode4Cell120,t.mode4Cell60);
-  const int frames=t.mode4Fps?int(std::ceil(t.mode4Duration*a.fps)):int((int64_t(t.durationTicks)*a.fps+59)/60);
+  int frames=t.mode4Fps?int(std::ceil(t.mode4Duration*a.fps)):int((int64_t(t.durationTicks)*a.fps+59)/60);
+  if(!t.mode4Fps&&t.count==frames+1)frames=t.count;
   if(frames<1||frames>216000)throw std::runtime_error("bad requested frame count");
   const size_t size=size_t(surface.width)*size_t(surface.height)*4;
   int last=-1;
   for(int i=0;i<frames;i++){
    const int tick=int(int64_t(i)*60/a.fps);
    const auto it=std::upper_bound(t.ticks.begin(),t.ticks.end(),tick);
-   const int n=t.mode4Fps?std::min(t.count-1,int(i*t.mode4Fps/a.fps+1e-8)):std::max(0,int(it-t.ticks.begin())-1);
+   const int n=t.mode4Fps?std::min(t.count-1,int(i*t.mode4Fps/a.fps+1e-8)):std::min(t.count-1,std::max(0,int(it-t.ticks.begin())-1));
    if(n!=last){surface.draw(t.frame(n),t.width,t.height,t.position(n));last=n;}
    std::cout.write((const char*)surface.pixels,std::streamsize(size));
    if(!std::cout)throw std::runtime_error("writing raw video failed");

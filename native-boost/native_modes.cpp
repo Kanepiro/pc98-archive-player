@@ -2,6 +2,14 @@
 #include <array>
 #include <chrono>
 #include <cstring>
+#include <fstream>
+static unsigned char* sharedMemory=nullptr;
+static size_t sharedPosition=0;
+static bool sharedRequest=false;
+static void readPayload(void* dest,size_t size){
+ if(sharedRequest){if(sharedPosition+size>64*1024*1024)throw std::runtime_error("Mode shared input capacity");std::memcpy(dest,sharedMemory+sharedPosition,size);sharedPosition+=size;}
+ else{std::cin.read((char*)dest,size);if(!std::cin)throw std::runtime_error("Mode payload truncated");}
+}
 struct ModesGPU {
  NativeDirectCompute gpu;
  static constexpr int shaderCount=15;
@@ -10,6 +18,14 @@ struct ModesGPU {
  ComPtr<ID3D11UnorderedAccessView> uav;
  ComPtr<ID3D11Query> disjoint,startTime,endTime;
  uint32_t arenaWords=0,outputWords=0,offsets[32]={};
+ std::vector<uint32_t> host;
+ std::array<uint32_t,5> shape={};
+ uint32_t session=0,sequence=0;
+ bool hasState=false;
+ const char* profilePath=std::getenv("TASL_MODES_PROFILE");
+ std::array<ComPtr<ID3D11Query>,10> profileQueries;
+ std::vector<const char*> profileLabels;
+ void stamp(const char* name){if(profilePath&&profileLabels.size()<profileQueries.size()){gpu.context->End(profileQueries[profileLabels.size()].Get());profileLabels.push_back(name);}}
  struct alignas(16) Params {
   uint32_t W,H,S,Mode,G,hasOld,src,dst,axis,channels,K,blankIndex;
   float brightness,contrast,gamma,edge;
@@ -34,6 +50,7 @@ struct ModesGPU {
   checked(gpu.device->CreateBuffer(&b,nullptr,&counter),"mode counter");
   D3D11_QUERY_DESC q={D3D11_QUERY_TIMESTAMP_DISJOINT,0};checked(gpu.device->CreateQuery(&q,&disjoint),"timestamp disjoint");
   q.Query=D3D11_QUERY_TIMESTAMP;checked(gpu.device->CreateQuery(&q,&startTime),"timestamp start");checked(gpu.device->CreateQuery(&q,&endTime),"timestamp end");
+  if(profilePath)for(auto& query:profileQueries)checked(gpu.device->CreateQuery(&q,&query),"profile query");
  }
  void unbind(){ID3D11UnorderedAccessView* v[]={nullptr};gpu.context->CSSetUnorderedAccessViews(0,1,v,nullptr);}
  void launch(int shader,Params& p,uint32_t count){
@@ -61,13 +78,21 @@ struct ModesGPU {
  }
  void compute(){
   auto begin=std::chrono::steady_clock::now();uint32_t h[16];std::cin.read((char*)h,64);
-  if(!std::cin||h[0]!=0x4d475354||h[1]!=1||h[2]<1||h[2]>3||h[3]<1||h[3]>480||h[4]<1||h[4]>240||h[5]<1||h[5]>10||h[7]>1)throw std::runtime_error("native mode header");
+  sharedRequest=(h[1]&0x80000000u)!=0;h[1]&=0x7fffffffu;sharedPosition=0;
+  if(sharedRequest&&!sharedMemory)throw std::runtime_error("Mode shared mapping missing");
+  if(!std::cin||h[0]!=0x4d475354||(h[1]!=1&&h[1]!=2)||h[2]<1||h[2]>3||h[3]<1||h[3]>480||h[4]<1||h[4]>240||h[5]<1||h[5]>10||h[7]>1)throw std::runtime_error("native mode header");
   Params p={h[3],h[4],h[5],h[2],h[6],h[7],0,0,0,1,0,h[12],0,1,1,0};std::memcpy(&p.brightness,h+8,16);
   if(!std::isfinite(p.brightness)||p.brightness< -100||p.brightness>100||!std::isfinite(p.contrast)||p.contrast<.25||p.contrast>3||!std::isfinite(p.gamma)||p.gamma<.4||p.gamma>2.5||!std::isfinite(p.edge)||p.edge<0||p.edge>1)throw std::runtime_error("native mode settings");
   uint64_t n64=uint64_t(p.W)*p.H*p.S*p.S;uint32_t C=p.W*p.H;
   if(n64>3000000||(p.Mode==3&&(p.G<2||p.G>128||p.blankIndex>=p.G||uint64_t(C)*p.G>10000000)))throw std::runtime_error("native mode capacity");
   if(p.Mode!=3&&(p.G||p.hasOld))throw std::runtime_error("native tone header");uint32_t N=(uint32_t)n64;
-  std::vector<uint32_t> host(32,0);
+  const bool resident=h[1]==2,atlasInput=!resident||(h[15]&1),oldInput=p.hasOld&&(!resident||(h[15]&2));
+  const std::array<uint32_t,5> requested={p.W,p.H,p.S,p.Mode,p.G};
+  const bool layoutChanged=requested!=shape;
+  if(resident&&(h[15]&~3u))throw std::runtime_error("Mode resident flags");
+  if(resident&&p.Mode==3&&!atlasInput&&(layoutChanged||session!=h[13]))throw std::runtime_error("Mode atlas session expired");
+  if(resident&&p.hasOld&&!oldInput&&(layoutChanged||!hasState||session!=h[13]||sequence+1!=h[14]))throw std::runtime_error("Mode temporal session expired");
+  if(layoutChanged){host.assign(32,0);
   auto alloc=[&](uint32_t slot,uint32_t words){offsets[slot]=(uint32_t)host.size();host.resize(host.size()+words,0);};
   for(uint32_t k=0;k<32;k++){
    uint32_t words=1;
@@ -81,48 +106,72 @@ struct ModesGPU {
    }
    alloc(k,words);
   }
+  shape=requested;hasState=false;}
+  // Swap logical current/previous buffers: preserve exact GPU float bits without
+  // downloading and uploading the previous frame again.
+  if(resident&&p.hasOld&&!oldInput){std::swap(offsets[13],offsets[15]);std::swap(offsets[14],offsets[16]);std::swap(offsets[25],offsets[20]);}
   std::copy(offsets,offsets+32,host.begin());
-  auto read=[&](uint32_t slot,uint32_t words){std::cin.read((char*)(host.data()+offsets[slot]),words*4);if(!std::cin)throw std::runtime_error("native mode payload truncated");};
+  auto read=[&](uint32_t slot,uint32_t words){readPayload(host.data()+offsets[slot],words*4);};
   read(0,N);
   if(p.Mode==3){
-   read(17,p.G);read(18,p.G*2*p.S*p.S);read(19,p.G);
+   if(atlasInput){read(17,p.G);read(18,p.G*2*p.S*p.S);read(19,p.G);}
    for(uint32_t j=0;j<p.G;j++)if(host[offsets[17]+j]<1||host[offsets[17]+j]>2)throw std::runtime_error("glyph width");
-   if(p.hasOld){read(15,N);read(16,N);read(20,C);}else std::fill(host.begin()+offsets[20],host.begin()+offsets[20]+C,0xffffffff);
+   if(oldInput){read(15,N);read(16,N);read(20,C);}
   }
   uint32_t count=C+(p.Mode==3?N*2:0);buffers((uint32_t)host.size(),count);
-  gpu.context->UpdateSubresource(arena.Get(),0,nullptr,host.data(),0,0);
-  gpu.context->Begin(disjoint.Get());gpu.context->End(startTime.Get());
-  if(p.Mode!=3){launch(0,p,C);launch(1,p,C);}
+  // Every scratch slot is written by its producer shader before use. Upload
+  // only live inputs; do not zero and transfer the entire scratch arena.
+  unbind();
+  auto upload=[&](uint32_t word,uint32_t count){D3D11_BOX b={word*4,0,0,(word+count)*4,1,1};gpu.context->UpdateSubresource(arena.Get(),0,&b,host.data()+word,0,0);};
+  upload(0,32);upload(offsets[0],N);
+  if(layoutChanged&&p.Mode==2)upload(offsets[25],C);
+  if(p.Mode==3){if(atlasInput){upload(offsets[17],p.G);upload(offsets[18],p.G*2*p.S*p.S);upload(offsets[19],p.G);}if(oldInput){upload(offsets[15],N);upload(offsets[16],N);upload(offsets[20],C);}}
+  session=h[13];sequence=h[14];hasState=p.Mode==3;
+  profileLabels.clear();gpu.context->Begin(disjoint.Get());gpu.context->End(startTime.Get());
+  if(p.Mode!=3){launch(0,p,C);stamp("average");launch(1,p,C);stamp("tones");}
   else {
-   launch(2,p,N);
+   launch(2,p,N);stamp("normalize");
    p.channels=4;p.K=0;p.src=1;p.dst=2;p.axis=0;launch(3,p,N*4);p.src=2;p.dst=3;p.axis=1;launch(3,p,N*4);
    p.channels=1;
    for(uint32_t k=1;k<=2;k++){p.K=k;p.src=14;p.dst=6;p.axis=0;launch(3,p,N);p.src=6;p.dst=k==1?4:5;p.axis=1;launch(3,p,N);}
-   launch(4,p,N);launch(5,p,N);bool converged=false;
+   stamp("gaussian");launch(4,p,N);launch(5,p,N);stamp("gradientPeaks");bool converged=false;
    for(int iter=0;iter<64;iter++){
     unbind();uint32_t zero=0;D3D11_BOX b={offsets[26]*4,0,0,(offsets[26]+1)*4,1,1};gpu.context->UpdateSubresource(arena.Get(),0,&b,&zero,0,0);
     launch(6,p,N);launch(7,p,N);if(!changed()){converged=true;break;}
    }
    if(!converged)throw std::runtime_error("native edge connectivity did not converge; CPU fallback");
-   launch(8,p,N);launch(9,p,N);launch(10,p,N);launch(11,p,1);launch(12,p,C);launch(13,p,C*p.G);launch(14,p,p.H);
+   stamp("connectivity");launch(8,p,N);launch(9,p,N);launch(10,p,N);stamp("target");launch(11,p,1);launch(12,p,C);stamp("temporalCells");launch(13,p,C*p.G);stamp("glyphScore");launch(14,p,p.H*128);stamp("rowLayout");
   }
   gpu.context->End(endTime.Get());gpu.context->End(disjoint.Get());unbind();uint32_t dest=0;
   auto copy=[&](uint32_t slot,uint32_t words){D3D11_BOX b={offsets[slot]*4,0,0,(offsets[slot]+words)*4,1,1};gpu.context->CopySubresourceRegion(staging.Get(),0,dest,0,0,arena.Get(),0,&b);dest+=words*4;};
   copy(25,C);if(p.Mode==3){copy(13,N);copy(14,N);}
   D3D11_MAPPED_SUBRESOURCE m={};checked(gpu.context->Map(staging.Get(),0,D3D11_MAP_READ,0,&m),"native mode output");
-  uint32_t header[]={0x52475354,1,p.Mode,p.W,p.H,p.G,N,C};std::cout.write((char*)header,32);std::cout.write((char*)m.pData,count*4);gpu.context->Unmap(staging.Get(),0);
+  uint32_t header[]={0x52475354,1,p.Mode,p.W,p.H,p.G,N,C};if(sharedRequest){std::memcpy(sharedMemory+64*1024*1024,header,32);std::memcpy(sharedMemory+64*1024*1024+32,m.pData,count*4);}
+  else{std::cout.write((char*)header,32);std::cout.write((char*)m.pData,count*4);}gpu.context->Unmap(staging.Get(),0);
   D3D11_QUERY_DATA_TIMESTAMP_DISJOINT q={};UINT64 a=0,b=0;double gpuMs=-1;
   if(gpu.context->GetData(disjoint.Get(),&q,sizeof(q),0)==S_OK&&!q.Disjoint&&q.Frequency&&gpu.context->GetData(startTime.Get(),&a,sizeof(a),0)==S_OK&&gpu.context->GetData(endTime.Get(),&b,sizeof(b),0)==S_OK)gpuMs=double(b-a)*1000/double(q.Frequency);
-  double times[]={gpuMs,std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-begin).count()};std::cout.write((char*)times,16);std::cout.flush();
+  if(profilePath&&gpuMs>=0){
+   std::ofstream log(profilePath,std::ios::app);log<<"{\"mode\":"<<p.Mode<<",\"gpuMs\":"<<gpuMs<<",\"stagesMs\":{";
+   UINT64 previous=a;
+   for(size_t i=0;i<profileLabels.size();i++){UINT64 tick=0;gpu.context->GetData(profileQueries[i].Get(),&tick,sizeof(tick),0);if(i)log<<",";log<<"\""<<profileLabels[i]<<"\":"<<double(tick-previous)*1000/double(q.Frequency);previous=tick;}
+   log<<"}}\n";
+  }
+  double times[]={gpuMs,std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-begin).count()};if(sharedRequest){std::memcpy(sharedMemory+64*1024*1024+32+count*4,times,16);uint32_t bytes=48+count*4;std::cout.write((char*)&bytes,4);}
+  else std::cout.write((char*)times,16);std::cout.flush();
  }
 };
 int main(int argc,char** argv){
  try{
-  _setmode(_fileno(stdin),_O_BINARY);_setmode(_fileno(stdout),_O_BINARY);
+  _setmode(_fileno(stdin),_O_BINARY);_setmode(_fileno(stdout),_O_BINARY);std::ios::sync_with_stdio(false);std::cin.tie(nullptr);
   if(argc==2&&std::string(argv[1])=="--check-shader"){for(int i=0;i<ModesGPU::shaderCount;i++){auto c=ModesGPU::compile(ModesGPU::entry(i));std::cout<<ModesGPU::entry(i)<<" "<<c->GetBufferSize()<<" bytes\n";}return 0;}
   ModesGPU engine;
   if(argc==2&&std::string(argv[1])=="--probe"){std::cout<<"DIRECTCOMPUTE_MODES "<<engine.gpu.gpuName<<"\n";return 0;}
-  if(argc!=2||std::string(argv[1])!="--stream")throw std::runtime_error("expected --stream");
+  if(argc==3&&std::string(argv[1])=="--stream"){
+   HANDLE map=OpenFileMappingA(FILE_MAP_ALL_ACCESS,FALSE,argv[2]);if(!map)throw std::runtime_error("Mode shared mapping");
+   sharedMemory=(unsigned char*)MapViewOfFile(map,FILE_MAP_ALL_ACCESS,0,0,96*1024*1024);CloseHandle(map);
+   if(!sharedMemory)throw std::runtime_error("Mode shared view");
+  }
+  if((argc!=2&&argc!=3)||std::string(argv[1])!="--stream")throw std::runtime_error("expected --stream");
   while(std::cin.peek()!=std::char_traits<char>::eof())engine.compute();return 0;
  }catch(const std::exception& e){std::cerr<<"NATIVE_MODES_ERROR "<<e.what()<<"\n";return 1;}
 }

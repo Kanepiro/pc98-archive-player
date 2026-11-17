@@ -133,7 +133,11 @@ export function areaSample(src,w,h,n){
   out[y*n+x]=s/(sx*sy);
  }return out;
 }
-export async function makeMode4Atlas(){
+let mode4AtlasPromise=null;
+export function makeMode4Atlas(){
+ return mode4AtlasPromise??=buildMode4Atlas().catch(error=>{mode4AtlasPromise=null;throw error;});
+}
+export async function buildMode4Atlas(){
  const bytes=await ensureMode4Atlas(),atlas=[];
  for(let i=0;i<170;i++){
   const mask=areaSample(Float32Array.from(bytes.subarray(i*3600,(i+1)*3600),v=>v/255),60,60,24),[l,t,r,b]=GLYPH_BOUNDS[i];
@@ -253,16 +257,43 @@ export class Grid60Converter{
  restore(s){if(s&&s.engine!==MODE4_ENGINE)throw Error('旧モード4の途中データは引き継げません');}
  snapshot(){return {engine:MODE4_ENGINE};}
  async enableNativeGPU(){try{const {NativeGrid60}=await import('./tsl-mode4-grid60-native.js');this.native=await NativeGrid60.create();this.nativeGpuInfo=this.native?.adapterInfo;}catch(e){this.gpuError=e.message;}}
+ // Reuse only bit-identical features at the same cell, with the same atlas.
+ // One previous frame is retained; dimensions changes discard its eligibility.
+ matchCached(targets){
+  const old=this.matchCache,indices=[],scores=[],active=[],positions=[];
+  for(let c=0;c<targets.length;c++){
+   const a=targets[c],b=old?.targets.length===targets.length&&old.atlas===this.atlas?old.targets[c]:null;
+   let same=!!b&&a.length===b.length;
+   if(same){const x=new Uint32Array(a.buffer,a.byteOffset,a.length),y=new Uint32Array(b.buffer,b.byteOffset,b.length);
+    for(let k=0;k<x.length;k++)if(x[k]!==y[k]){same=false;break;}}
+   if(same){indices[c]=old.indices[c];scores[c]=old.scores[c];}
+   else{positions.push(c);active.push(a);}
+  }
+  const fresh=selectMode4Glyphs(active,this.atlas);
+  for(let i=0;i<positions.length;i++){indices[positions[i]]=fresh.indices[i];scores[positions[i]]=fresh.scores[i];}
+  this.matchCache={targets,indices,scores,atlas:this.atlas};
+  return {indices,scores};
+ }
  async convertAccelerated(pixels,width,height,options={}){
-  const start=performance.now(),targets=prepareMode4Targets(pixels,width,height,options),prepared=performance.now();let result;
-  if(this.native)try{result=await this.native.match(targets,this.atlas);this.acceleration=this.native.adapterInfo.software?'WARP test 60px contour matching':'DirectCompute 60px contour matching';}
-   catch(e){this.gpuError=e.message;this.native=null;this.acceleration='CPU 60px contour matching';}
-  result??=selectMode4Glyphs(targets,this.atlas);
+  const start=performance.now();let targets,result,prepared,nativeStages=null;
+  if(this.native?.prepareMatch&&!options.mode4DebugImage)try{
+   const sigma=options.mode4BlurSigma??MODE4_BLUR_SIGMA;
+   if(!Number.isFinite(sigma)||sigma<0||sigma>24)throw Error('Gaussian sigma invalid');
+   result=await this.native.prepareMatch(pixels,width,height,this.atlas,options,sigma?gaussianKernel(sigma):new Float32Array([1]));
+   targets=Array.from({length:result.indices.length},()=>null);targets.edgeCounts=result.counts;
+   nativeStages=result.timings;prepared=start+nativeStages.slice(0,4).reduce((a,b)=>a+b,0);this.acceleration='DirectCompute / adaptive CPU SSE2';
+  }catch(e){this.gpuError=e.message;this.native=null;this.acceleration='CPU 60px contour matching';}
+  if(!result){
+   targets=prepareMode4Targets(pixels,width,height,options);prepared=performance.now();
+   if(this.native)try{result=await this.native.match(targets,this.atlas);this.acceleration=this.native.adapterInfo.software?'WARP test 60px contour matching':'DirectCompute 60px contour matching';}
+    catch(e){this.gpuError=e.message;this.native=null;this.acceleration='CPU 60px contour matching';}
+   result??=this.matchCached(targets);
+  }
   // Final common gate runs AFTER CPU/GPU selection. No layout pass may revive a rejection.
   const decisions=judgeMode4(targets,result,this.atlas,options),accepted=decisions.filter(d=>d.accepted).length;
   this.lastOffsets=Uint8Array.from(decisions.flatMap(d=>[d.x+60,d.y+60]));
   this.lastAudit=options.mode4Diagnostics?decisions:null;
-  this.lastPerf={prepareMs:prepared-start,matchMs:performance.now()-prepared,totalMs:performance.now()-start,candidates:170,positions:this.atlas.length,cells:targets.length,accepted,blank:targets.length-accepted,limit:options.mode4ScoreLimit??MODE4_LIMIT,sigma:options.mode4BlurSigma??MODE4_BLUR_SIGMA,glyphPrecision:MODE4_GLYPH_PRECISION,distanceCap:MODE4_DISTANCE_CAP};
+  this.lastPerf={nativeStages,prepareMs:prepared-start,matchMs:nativeStages?nativeStages[4]:performance.now()-prepared,transportAndControlMs:nativeStages?Math.max(0,performance.now()-start-nativeStages.slice(0,5).reduce((a,b)=>a+b,0)):null,totalMs:performance.now()-start,candidates:170,positions:this.atlas.length,cells:targets.length,accepted,blank:targets.length-accepted,limit:options.mode4ScoreLimit??MODE4_LIMIT,sigma:options.mode4BlurSigma??MODE4_BLUR_SIGMA,glyphPrecision:MODE4_GLYPH_PRECISION,distanceCap:MODE4_DISTANCE_CAP};
   const rows=[];for(let y=0;y<height;y++)rows.push(decisions.slice(y*width/2,(y+1)*width/2).map(d=>d.output).join(''));
   return rows.join('\r\n')+'\r\n';
  }

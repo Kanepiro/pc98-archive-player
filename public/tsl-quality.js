@@ -65,11 +65,13 @@ export function makeGlyphAtlas(sample=6){
  }
  return items;
 }
+const gaussianKernels=new Map();
 function gaussian(src,w,h,sigma){
- const radius=Math.max(1,Math.ceil(2.4*sigma)),kern=new Float32Array(radius*2+1);
+ const radius=Math.max(1,Math.ceil(2.4*sigma));let kern=gaussianKernels.get(sigma);
+ if(!kern){kern=new Float32Array(radius*2+1);
  let sum=0;
  for(let k=-radius;k<=radius;k++){const v=Math.exp(-k*k/(2*sigma*sigma));kern[k+radius]=v;sum+=v;}
- for(let k=0;k<kern.length;k++)kern[k]/=sum;
+ for(let k=0;k<kern.length;k++)kern[k]/=sum;gaussianKernels.set(sigma,kern);}
  const tmp=new Float32Array(src.length),dst=new Float32Array(src.length);
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
   let acc=0;for(let k=-radius;k<=radius;k++)acc+=src[y*w+Math.min(w-1,Math.max(0,x+k))]*kern[k+radius];
@@ -200,6 +202,7 @@ export class QualityConverter{
  }
  snapshot(){
   if(!this.previous)return null;
+  if(this.nativeMode&&!this.previous.target)return this.nativeMode.materialize(this.previous).then(state=>({sample:this.sample,target:state.target,gray:state.gray,prevGlyphs:this.prevGlyphs}));
   return {
    sample:this.sample,
    target:this.previous.target,gray:this.previous.gray,
@@ -241,6 +244,7 @@ export class QualityConverter{
     this.acceleration=this.nativeMode.acceleration;this.lastPerf=this.nativeMode.lastPerf;
     return result.frame;
    }catch(e){
+    this.previous=await this.nativeMode.materialize(this.previous);
     this.gpuError=String(e);this.nativeMode.dispose();this.nativeMode=null;
     this.acceleration='CPU';this.lastPerf=null;
    }
@@ -286,13 +290,14 @@ export class QualityConverter{
   const {target,cut}=state,w=width*S,rows=[],prev=this.previous?.target;
   const newGlyphs=new Array(width*height).fill(null);
   const atlas=this.atlas;
+  const dp=new Float32Array(width+1),back=new Array(width+1);
+  const cellSquared=new Float32Array(width),cellChange=new Float32Array(width);
+  const edgeCurrent=new Uint16Array(width),edgePrevious=new Uint16Array(width),edgeShared=new Uint16Array(width);
   for(let y=0;y<height;y++){
-   const dp=new Float32Array(width+1);dp.fill(Infinity);dp[0]=0;
-   const back=new Array(width+1);
+   dp.fill(Infinity);dp[0]=0;back.fill(null);
+   cellSquared.fill(0);cellChange.fill(0);edgeCurrent.fill(0);edgePrevious.fill(0);edgeShared.fill(0);
    // These values depend on the source frame only, not on which glyph we try.
    // Calculate them once per cell instead of repeating them for every candidate.
-   const cellSquared=new Float32Array(width),cellChange=new Float32Array(width);
-   const edgeCurrent=new Uint16Array(width),edgePrevious=new Uint16Array(width),edgeShared=new Uint16Array(width);
    for(let x=0;x<width;x++){
     for(let py=0;py<S;py++){
      const start=(y*S+py)*w+x*S;
@@ -315,6 +320,9 @@ export class QualityConverter{
     const a=x*S,b=y*S*w;
     for(let j=0;j<atlas.length;j++){
      const glyph=atlas[j],cols=glyph.columns;if(x+cols>width)continue;
+     const empty=cellSquared[x]/(S*S)<.014 &&
+      (cols===1||cellSquared[x+1]/(S*S)<.014);
+     if(empty&&glyph.char!==' ')continue;
      const mask=glyph.mask,total=cols*S*S;
      // Exact squared-template loss, using ||image-glyph||² =
      // ||image||² + ||glyph||² - 2*dot(image,glyph).
@@ -328,9 +336,7 @@ export class QualityConverter{
      if(glyph.char!==' ')loss+=.006;
      // When no edge energy exists, clear the cell regardless of its old
      // character. This prevents sparse punctuation from sticking to a blank.
-     const empty=cellSquared[x]/(S*S)<.014 &&
-      (cols===1||cellSquared[x+1]/(S*S)<.014);
-     if(empty&&glyph.char!==' ')continue;
+
      const old=this.prevGlyphs?.[y*width+x],same=old===glyph.char;
      if(!empty&&prev&&!cut&&old&&!same){
       // Reuse an old glyph only if the current edge remains at the same

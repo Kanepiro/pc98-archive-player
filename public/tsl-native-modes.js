@@ -4,7 +4,7 @@ import {HALFTONE_TONES} from './tsl-halftone.js';
 export class NativeModeConverter {
  static async create(mode,sample,width,height,atlas=null){
   if(!['127.0.0.1','localhost','[::1]'].includes(location.hostname))throw Error('Windowsローカルアプリが必要です');
-  const response=await fetch('/health',{signal:AbortSignal.timeout(100000)});
+  const response=await fetch('/health/modes',{signal:AbortSignal.timeout(100000)});
   if(!response.ok)throw Error('Windows GPUサービスに接続できません');
   const health=await response.json();
   if(!health.nativeModes)throw Error(health.modesReason||'DirectComputeを使用できません');
@@ -15,36 +15,55 @@ export class NativeModeConverter {
   this.adapterInfo={name:health.modesName,identified:true,architecture:'Direct3D 11',software:!!health.modesSoftware};
   this.acceleration=health.modesSoftware?'WARP Test Modes':'DirectCompute Modes';
   this.lastPerf=null;this.disposed=false;
+  this.resident=health.modesResidentVersion===2;this.session=crypto.getRandomValues(new Uint32Array(1))[0];this.sequence=0;
+  this.compact=this.resident&&!!health.modesCompact;
  }
  dispose(){this.disposed=true;}
+ async materialize(state){
+  if(!state||state.target)return state;
+  if(state.nativeSession!==this.session)throw Error('Native temporal state session mismatch');
+  const response=await fetch('/api/modes/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session:this.session,sequence:state.nativeSequence}),signal:AbortSignal.timeout(30000)});
+  if(!response.ok)throw Error('文字状態を復元できません。保存済みチェックポイントから再開してください');
+  const result=await response.arrayBuffer(),N=this.width*this.height*this.sample*this.sample,C=this.width*this.height;
+  if(result.byteLength!==48+C*4+N*8)throw Error('Native snapshot length');
+  const h=new Uint32Array(result,0,8);
+  if(h[0]!==0x52475354||h[2]!==3||h[3]!==this.width||h[4]!==this.height||h[6]!==N||h[7]!==C)throw Error('Native snapshot header');
+  const target=new Float32Array(result,32+C*4,N),gray=new Float32Array(result,32+C*4+N*4,N);
+  for(let i=0;i<N;i++)if(!Number.isFinite(target[i])||!Number.isFinite(gray[i]))throw Error('Native snapshot nonfinite output');
+  return {target,gray,cut:false};
+ }
  async convert(pixels,options={},previous=null,prevGlyphs=null){
   if(this.disposed)throw Error('Native converter disposed');
   const started=performance.now(),W=this.width,H=this.height,S=this.sample,C=W*H,N=C*S*S;
   const G=this.mode===3?this.atlas.length:0;
-  const old=!!(G&&previous&&previous.target.length===N&&previous.gray.length===N&&prevGlyphs?.length===C);
+  const retained=previous?.nativeSession===this.session&&previous?.nativeSequence===this.sequence-1;
+  const old=!!(G&&previous&&(retained||(previous.target?.length===N&&previous.gray?.length===N))&&prevGlyphs?.length===C);
   if(pixels.length!==N*4)throw Error('Native mode pixel dimensions');
-  const words=16+N+(G?G*(2+2*S*S):0)+(old?2*N+C:0);
+  const atlasInput=!this.resident||this.sequence===0;
+  const oldInput=old&&(!this.resident||(!retained&&previous!==this.lastState)||prevGlyphs!==this.lastChars);
+  const words=16+N+(G&&atlasInput?G*(2+2*S*S):0)+(oldInput?2*N+C:0);
   const buffer=new ArrayBuffer(words*4),u=new Uint32Array(buffer),f=new Float32Array(buffer);
-  u.set([0x4d475354,1,this.mode,W,H,S,G,+old]);
+  u.set([0x4d475354,this.resident?2:1,this.mode,W,H,S,G,+old]);
+  if(this.resident)u.set([this.session,this.sequence,(atlasInput?1:0)|(oldInput?2:0)],13);
   f.set([options.brightness??0,options.contrast??1,options.gamma??1,options.edge??0],8);
   u[12]=G?this.atlas.findIndex(a=>a.char===' '):0;
   new Uint8Array(buffer,64,N*4).set(pixels);
   let offset=16+N;
-  if(G){
+  if(G&&atlasInput){
    u.set(this.atlas.map(a=>a.columns),offset);offset+=G;
    for(const glyph of this.atlas){f.set(glyph.mask,offset);offset+=2*S*S;}
    f.set(this.atlas.map(a=>a.squares??Array.from(a.mask).reduce((n,v)=>n+v*v,0)),offset);offset+=G;
-   if(old){
+  }
+  if(oldInput){
     f.set(previous.target,offset);offset+=N;f.set(previous.gray,offset);offset+=N;
     const map=new Map(this.atlas.map((a,i)=>[a.char,i]));
     for(let i=0;i<C;i++)u[offset+i]=map.get(prevGlyphs[i])??0xffffffff;
-   }
   }
-  const response=await fetch('/api/modes/convert',{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:buffer,signal:AbortSignal.timeout(190000)});
+  const response=await fetch('/api/modes/convert',{method:'POST',headers:{'Content-Type':'application/octet-stream',...(this.compact?{'X-TASL-Compact':'1'}:{})},body:buffer,signal:AbortSignal.timeout(190000)});
   if(!response.ok)throw Error((await response.json().catch(()=>null))?.error||'DirectCompute変換に失敗しました');
   const backend=response.headers.get('X-TASL-Compute-Backend');
   if(backend!==(this.adapterInfo.software?'WARP-Test':'DirectCompute-Modes'))throw Error('Native backend identity mismatch');
-  const result=await response.arrayBuffer(),expected=48+C*4+(G?N*8:0);
+  const result=await response.arrayBuffer(),expected=48+C*4+(G&&!this.compact?N*8:0);
   if(result.byteLength!==expected)throw Error('Native mode result length');
   const h=new Uint32Array(result,0,8);
   if(h[0]!==0x52475354||h[1]!==1||h[2]!==this.mode||h[3]!==W||h[4]!==H||h[5]!==G||h[6]!==N||h[7]!==C)throw Error('Native mode result header');
@@ -72,12 +91,15 @@ export class NativeModeConverter {
    rows.push(row);
   }
   const timing=new DataView(result,result.byteLength-16,16);
-  this.lastPerf={backend:this.acceleration,gpuTimestampMs:timing.getFloat64(0,true),nativeWallMs:timing.getFloat64(8,true),transportWallMs:performance.now()-started,
+  this.lastPerf={backend:this.acceleration,gpuTimestampMs:timing.getFloat64(0,true),nativeWallMs:timing.getFloat64(8,true),transportWallMs:performance.now()-started,uploadBytes:buffer.byteLength,downloadBytes:result.byteLength,
    stages:G?'normalize,gaussian,edges,connectivity,target,temporal,glyph-score,row-layout':'sample,tone,outline'};
   const frame=rows.join('\r\n')+'\r\n';
+  this.sequence++;
   if(!G)return frame;
+  if(this.compact){this.lastState={nativeSession:this.session,nativeSequence:this.sequence-1};this.lastChars=chars;return {frame,state:this.lastState,chars};}
   const target=new Float32Array(result,32+C*4,N),gray=new Float32Array(result,32+C*4+N*4,N);
   for(let i=0;i<N;i++)if(!Number.isFinite(target[i])||!Number.isFinite(gray[i]))throw Error('Native nonfinite output');
-  return {frame,state:{target,gray,cut:false},chars};
+  this.lastState={target,gray,cut:false};this.lastChars=chars;
+  return {frame,state:this.lastState,chars};
  }
 }

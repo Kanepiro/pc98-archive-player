@@ -25,6 +25,8 @@ import mp4_native
 from gpu_metrics import RunMetrics
 from fullgpu_bridge import ContourGpuClient, ModesGpuClient, Grid120GpuClient
 from resident_bridge import ResidentFullGpuClient
+from portable_bridge import PortableClient
+from resident_modes import ResidentModesClient
 
 HOST = "127.0.0.1"
 PORT = int(os.getenv("TASL_BOOST_PORT", "39083"))
@@ -193,8 +195,10 @@ class NativeGpuClient:
 GPU = NativeGpuClient()
 LAYOUT = ResidentFullGpuClient(executable)
 CONTOUR = ContourGpuClient(executable)
-MODES = ModesGpuClient(executable)
+MODES = ResidentModesClient(executable)
 GRID120 = Grid120GpuClient(executable)
+PORTABLE = PortableClient(executable)
+atexit.register(PORTABLE.close)
 atexit.register(GRID120.close)
 VISION = None
 VISION_REASON = ""
@@ -215,7 +219,9 @@ atexit.register(GPU.close)
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TASL-FullGPU-Boost/0.3.44"
+    server_version = "TASL-FullGPU-Boost/0.3.45"
+    protocol_version = "HTTP/1.1"
+    disable_nagle_algorithm = True
 
     def allowed(self):
         origin = self.headers.get("Origin", "")
@@ -305,10 +311,20 @@ class Handler(BaseHTTPRequestHandler):
             v = native_vision()
             return self.response(200, {"ready": bool(v and v.ready), "reason": v.reason if v else VISION_REASON,
                 "backend": v.backend if v and v.ready else "CPU fallback"})
+        if route == "/health/modes":
+            ready=MODES.probe()
+            return self.response(200,{"nativeModes":ready,"modesName":MODES.name,"modesSoftware":MODES.software,"modesReason":MODES.reason,"modesResidentVersion":2,"modesCompact":True})
+        if route == "/health/mode4":
+            ready=PORTABLE.probe()
+            fallback=False if ready else GRID120.probe()
+            return self.response(200,{"portable":ready,"portableName":PORTABLE.name,
+                "grid120":fallback,"grid120Name":GRID120.name,"grid120Software":GRID120.software})
+        if route == "/health/mp4":
+            return self.response(200,{"nativeMp4":bool(executable("tsl_render_gpu")),"ffmpeg":bool(executable("ffmpeg")),"ffprobe":bool(executable("ffprobe"))})
         if route == "/health":
             return self.response(200, {
                 "name": "TASL Native GPU PC Boost",
-                "version": "0.3.44", "originalMode4": False,
+                "version": "0.3.45", "originalMode4": False,
                 "mode4Engine": 6005, "mode4CellSize": 60, "mode4PaletteCount": 170,
                 "nativeExact": bool(executable("mode4_score_exact")),
                 "nativeGpu": GPU.probe(),
@@ -381,6 +397,23 @@ class Handler(BaseHTTPRequestHandler):
                 return self.response(200, v.detect(payload,w,h))
             except Exception as e:
                 return self.response(503, {"error": str(e)[:450]})
+        if route == "/api/modes/state":
+            try:
+                length=int(self.headers.get("Content-Length","0"))
+                if not 1<=length<=256:raise ValueError("Mode snapshot request length")
+                request=json.loads(self.rfile.read(length))
+                return self.response(200,MODES.state(int(request["session"]),int(request["sequence"])),"application/octet-stream")
+            except (ValueError,KeyError,TypeError) as e:
+                return self.response(409,{"error":str(e)[:300]})
+        if route == "/api/mode4/portable":
+            try:
+                length=int(self.headers.get("Content-Length","0"))
+                if self.headers.get("Content-Type","").split(";")[0]!="application/octet-stream" or not 32<=length<=MAX_SCORE_REQUEST:
+                    raise ValueError("Portable request invalid")
+                payload=self.rfile.read(length)
+                return self.response(200,PORTABLE.compute(payload),"application/octet-stream",{"X-TASL-Compute-Backend":"PORTABLE-DirectCompute"})
+            except (ValueError,OSError,RuntimeError) as e:
+                return self.response(503,{"error":str(e)[:450]})
         if route in ("/api/mode4/grid120", "/api/modes/convert", "/api/mode4/gpu-layout", "/api/mode4/gpu-contour"):
             client = GRID120 if route == "/api/mode4/grid120" else MODES if route == "/api/modes/convert" else CONTOUR if route.endswith("gpu-contour") else LAYOUT
             try:
@@ -391,6 +424,9 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError("Layout request exceeds capacity")
                 payload = self.rfile.read(length)
                 result = client.compute(payload)
+                if client is MODES and self.headers.get("X-TASL-Compact")=="1":
+                    h=struct.unpack_from("<8I",result)
+                    if h[2]==3:result=result[:32+h[7]*4]+result[-16:]
                 return self.response(200, result, "application/octet-stream", {
                     "X-TASL-Compute-Backend": "WARP-Test" if client.software else "DirectCompute-Grid120" if client is GRID120 else "DirectCompute-Modes" if client is MODES else "DirectCompute-Global"})
             except (ValueError, OSError, RuntimeError) as e:

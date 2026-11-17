@@ -137,6 +137,8 @@ void cellsQuality(uint3 id:SV_DispatchThreadID){
 void scoreQuality(uint3 id:SV_DispatchThreadID){
  uint i=threadIndex(id),C=W*H;if(i>=C*G)return;uint cell=i/G,j=i%G,x=cell%W,y=cell/W,cols=A[O(17)+j];
  float loss=1e20;if(x+cols<=W){
+  bool noInk=F(21,cell*6)/(S*S)<.014&&(cols==1||F(21,(cell+1)*6)/(S*S)<.014);
+  if(noInk&&j!=reserved){SF(22,i,loss);return;}
   float dotValue=0;uint total=cols*S*S,w=W*S;
   for(uint py=0;py<S;py++)for(uint px=0;px<cols*S;px++)dotValue+=F(13,(y*S+py)*w+x*S+px)*F(18,j*2*S*S+py*cols*S+px);
   float energy=F(21,cell*6)+(cols==2?F(21,(cell+1)*6):0);
@@ -156,19 +158,45 @@ void scoreQuality(uint3 id:SV_DispatchThreadID){
  }
  SF(22,i,loss);
 }
+groupshared float rowDp[481];
+groupshared uint rowChoice[481];
+groupshared float rowLoss1[128],rowLoss2[128];
+groupshared uint rowGlyph1[128],rowGlyph2[128];
 [numthreads(128,1,1)]
-void rowsQuality(uint3 id:SV_DispatchThreadID){
- uint y=threadIndex(id);if(y>=H)return;uint base=y*(W+1);
- for(uint initX=0;initX<=W;initX++){SF(23,base+initX,initX==0?0:1e20);A[O(24)+base+initX]=0xffffffff;}
- for(uint cellX=0;cellX<W;cellX++){
-  float prior=F(23,base+cellX);if(prior>=1e19)continue;
-  for(uint candidate=0;candidate<G;candidate++){uint cols=A[O(17)+candidate];if(cellX+cols>W)continue;
-   float score=prior+F(22,(y*W+cellX)*G+candidate);if(score<F(23,base+cellX+cols)){SF(23,base+cellX+cols,score);A[O(24)+base+cellX+cols]=candidate;}
+void rowsQuality(uint3 group:SV_GroupID,uint lane:SV_GroupIndex){
+ uint y=group.x;if(y>=H)return;
+ for(uint initX=lane;initX<=W;initX+=128){rowDp[initX]=initX==0?0:1e20;rowChoice[initX]=0xffffffff;}
+ GroupMemoryBarrierWithGroupSync();
+ for(uint x=0;x<W;x++){
+  float prior=rowDp[x],v1=1e20,v2=1e20;uint g1=0xffffffff,g2=0xffffffff;
+  for(uint chunk=0;chunk<G;chunk+=128){
+   uint j=chunk+lane;
+   if(j<G&&prior<1e19){uint cols=A[O(17)+j];
+    if(x+cols<=W){float value=prior+F(22,(y*W+x)*G+j);
+     if(cols==1){if(value<v1||(value==v1&&j<g1)){v1=value;g1=j;}}
+     else if(value<v2||(value==v2&&j<g2)){v2=value;g2=j;}
+    }
+   }
   }
+  rowLoss1[lane]=v1;rowLoss2[lane]=v2;rowGlyph1[lane]=g1;rowGlyph2[lane]=g2;
+  GroupMemoryBarrierWithGroupSync();
+  for(uint stride=64;stride>0;stride/=2){
+   if(lane<stride){uint other=lane+stride;
+    if(rowLoss1[other]<rowLoss1[lane]||(rowLoss1[other]==rowLoss1[lane]&&rowGlyph1[other]<rowGlyph1[lane])){rowLoss1[lane]=rowLoss1[other];rowGlyph1[lane]=rowGlyph1[other];}
+    if(rowLoss2[other]<rowLoss2[lane]||(rowLoss2[other]==rowLoss2[lane]&&rowGlyph2[other]<rowGlyph2[lane])){rowLoss2[lane]=rowLoss2[other];rowGlyph2[lane]=rowGlyph2[other];}
+   }
+   GroupMemoryBarrierWithGroupSync();
+  }
+  if(lane==0){
+   if(rowLoss1[0]<rowDp[x+1]){rowDp[x+1]=rowLoss1[0];rowChoice[x+1]=rowGlyph1[0];}
+   if(x+2<=W&&rowLoss2[0]<rowDp[x+2]){rowDp[x+2]=rowLoss2[0];rowChoice[x+2]=rowGlyph2[0];}
+  }
+  GroupMemoryBarrierWithGroupSync();
  }
- uint backX=W;for(uint step=0;step<W&&backX>0;step++){
-  uint glyph=A[O(24)+base+backX];if(glyph>=G){A[O(25)+y*W]=0xfffffffe;return;}
-  uint glyphCols=A[O(17)+glyph];backX-=glyphCols;A[O(25)+y*W+backX]=glyph;
-  if(glyphCols==2)A[O(25)+y*W+backX+1]=0xffffffff;
- }
+ if(lane==0){uint backX=W;for(uint step=0;step<W&&backX>0;step++){
+  uint glyph=rowChoice[backX];if(glyph>=G){A[O(25)+y*W]=0xfffffffe;return;}
+  uint cols=A[O(17)+glyph];backX-=cols;A[O(25)+y*W+backX]=glyph;
+  if(cols==2)A[O(25)+y*W+backX+1]=0xffffffff;
+ }}
 }
+

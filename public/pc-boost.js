@@ -22,7 +22,7 @@ export async function exportFaithfulNativeMp4({
  file,tslBlob,plan,source,signal,onProgress=()=>{}
 }={}){
  check(signal);
- const health=await json('/health',{signal,cache:'no-store'});
+ const health=await json('/health/mp4',{signal,cache:'no-store'});
  if(!health.nativeMp4||!health.ffmpeg||!health.ffprobe)
   throw Error('PCネイティブMP4環境が見つかりません');
  const metadata={
