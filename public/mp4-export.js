@@ -126,7 +126,10 @@ async function exportTsl(current, signal, onProgress, onResolution, tslAppearanc
       audioTrack=await audioInput.getPrimaryAudioTrack();
       if(!audioTrack)throw Error('元動画に音声トラックがありません');
       const codec=await audioTrack.getCodec();
-      audioMode=codec==='aac'?'copy':'sample';
+      // Fixed-output presets promise AAC-LC even when the input contains HE-AAC.
+      // Keep the existing copy policy for old TSL files and generation modes.
+      const aacLC=!data.outputWidth||(await audioTrack.getCodecParameterString())==='mp4a.40.2';
+      audioMode=codec==='aac'&&aacLC?'copy':'sample';
       if(audioMode==='sample'&&!(await audioTrack.canDecode()))
         throw Error('元動画の音声コーデックをデコードできません');
     }
@@ -134,7 +137,7 @@ async function exportTsl(current, signal, onProgress, onResolution, tslAppearanc
     const near16x9=data.native16&&Math.abs(nativeWidth/nativeHeight/(16/9)-1)<.02;
     // 240x67 native PC-98 columns/rows yield 1920x1072. Preserve every
     // 16x16 pixel and center it with 4 black rows above/below in 1080p.
-    const sizes=(data.mode4Cell60||data.mode4Cell120)?[{width:nativeWidth,height:nativeHeight}]:near16x9
+    const sizes=data.outputWidth?[{width:data.outputWidth,height:data.outputHeight}]:(data.mode4Cell60||data.mode4Cell120)?[{width:nativeWidth,height:nativeHeight}]:near16x9
       ?[{width:1920,height:1080},{width:1280,height:720},...tslExportCandidates(nativeWidth,nativeHeight)]
       :tslExportCandidates(nativeWidth,nativeHeight);
     let canvas,output,video,audio,lastError;
@@ -148,6 +151,7 @@ async function exportTsl(current, signal, onProgress, onResolution, tslAppearanc
         canvas=candidate;break;
       }catch(e){lastError=e;}
     }
+    if(!canvas&&data.outputWidth)throw Error('指定解像度 '+data.outputWidth+'×'+data.outputHeight+' のMP4を書き出せません：'+(lastError?.message||'エンコーダーの解像度制限'));
     if(!canvas)throw lastError||Error('TSLのMP4書き出しに対応する解像度がありません');
     onResolution?.(canvas.width,canvas.height);
     const render={cellWidth:canvas.width/data.width,cellHeight:canvas.height/data.height,

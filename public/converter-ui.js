@@ -1,3 +1,4 @@
+import {outputPreset,presetGrid} from './tsl-output-presets.js';
 import {mode4Grid,MODE4_ENGINE} from './tsl-mode4-grid60.js';
 import {convertVideo} from './video-to-tsl.js';
 import {analyzeVideoTone} from './tsl-auto-settings.js';
@@ -77,6 +78,8 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   layoutHint();busy(false);
  }
  function selectedGrid(){
+  const preset=outputPreset($('video-mode').value);
+  if($('video-style').value==='artisan'&&preset)return {...mode4Grid(preset.outputWidth,preset.outputHeight),...preset};
   if($('video-style').value==='artisan'){if(!sourceDimensions)throw Error('元動画の解像度を読み込んでいます');return mode4Grid(sourceDimensions.width,sourceDimensions.height);}
   const mode=$('video-mode').value;
   if(mode==='pc98'){
@@ -85,6 +88,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   }
   const native16=$('video-font-render').value==='native16';
   const pixels=Number($('video-font-px').value);
+  if(preset)return presetGrid(mode,pixels,native16);
   if(mode==='landscape')return native16?native16LandscapeGrid():landscapeGridForPixels(pixels);
   const aspect=mode==='screen'?Math.min(screen.width,screen.height)/Math.max(screen.width,screen.height):9/16;
   return native16?native16PortraitGrid(aspect):portraitGridForPixels(aspect,pixels);
@@ -135,7 +139,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
    if($('video-style').value==='artisan')await sourceSizePromise;
    const grid=selectedGrid();
    const {width,height}=grid;
-   result=await convertVideo(file,{signal:controller.signal,width,height,
+   result=await convertVideo(file,{signal:controller.signal,width,height,...outputPreset(mode),
     sourceGrid:mode==='pc98',fps:Number($('video-fps').value),
     brightness:Number($('video-brightness').value),contrast:Number($('video-contrast').value),
     gamma:Number($('video-gamma').value),edge:Number($('video-edge').value),
@@ -269,9 +273,9 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   if(pc&&$('video-font-render').value!=='native16')$('video-font-render').value='native16';
   $('video-font-render').disabled=pc||artisan;
   $('video-font-px').disabled=pc||native16||artisan;
-  $('video-fit').disabled=pc||artisan;
+  $('video-fit').disabled=pc||(artisan&&!outputPreset(mode));
   if(artisan){
-   try{const g=selectedGrid();$('layout-hint').textContent='モード4：60×60px固定 / '+g.columns+'×'+g.height+'マス / '+g.columns*g.height+'マスまで配置可能。不合格は空白。170文字の形状照合。端数は余白を追加します。';}
+   try{const g=selectedGrid();$('layout-hint').textContent='モード4：60×60px固定 / '+g.columns+'×'+g.height+'マス / '+g.columns*g.height+'マスまで配置可能。不合格は空白。170文字の形状照合。'+(outputPreset(mode)?g.outputWidth+'×'+g.outputHeight+'px。選択した画像配置を使用します。':'端数は余白を追加します。');}
    catch(e){$('layout-hint').textContent='モード4：60×60px固定。'+e.message;}
    return;
   }
@@ -287,7 +291,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
   }
   try{
    const pixels=Number($('video-font-px').value),grid=selectedGrid();
-   const note=(mode==='landscape'?'横16:9・文字は回転しません。':'縦画面の文字アニメです。')+(quality?'モード3：XDoG・線追跡・字形照合と時間方向の安定化で映像を文字化。':halftone?'モード2：空白・句点「。」・「ｏ」「○」「◎」の5階調で網点風に変換。':'モード1：従来の濃淡変換。');
+   const note=(outputPreset(mode)?(mode==='portrait-3x4'?'縦3:4・1080×1440px。':'横4:3・1440×1080px。'):mode==='landscape'?'横16:9・文字は回転しません。':'縦画面の文字アニメです。')+(quality?'モード3：XDoG・線追跡・字形照合と時間方向の安定化で映像を文字化。':halftone?'モード2：空白・句点「。」・「ｏ」「○」「◎」の5階調で網点風に変換。':'モード1：従来の濃淡変換。');
    $('layout-hint').textContent=native16
     ?`PC-98実寸：全角16×16ドット／半角8×16ドット → ${grid.width}列 × ${grid.height}行。フルHDで等倍描画または最近傍拡大。${note}実機のROM書体そのものではありません。`
     :`文字サイズ約${pixels}px → ${grid.width}列 × ${grid.height}行で生成（フルHD換算）。${note}Webプレーヤー向けです。`;
@@ -295,7 +299,7 @@ export function setupConverter({openPreview,stopPlayback,isExporting,enterImmers
  }
  $('video-mode').onchange=()=>{
   const pc=$('video-mode').value==='pc98';
-  $('video-fit').value=pc?'contain':'cover';
+  $('video-fit').value=pc||outputPreset($('video-mode').value)?'contain':'cover';
   if(pc)$('video-font-render').value='native16';
   layoutHint();busy(!!controller);
  };

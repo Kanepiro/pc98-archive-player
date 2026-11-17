@@ -1,4 +1,5 @@
 // TASL 1.08: unchanged ASCII mode 1 / Shift-JIS quality mode 3.
+import {validateOutputSize} from './tsl-output-presets.js';
 import {validateOffsets,positionHeader} from './mode4-position60.js';
 import {qualityColumns,encodeQualityFrame} from './tsl-quality.js';
 import {halftoneColumns,encodeHalftoneFrame} from './tsl-halftone.js';
@@ -11,6 +12,7 @@ export const MAX_OUTPUT_BYTES = 192 * 1024 * 1024;
 export const DEFAULTS = Object.freeze({width:79,height:27,fps:10,brightness:0,contrast:1,gamma:1,edge:.6,conversionMode:'legacy',native16:false});
 export function optionsFor(input={}) {
  const o={...DEFAULTS,...input};
+ if(o.outputWidth!==undefined||o.outputHeight!==undefined)validateOutputSize(o.outputWidth,o.outputHeight);
  if(typeof o.native16!=='boolean')throw Error('16ドット表示の設定が不正です');
  for(const [k,min,max] of [['width',(o.mode4Cell60||o.mode4Cell120)?2:4,o.native16?480:160],['height',(o.mode4Cell60||o.mode4Cell120)?1:4,o.native16?240:100],['fps',1,30],['brightness',-100,100],['contrast',.25,3],['gamma',.4,2.5],['edge',0,1]]) {
   if(!Number.isFinite(o[k])||o[k]<min||o[k]>max)throw Error('設定値が範囲外です: '+k);
@@ -25,7 +27,7 @@ export function makePlan(duration,input={}) {
  const totalTicks=Math.max(1,Math.round(duration*60));
  const bytesPerFrame=(o.width+2)*o.height+3+24;
  const capacity=Math.min(MAX_FRAMES,Math.floor((MAX_OUTPUT_BYTES-4096)/bytesPerFrame));
- if((o.mode4Cell60||o.mode4Cell120)&&Math.ceil(duration*o.fps)>capacity)throw Error('指定fpsの全フレームをTSLに保存できる上限を超えています。動画を分割してください');
+ if((o.outputWidth||o.mode4Cell60||o.mode4Cell120)&&Math.ceil(duration*o.fps)>capacity)throw Error('指定fpsの全フレームをTSLに保存できる上限を超えています。動画を分割してください');
  const count=Math.min(capacity,totalTicks,Math.max(1,Math.ceil(duration*o.fps)));
  const steps=Array.from({length:count},(_,i)=>{
   const start=Math.round(i*totalTicks/count),end=Math.round((i+1)*totalTicks/count);
@@ -202,7 +204,7 @@ export class TSLWriter {
  }
  finish() {
   if(this.frames!==this.plan.count)throw Error('画面データが不足しています');
-  const p=this.plan,header=['1.08',p.count,p.width,p.height,1,-1,p.conversionMode==='quality'?'Video conversion - Quality':p.conversionMode==='halftone'?'Video conversion - Halftone':p.conversionMode==='artisan'?'Video conversion - AA Artisan':'Video conversion',...(p.native16?['# PC98_FONT_16X16']:[]),...(p.mode4Cell60?['# TASL_MODE4_CELL60','# TASL_MODE4_TIMING '+p.fps+' '+p.sourceDuration]:[]),...positionHeader(this.offsets,p.width*p.height),...(p.mode4Cell120?['# TASL_MODE4_CELL120','# TASL_MODE4_TIMING '+p.fps+' '+p.sourceDuration]:[]),'\f'].join('\r\n')+'\r\n';
+  const p=this.plan,header=['1.08',p.count,p.width,p.height,1,-1,p.conversionMode==='quality'?'Video conversion - Quality':p.conversionMode==='halftone'?'Video conversion - Halftone':p.conversionMode==='artisan'?'Video conversion - AA Artisan':'Video conversion',...(p.outputWidth?['# TASL_OUTPUT_SIZE '+p.outputWidth+' '+p.outputHeight]:[]),...(p.native16?['# PC98_FONT_16X16']:[]),...(p.mode4Cell60?['# TASL_MODE4_CELL60','# TASL_MODE4_TIMING '+p.fps+' '+p.sourceDuration]:[]),...positionHeader(this.offsets,p.width*p.height),...(p.mode4Cell120?['# TASL_MODE4_CELL120','# TASL_MODE4_TIMING '+p.fps+' '+p.sourceDuration]:[]),'\f'].join('\r\n')+'\r\n';
   const schedule=p.steps.map((s,i)=>(i+1)+' '+s.ticks+'\r\n').join('')+'0 0\r\n\f\r\n';
   const result=new Blob([header,schedule,...this.parts,...this.batch,'\x1a'],{type:'application/octet-stream'});if(result.size>MAX_OUTPUT_BYTES)throw Error('出力サイズ上限を超えました');return result;
  }
