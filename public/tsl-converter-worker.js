@@ -1,6 +1,6 @@
 import {rgbaToASCII} from './tsl-converter-core.js';
 import {QualityConverter} from './tsl-quality.js';
-import {Grid60Converter} from './tsl-mode4-grid60.js';
+import {createMode4Converter,isMode4Grid} from './tsl-mode4.js';
 import {rgbaToHalftone} from './tsl-halftone.js';
 import {GpuToneConverter} from './tsl-tone-webgpu.js';
 let quality=null,tones=null,gpuUnavailableReason='';
@@ -11,7 +11,7 @@ self.onmessage=async({data:d})=>{
     try{tones=await GpuToneConverter.create(d.mode,d.sample,d.width,d.height);}
     catch(e){tones=null;gpuUnavailableReason=String(e);}
    }else{
-    quality=d.mode==='artisan'?new Grid60Converter(d.atlas):new QualityConverter(d.atlas,d.sample);
+    quality=d.mode==='artisan'?createMode4Converter(d.atlas,d.mode4CellSize??60):new QualityConverter(d.atlas,d.sample);
     quality.restore(d.state);
     if(d.mode!=='artisan')await quality.enableWebGPU(d.width,d.height);
    }
@@ -37,7 +37,7 @@ self.onmessage=async({data:d})=>{
     ?rgbaToHalftone(pixels,d.width,d.height,d.options)
     :rgbaToASCII(pixels,d.width,d.height,d.options);
   }
-  self.postMessage({frame,offsets:d.options.mode4Cell60?quality?.lastOffsets:null,acceleration,audit:quality?.lastAudit||null,
+  self.postMessage({frame,offsets:isMode4Grid(d.options)?quality?.lastOffsets:null,acceleration,audit:quality?.lastAudit||null,
    perf:d.options.conversionMode==='artisan'?quality.lastPerf:null,
    adapterInfo:quality?.gpuMatcher?.adapterInfo||tones?.adapterInfo||null,
    gpuReason:quality?.gpuError||gpuUnavailableReason||''});

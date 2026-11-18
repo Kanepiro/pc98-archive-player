@@ -1,4 +1,5 @@
-import {ensureMode4Atlas as ensure60} from './tsl-mode4-grid60.js';
+import {ensureHalftoneAtlas} from './tsl-halftone-raster.js';
+import {ensureMode4Atlas as ensure60,mode4Cell,isMode4Grid} from './tsl-mode4.js';
 import {ensureTaslFont,assertTaslGlyphs} from './tasl-font.js';
 // Direct, deterministic MP4 export from decoded MAG/TSL/MMS data.
 // Export is independent of screen capture and of live AudioWorklet playback.
@@ -114,9 +115,9 @@ async function exportMag(current, signal, onProgress) {
 async function exportTsl(current, signal, onProgress, onResolution, tslAppearance={}, maxPixels=Infinity, sourceAudioFile=null, onStage=()=>{}) {
   await ensureTaslFont();
   const data=current.data;
-  if(data.mode4Cell60)await ensure60();if(data.mode4Cell120)await ensureMode4Atlas();
+  if(data.halftoneProfile)await ensureHalftoneAtlas(data.native16);if(isMode4Grid(data))await ensure60(mode4Cell(data));if(data.mode4Cell120)await ensureMode4Atlas();
   for(const frame of data.frames)assertTaslGlyphs(frame);
-  if(data.duration>MAX_SECONDS)throw Error('この作品は5分を超えるためMP4書き出しの対象外です');
+  if(data.duration>MAX_SECONDS)throw Error('この作品は300秒を超えるためMP4書き出しの対象外です');
   let audioInput=null,audioTrack=null,audioMode=null;
   try {
     if(sourceAudioFile){
@@ -128,16 +129,16 @@ async function exportTsl(current, signal, onProgress, onResolution, tslAppearanc
       const codec=await audioTrack.getCodec();
       // Fixed-output presets promise AAC-LC even when the input contains HE-AAC.
       // Keep the existing copy policy for old TSL files and generation modes.
-      const aacLC=!data.outputWidth||(await audioTrack.getCodecParameterString())==='mp4a.40.2';
+      const aacLC=(await audioTrack.getCodecParameterString())==='mp4a.40.2';
       audioMode=codec==='aac'&&aacLC?'copy':'sample';
       if(audioMode==='sample'&&!(await audioTrack.canDecode()))
         throw Error('元動画の音声コーデックをデコードできません');
     }
-    const nativeWidth=data.width*(data.mode4Cell60?30:data.mode4Cell120?60:data.native16?8:12),nativeHeight=data.height*(data.mode4Cell60?60:data.mode4Cell120?120:data.native16?16:24);
+    const nativeWidth=data.width*(isMode4Grid(data)?mode4Cell(data)/2:data.mode4Cell120?60:data.native16?8:12),nativeHeight=data.height*(isMode4Grid(data)?mode4Cell(data):data.mode4Cell120?120:data.native16?16:24);
     const near16x9=data.native16&&Math.abs(nativeWidth/nativeHeight/(16/9)-1)<.02;
     // 240x67 native PC-98 columns/rows yield 1920x1072. Preserve every
     // 16x16 pixel and center it with 4 black rows above/below in 1080p.
-    const sizes=data.outputWidth?[{width:data.outputWidth,height:data.outputHeight}]:(data.mode4Cell60||data.mode4Cell120)?[{width:nativeWidth,height:nativeHeight}]:near16x9
+    const sizes=data.outputWidth?[{width:data.outputWidth,height:data.outputHeight}]:(isMode4Grid(data)||data.mode4Cell120)?[{width:nativeWidth,height:nativeHeight}]:near16x9
       ?[{width:1920,height:1080},{width:1280,height:720},...tslExportCandidates(nativeWidth,nativeHeight)]
       :tslExportCandidates(nativeWidth,nativeHeight);
     let canvas,output,video,audio,lastError;
@@ -158,9 +159,9 @@ async function exportTsl(current, signal, onProgress, onResolution, tslAppearanc
       fontSize:canvas.height/data.height*20/24,...tslAppearance};
     // For 16-dot material, rasterize glyphs once at native 8x16 / 16x16.
     // Then copy pixels with nearest-neighbor sampling (no vector reflow / smoothing).
-    const dotCanvas=data.native16?new OffscreenCanvas(nativeWidth,nativeHeight):null;
-    const dotContext=data.native16?canvas.getContext('2d',{alpha:false}):null;
-    const scale=data.native16?Math.min(canvas.width/nativeWidth,canvas.height/nativeHeight):1;
+    const dotCanvas=(data.native16||data.halftoneProfile)?new OffscreenCanvas(nativeWidth,nativeHeight):null;
+    const dotContext=(data.native16||data.halftoneProfile)?canvas.getContext('2d',{alpha:false}):null;
+    const scale=(data.native16||data.halftoneProfile)?Math.min(canvas.width/nativeWidth,canvas.height/nativeHeight):1;
     const dotWidth=Math.round(nativeWidth*scale),dotHeight=Math.round(nativeHeight*scale);
     async function videoPass(){
       let frames=0;
@@ -255,7 +256,7 @@ async function exportMms(current, signal, onProgress) {
       while(true) {
         aborted(signal);
         const chunk=await renderer.next();
-        if(chunk.seconds>MAX_SECONDS)throw Error('MMSの再生が5分を超えました。自動終了できない作品です');
+        if(chunk.seconds>MAX_SECONDS)throw Error('MMSの再生が300秒を超えました。自動終了できない作品です');
         if(chunk.ended){
           if(!(chunk.endTime>0))throw Error('MMSの終了時刻を判定できませんでした');
           return chunk.endTime;

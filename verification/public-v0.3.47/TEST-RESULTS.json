@@ -1,0 +1,476 @@
+{
+  "version": "0.3.47",
+  "candidate": "0.3.47-rc.1",
+  "unitTests": {
+    "windows": 110,
+    "web": 103
+  },
+  "fullDecodeCount": 107,
+  "autoSettingsMismatch": [],
+  "mode2": {
+    "pass": true,
+    "scenes": 23,
+    "baselineMAE": 0.0750163111659538,
+    "candidateMAE": 0.05143803191403918,
+    "improvement": 0.31430870014061196,
+    "worse": [
+      {
+        "second": 3,
+        "label": "opening-gradient",
+        "old": 0.07939332748127406,
+        "new": 0.09062112857283702
+      },
+      {
+        "second": 63.5,
+        "label": "white-flash",
+        "old": 0.04528423712554444,
+        "new": 0.045501316929593735
+      },
+      {
+        "second": 139.5,
+        "label": "dark-fade",
+        "old": 0.04323594358660302,
+        "new": 0.043514894790480325
+      }
+    ],
+    "browser": "157.0.8103.79"
+  },
+  "performance": {
+    "windows": {
+      "legacy60": {
+        "baseline": {
+          "runs": 3,
+          "conversion": 6.8394000000003725,
+          "mp4": 14.254300000000745,
+          "total": 21.093700000001117,
+          "totalRange": [
+            10.529,
+            30.587700000000183
+          ],
+          "backends": [
+            "DirectCompute Modes"
+          ]
+        },
+        "candidate": {
+          "runs": 3,
+          "conversion": 7.096200000000186,
+          "mp4": 9.423400000000372,
+          "total": 18.75510000000056,
+          "totalRange": [
+            10.361300000000746,
+            19.45850000000093
+          ],
+          "backends": [
+            "DirectCompute Modes"
+          ]
+        },
+        "observedTotalRatio": 1.1246914172678624
+      },
+      "halftone60": {
+        "baseline": {
+          "runs": 3,
+          "conversion": 6.1491000000005585,
+          "mp4": 6.633700000000187,
+          "total": 13.9255,
+          "totalRange": [
+            11.291100000000558,
+            14.897900000000373
+          ],
+          "backends": [
+            "DirectCompute Modes"
+          ]
+        },
+        "candidate": {
+          "runs": 3,
+          "conversion": 6.886800000000745,
+          "mp4": 8.84289999999944,
+          "total": 16.080299999999813,
+          "totalRange": [
+            11.93750000000093,
+            20.39850000000093
+          ],
+          "backends": [
+            "DirectCompute Modes"
+          ]
+        },
+        "observedTotalRatio": 0.8659975249218088
+      },
+      "quality60": {
+        "baseline": {
+          "runs": 3,
+          "conversion": 7.305900000000372,
+          "mp4": 6.559,
+          "total": 13.5975,
+          "totalRange": [
+            12.642599999999629,
+            17.766299999999816
+          ],
+          "backends": [
+            "DirectCompute Modes"
+          ]
+        },
+        "candidate": {
+          "runs": 3,
+          "conversion": 18.943299999999812,
+          "mp4": 5.892800000000745,
+          "total": 24.836100000000556,
+          "totalRange": [
+            19.6485,
+            30.069199999999256
+          ],
+          "backends": [
+            "CPU",
+            "DirectCompute Modes"
+          ]
+        },
+        "observedTotalRatio": 0.5474893401137737
+      },
+      "artisan60": {
+        "baseline": {
+          "runs": 3,
+          "conversion": 32.41640000000037,
+          "mp4": 5.810599999999628,
+          "total": 38.227000000000004,
+          "totalRange": [
+            37.252199999999256,
+            46.81959999999963
+          ],
+          "backends": [
+            "DirectCompute / adaptive CPU SSE2"
+          ]
+        },
+        "candidate": {
+          "runs": 3,
+          "conversion": 36.199299999999816,
+          "mp4": 7.0342999999998135,
+          "total": 40.9165,
+          "totalRange": [
+            37.48159999999963,
+            69.33970000000019
+          ],
+          "backends": [
+            "DirectCompute / adaptive CPU SSE2"
+          ]
+        },
+        "observedTotalRatio": 0.934268571358743
+      },
+      "artisan40": {
+        "candidate": {
+          "runs": 3,
+          "conversion": 35.44260000000056,
+          "mp4": 13.916199999999256,
+          "total": 48.32739999999944,
+          "totalRange": [
+            44.34229999999981,
+            67.27370000000019
+          ],
+          "backends": [
+            "DirectCompute small 40px / SSE2"
+          ]
+        }
+      },
+      "artisan30": {
+        "candidate": {
+          "runs": 3,
+          "conversion": 35.71959999999963,
+          "mp4": 16.523900000000374,
+          "total": 51.25629999999982,
+          "totalRange": [
+            41.1235,
+            82.79220000000112
+          ],
+          "backends": [
+            "DirectCompute small 30px / SSE2"
+          ]
+        }
+      }
+    },
+    "web": {
+      "legacy60": {
+        "baseline": {
+          "runs": 3,
+          "conversion": 2.3037999999998138,
+          "mp4": 2.3835,
+          "total": 4.687299999999814,
+          "totalRange": [
+            4.645900000000372,
+            34.17550000000093
+          ],
+          "backends": [
+            "WebGPU"
+          ]
+        },
+        "candidate": {
+          "runs": 3,
+          "conversion": 2.367899999999441,
+          "mp4": 2.3724000000003724,
+          "total": 4.740299999999813,
+          "totalRange": [
+            4.636700000001118,
+            9.306700000000186
+          ],
+          "backends": [
+            "WebGPU"
+          ]
+        },
+        "observedTotalRatio": 0.9888192730417904
+      },
+      "halftone60": {
+        "baseline": {
+          "runs": 3,
+          "conversion": 2.3189000000003723,
+          "mp4": 1.7207000000001862,
+          "total": 4.039600000000559,
+          "totalRange": [
+            3.9605999999996273,
+            9.384100000000558
+          ],
+          "backends": [
+            "CPU（GPU精度照合）"
+          ]
+        },
+        "candidate": {
+          "runs": 3,
+          "conversion": 2.327699999999255,
+          "mp4": 1.8195999999996275,
+          "total": 4.147299999998882,
+          "totalRange": [
+            4.095200000000186,
+            8.534400000000373
+          ],
+          "backends": [
+            "WebGPU"
+          ]
+        },
+        "observedTotalRatio": 0.9740312974710408
+      },
+      "quality60": {
+        "baseline": {
+          "runs": 3,
+          "conversion": 8.035800000000744,
+          "mp4": 2.0418999999994414,
+          "total": 10.012700000001116,
+          "totalRange": [
+            9.59449999999907,
+            24.788900000000375
+          ],
+          "backends": [
+            "WebGPU"
+          ]
+        },
+        "candidate": {
+          "runs": 3,
+          "conversion": 8.188900000000373,
+          "mp4": 2.0387000000001865,
+          "total": 10.22760000000056,
+          "totalRange": [
+            9.418800000000745,
+            13.887399999999442
+          ],
+          "backends": [
+            "WebGPU"
+          ]
+        },
+        "observedTotalRatio": 0.9789882279323172
+      },
+      "artisan60": {
+        "baseline": {
+          "runs": 3,
+          "conversion": 29.594700000000188,
+          "mp4": 1.5917000000001862,
+          "total": 31.16310000000056,
+          "totalRange": [
+            30.87110000000056,
+            34.98979999999982
+          ],
+          "backends": [
+            "CPU 60px contour matching"
+          ]
+        },
+        "candidate": {
+          "runs": 3,
+          "conversion": 29.769,
+          "mp4": 1.57,
+          "total": 31.339,
+          "totalRange": [
+            29.951899999999444,
+            36.133500000000005
+          ],
+          "backends": [
+            "CPU 60px contour matching"
+          ]
+        },
+        "observedTotalRatio": 0.9943871852962941
+      },
+      "artisan40": {
+        "candidate": {
+          "runs": 3,
+          "conversion": 39.09579999999981,
+          "mp4": 1.7235,
+          "total": 40.7585,
+          "totalRange": [
+            40.733000000000004,
+            45.85990000000037
+          ],
+          "backends": [
+            "CPU 40px contour matching"
+          ]
+        }
+      },
+      "artisan30": {
+        "candidate": {
+          "runs": 3,
+          "conversion": 58.51139999999944,
+          "mp4": 1.7955,
+          "total": 60.290699999999255,
+          "totalRange": [
+            56.38390000000037,
+            62.09170000000019
+          ],
+          "backends": [
+            "CPU 30px contour matching"
+          ]
+        }
+      }
+    }
+  },
+  "stages": {
+    "windows": {
+      "legacy60": {
+        "frames": 30,
+        "convertCallSeconds": 1.852199999993667,
+        "decodeWaitSeconds": 0.7431000000014901,
+        "captureSeconds": 1.0687000000011175,
+        "nativeComputeSeconds": 0.028170300000000002,
+        "transportSeconds": 1.8490999999959021,
+        "totalConversionSeconds": 4.222599999999628,
+        "matchesPerformance": true,
+        "matchesFunctional": true
+      },
+      "halftone60": {
+        "frames": 30,
+        "convertCallSeconds": 1.7995000000018626,
+        "decodeWaitSeconds": 0.6548000000026077,
+        "captureSeconds": 0.9948999999985099,
+        "nativeComputeSeconds": 0.0261199,
+        "transportSeconds": 1.796699999999255,
+        "totalConversionSeconds": 3.8159000000003727,
+        "matchesPerformance": true,
+        "matchesFunctional": true
+      },
+      "quality60": {
+        "frames": 30,
+        "convertCallSeconds": 4.550099999997765,
+        "decodeWaitSeconds": 0.7081000000033527,
+        "captureSeconds": 1.1745999999977648,
+        "nativeComputeSeconds": 0.1897887,
+        "transportSeconds": 4.545999999998138,
+        "totalConversionSeconds": 6.924900000000372,
+        "matchesPerformance": false,
+        "matchesFunctional": true
+      },
+      "artisan60": {
+        "frames": 30,
+        "convertCallSeconds": 32.611100000005216,
+        "decodeWaitSeconds": 0.09580000000074505,
+        "captureSeconds": 0.612800000006333,
+        "nativeComputeSeconds": 1.613077200000001,
+        "transportSeconds": 30.99472280000447,
+        "totalConversionSeconds": 33.89819999999926,
+        "matchesPerformance": true,
+        "matchesFunctional": true
+      },
+      "artisan40": {
+        "frames": 30,
+        "convertCallSeconds": 32.95239999999665,
+        "decodeWaitSeconds": 0.039399999998509884,
+        "captureSeconds": 0.5298999999947845,
+        "nativeComputeSeconds": 2.8699050999999973,
+        "transportSeconds": 0.0,
+        "totalConversionSeconds": 34.04509999999963,
+        "matchesPerformance": true,
+        "matchesFunctional": true
+      },
+      "artisan30": {
+        "frames": 30,
+        "convertCallSeconds": 33.007500000009315,
+        "decodeWaitSeconds": 0.06049999999627471,
+        "captureSeconds": 0.49690000000037254,
+        "nativeComputeSeconds": 3.439608800000003,
+        "transportSeconds": 0.0,
+        "totalConversionSeconds": 34.05940000000037,
+        "matchesPerformance": true,
+        "matchesFunctional": true
+      }
+    },
+    "web": {
+      "legacy60": {
+        "frames": 30,
+        "convertCallSeconds": 0.25999999999813733,
+        "decodeWaitSeconds": 0.5871000000033527,
+        "captureSeconds": 0.8780999999996275,
+        "nativeComputeSeconds": 0.0,
+        "transportSeconds": 0.0,
+        "totalConversionSeconds": 2.632,
+        "matchesPerformance": true,
+        "matchesFunctional": true
+      },
+      "halftone60": {
+        "frames": 30,
+        "convertCallSeconds": 0.22139999999664725,
+        "decodeWaitSeconds": 0.6060000000093132,
+        "captureSeconds": 0.802199999993667,
+        "nativeComputeSeconds": 0.0,
+        "transportSeconds": 0.0,
+        "totalConversionSeconds": 2.375,
+        "matchesPerformance": true,
+        "matchesFunctional": true
+      },
+      "quality60": {
+        "frames": 30,
+        "convertCallSeconds": 5.68050000000745,
+        "decodeWaitSeconds": 0.6079999999925494,
+        "captureSeconds": 0.8517000000011176,
+        "nativeComputeSeconds": 0.0,
+        "transportSeconds": 0.0,
+        "totalConversionSeconds": 7.9084000000003725,
+        "matchesPerformance": true,
+        "matchesFunctional": true
+      },
+      "artisan60": {
+        "frames": 30,
+        "convertCallSeconds": 32.126500000005585,
+        "decodeWaitSeconds": 0.08069999999925494,
+        "captureSeconds": 0.5612000000029802,
+        "nativeComputeSeconds": 32.122200000002984,
+        "transportSeconds": 0.0,
+        "totalConversionSeconds": 33.35280000000075,
+        "matchesPerformance": true,
+        "matchesFunctional": true
+      },
+      "artisan40": {
+        "frames": 30,
+        "convertCallSeconds": 40.190299999998885,
+        "decodeWaitSeconds": 0.04879999999888241,
+        "captureSeconds": 0.528999999994412,
+        "nativeComputeSeconds": 40.18360000000149,
+        "transportSeconds": 0.0,
+        "totalConversionSeconds": 41.21,
+        "matchesPerformance": true,
+        "matchesFunctional": true
+      },
+      "artisan30": {
+        "frames": 30,
+        "convertCallSeconds": 57.372699999999256,
+        "decodeWaitSeconds": 0.049999999998137354,
+        "captureSeconds": 0.4912999999932945,
+        "nativeComputeSeconds": 57.3655999999959,
+        "transportSeconds": 0.0,
+        "totalConversionSeconds": 58.4335,
+        "matchesPerformance": true,
+        "matchesFunctional": true
+      }
+    }
+  },
+  "limitations": "See TEST-RESULTS.md; concurrent-load performance observations, not guaranteed speedups."
+}

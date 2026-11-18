@@ -1,13 +1,15 @@
+import {HALFTONE_PROFILES} from './halftone-profiles.js';
 // Mode 2: five-tone, round-glyph newspaper halftone using CP932 / Shift-JIS TSL.
 // The first visible tone is the IDEOGRAPHIC FULL STOP (。), explicitly chosen by the user.
 // Each visible glyph consumes two terminal columns, preserving 24x24 dot cells.
-export const HALFTONE_TONES=Object.freeze(['　','。','ｏ','○','◎']);
-export const HALFTONE_DITHER_STRENGTH=.08;
+export const HALFTONE_TONES=Object.freeze(['　','。','ｏ','Ｏ','◎']);
+export const HALFTONE_DITHER_STRENGTH=.25;
 export const HALFTONE_GLYPHS=Object.freeze({
  '　':[0x81,0x40], // Full-width blank: 2 columns, black background.
  '。':[0x81,0x42], // Ideographic full stop: intentionally bottom-left, NOT ・.
  'ｏ':[0x82,0x8f], // Fullwidth lowercase o (small ring).
- '○':[0x81,0x9b], // White circle (large ring).
+ '○':[0x81,0x9b], // Historical files remain encodable.
+ 'Ｏ':[0x82,0x6e], // Measured intermediate density, centered fullwidth O.
  '◎':[0x81,0x9d], // Bullseye (largest visible tone).
  ' ':[0x20]       // Trailing blank for odd-width legacy PC-98 grids.
 });
@@ -46,7 +48,7 @@ export function encodeHalftoneFrame(lines){
 // Dark source = fullwidth blank (black); bright source = ◎ (whitest dot).
 // Ordered spatial dithering softens the boundaries between five glyph tones
 // and is anchored to the grid, so identical frames never flicker.
-export function rgbaToHalftone(pixels,width,height,{brightness=0,contrast=1,gamma=1,sample=4}={}){
+export function rgbaToHalftone(pixels,width,height,{brightness=0,contrast=1,gamma=1,sample=4,native16=false}={}){
  if(!Number.isInteger(width)||width<1||!Number.isInteger(height)||height<1||
     !Number.isInteger(sample)||sample<1||sample>10||
     pixels.length!==width*height*sample*sample*4)
@@ -74,13 +76,22 @@ export function rgbaToHalftone(pixels,width,height,{brightness=0,contrast=1,gamm
    const adjusted=clamp((luminance-.5)*contrast+.5+brightness/100);
    const tone=Math.pow(adjusted,gamma);
    // Fixed 4x4 Bayer matrix: deterministic, modest dithering avoids noise.
-   const dither=(BAYER4[(y%4)*4+(x%4)]-7.5)/16*HALFTONE_DITHER_STRENGTH;
-   const v=clamp(tone+dither);
-   line+=HALFTONE_TONES[Math.min(HALFTONE_TONES.length-1,Math.floor(v*HALFTONE_TONES.length))];
+   line+=HALFTONE_TONES[halftoneIndex(tone,x,y,native16)];
   }
   // PC-98 79-column profiles need one non-rendering half-width column.
   if(width%2)line+=' ';
   lines.push(line);
  }
  return lines.join('\r\n')+'\r\n';
+}
+
+export function halftoneLevels(native16=false){return HALFTONE_PROFILES[native16?16:24].levels;}
+export function halftoneIndex(tone,x,y,native16=false){
+ const levels=halftoneLevels(native16),dither=(BAYER4[(y%4)*4+x%4]-7.5)/16*HALFTONE_DITHER_STRENGTH;
+ let index=0;
+ for(let i=0;i<4;i++){
+  const threshold=(levels[i]+levels[i+1])*.5-dither*(levels[i+1]-levels[i]);
+  if(tone>=threshold)index=i+1;
+ }
+ return index;
 }

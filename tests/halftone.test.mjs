@@ -13,25 +13,26 @@ function solid(width,height,value,sample=4){
 }
 const rows=s=>s.split('\r\n').slice(0,-1);
 
-test('Mode 2 offers only the user-selected period and round glyph five-tone palette',()=>{
+test('Mode 2 offers the measured five-tone palette and preserves historical encoding',()=>{
  assert.equal(optionsFor({conversionMode:'halftone'}).conversionMode,'halftone');
  assert.equal(optionsFor({}).conversionMode,'legacy');
  assert.equal(optionsFor({conversionMode:'quality'}).conversionMode,'quality');
  assert.equal(tslName('test.mp4','halftone'),'test_Mode2.TSL');
- assert.deepEqual(HALFTONE_TONES,['　','。','ｏ','○','◎']);
+ assert.deepEqual(HALFTONE_TONES,['　','。','ｏ','Ｏ','◎']);
  assert.deepEqual(HALFTONE_GLYPHS['。'],[0x81,0x42]); // Ideographic FULL STOP, NOT middle dot.
- assert.equal(HALFTONE_DITHER_STRENGTH,.08);
+ // Strength is now a fraction of the measured local interval, not full-scale luminance.
+ assert.ok(HALFTONE_DITHER_STRENGTH>0&&HALFTONE_DITHER_STRENGTH<1);
  for(const char of HALFTONE_TONES){
   assert.equal(halftoneColumns(char),2);
   assert.equal(new TextDecoder('shift_jis').decode(new Uint8Array(HALFTONE_GLYPHS[char])),char);
  }
- assert.equal(halftoneColumns('◎○ｏ。　 '),11);
- for(const char of ['・','●','〇','◯','０','Ｏ','＊','：','‥','∴','…','■','☆','a'])assert.throws(()=>halftoneColumns(char),/使用できない/);
+ assert.equal(halftoneColumns('◎Ｏｏ。　 '),11);
+ for(const char of ['・','●','〇','◯','０','＊','：','‥','∴','…','■','☆','a'])assert.throws(()=>halftoneColumns(char),/使用できない/);
 });
 
 test('Mode 2 maps all five levels including ideographic full stop',()=>{
  const w=8,h=4;
- for(const [gray,glyph] of [[0,'　'],[76,'。'],[128,'ｏ'],[180,'○'],[255,'◎']]){
+ for(const [gray,glyph] of [[0,'　'],[76,'。'],[128,'ｏ'],[205,'Ｏ'],[255,'◎']]){
   const result=rgbaToHalftone(solid(w,h,gray),w,h);
   assert.deepEqual(result.split('\r\n').slice(0,h),Array(h).fill(glyph.repeat(w/2)));
  }
@@ -46,7 +47,7 @@ test('Mode 2 is deterministic and spatial dithering stays inside selected five-t
  const a=rgbaToHalftone(pixels,w,h,{brightness:0,contrast:1,gamma:1});
  const b=rgbaToHalftone(pixels,w,h,{brightness:0,contrast:1,gamma:1});
  assert.equal(a,b);
- assert.ok([...a].every(c=>['　','。','ｏ','○','◎','\r','\n'].includes(c)));
+ assert.ok([...a].every(c=>['　','。','ｏ','Ｏ','◎','\r','\n'].includes(c)));
  for(const glyph of HALFTONE_TONES)assert.ok(a.includes(glyph),'missing '+glyph);
  assert.ok(rows(a).every(line=>halftoneColumns(line)===w));
  assert.notEqual(a,rgbaToHalftone(pixels,w,h,{brightness:15,contrast:1.6,gamma:.8}));
@@ -54,7 +55,7 @@ test('Mode 2 is deterministic and spatial dithering stays inside selected five-t
 
 test('Mode 2 round trips TSL with standard CP932 and exact column count',async()=>{
  const width=10,height=6,p=makePlan(1.2,{width,height,fps:10,conversionMode:'halftone'});
- const writer=new TSLWriter(p),row='　。ｏ○◎';
+ const writer=new TSLWriter(p),row='　。ｏＯ◎';
  for(let i=0;i<p.count;i++)writer.append((row+'\r\n').repeat(height));
  const binary=new Uint8Array(await writer.finish().arrayBuffer());
  const decoded=new TextDecoder('shift_jis').decode(binary);

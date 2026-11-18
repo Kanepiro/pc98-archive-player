@@ -12,7 +12,7 @@ self.onmessage=async({data:d})=>{
    throw Error('このブラウザーはバックグラウンドの動画書き出しに対応していません');
   self.postMessage({type:'stage',stage:'reading'});
   const data=parseTSL(new TextDecoder('shift_jis').decode(d.bytes));
-  if(data.duration>300)throw Error('5分を超える作品のMP4書き出しは未対応です');
+  if(data.duration>300)throw Error('300秒を超える作品のMP4書き出しは未対応です');
   self.postMessage({type:'stage',stage:'encoding'});
   let lastSent=-1;
   const blob=await exportMP4({kind:'TSL',data},{

@@ -1,4 +1,6 @@
-import {ensureMode4Atlas as ensure60} from './tsl-mode4-grid60.js';
+import {ensureHalftoneAtlas} from './tsl-halftone-raster.js';
+import {formatSeconds} from './tsl-time.js';
+import {ensureMode4Atlas as ensure60,mode4Cell,isMode4Grid} from './tsl-mode4.js';
 import {ensureTaslFont,assertTaslGlyphs} from './tasl-font.js';
 import {setupImmersive} from './immersive.js';
 import {setupConverter} from './converter-ui.js';
@@ -10,10 +12,10 @@ import {exportTslInWorker} from './tsl-export-controller.js';
 const $=id=>document.getElementById(id),canvas=$('screen'),ctx=canvas.getContext('2d',{alpha:false});
 let current=null,session=null,serial=0,loadSerial=0,frameRequest=0,installPrompt=null,swRegistration=null;
 let exportController=null, exportDownloadUrl=null;
-const events=[],metrics={version:'0.3.46',kind:null,frames:0,seconds:0,underruns:0,gapSamples:0};
+const events=[],metrics={version:'0.3.47',kind:null,frames:0,seconds:0,underruns:0,gapSamples:0};
 function log(type,detail={}){events.push({time:new Date().toISOString(),type,...detail});if(events.length>120)events.shift();}
 function status(s){$('status').textContent=s;}
-function clock(t){metrics.seconds=t;$('clock').textContent=Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0');}
+function clock(t){metrics.seconds=t;$('clock').textContent=formatSeconds(t);}
 function buttons(running=false){
  const busy=!!exportController;
  $('tab-converter').disabled=busy;
@@ -85,7 +87,7 @@ async function openFile(file){
   let kind,data;
   if(head.startsWith('MAKI02  ')){kind='MAG';data=decodeMAG(bytes);}
   else if(ext==='MMS'){kind='MMS';}
-  else if(ext==='TSL'){kind='TSL';data=parseTSL(new TextDecoder('shift_jis').decode(bytes));await ensureTaslFont();if(data.mode4Cell60)await ensure60();if(data.mode4Cell120)await ensureMode4Atlas();for(const frame of data.frames)assertTaslGlyphs(frame);if(id!==loadSerial)return;}
+  else if(ext==='TSL'){kind='TSL';data=parseTSL(new TextDecoder('shift_jis').decode(bytes));await ensureTaslFont();if(data.halftoneProfile)await ensureHalftoneAtlas(data.native16);if(isMode4Grid(data))await ensure60(mode4Cell(data));if(data.mode4Cell120)await ensureMode4Atlas();for(const frame of data.frames)assertTaslGlyphs(frame);if(id!==loadSerial)return;}
   else throw Error('MAG・TSL・MMSのいずれかを選んでください');
   current={kind,data,bytes,name:file.name};Object.assign(metrics,{kind,filename:file.name,frames:0,seconds:0,underruns:0,gapSamples:0});
   $('empty').hidden=true;$('filename').textContent=file.name;$('kind').textContent=kind;$('keys').hidden=kind!=='MMS';
@@ -176,7 +178,7 @@ $('export-mp4').onclick=async()=>{
     onStage:stage=>status(stage==='reading'?'TSLをMP4用に準備中…':'MP4エンコードを開始しています…'),
     onResolution:(w,h)=>{exportResolution=`${w}×${h} / `;},onProgress:(seconds,total)=>{
    const count=Math.floor(seconds);
-   if(count!==lastShown){lastShown=count;status('MP4変換中 '+Math.floor(seconds/60)+':'+String(count%60).padStart(2,'0')+(total?' / '+Math.ceil(total)+'秒':''));}
+   if(count!==lastShown){lastShown=count;status('MP4変換中 '+formatSeconds(seconds)+(total?' / '+formatSeconds(total,'total'):''));}
   }});
   if(exportDownloadUrl)URL.revokeObjectURL(exportDownloadUrl);
   exportDownloadUrl=URL.createObjectURL(blob);
