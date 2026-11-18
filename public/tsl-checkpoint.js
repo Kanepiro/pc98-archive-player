@@ -73,7 +73,7 @@ export async function appendCheckpoint(job,start,parts,qualityState=null){
  // Mode 4 uses ArrayBuffer storage: WebKit can reject Blob writes to IndexedDB.
  // Materialize before opening the transaction; older checkpoints remain readable.
  const blob=new Blob(parts,{type:'application/octet-stream'});
- const payload=(job.engineVersion===1202||job.engineVersion===6001||job.engineVersion===MODE4_ENGINE)?{bytes:await blob.arrayBuffer()}:{blob};
+ const payload=(job.engineVersion===1202||job.engineVersion===6001||[MODE4_ENGINE,3001,4001].includes(job.engineVersion))?{bytes:await blob.arrayBuffer()}:{blob};
  return transact('readwrite',tx=>{
   const store=tx.objectStore('job');
   store.get(KEY).onsuccess=e=>{

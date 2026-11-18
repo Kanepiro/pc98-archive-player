@@ -20,7 +20,7 @@ struct GpuRaster {
  std::unordered_map<std::string,uint32_t> glyphIds;
  uint32_t width,height,cw,ch,ow,oh,fitW,fitH,nv12,byteCount,words;
  std::vector<uint32_t> cellData; std::vector<uint32_t> fastGlyphs; bool positioned=false;
- GpuRaster(const TSL& t,const Params& options):width(t.width),height(t.height),cw(t.mode4Cell60?30:t.mode4Cell120?60:t.native16?8:12),ch(t.mode4Cell60?60:t.mode4Cell120?120:t.native16?16:24){
+ GpuRaster(const TSL& t,const Params& options):width(t.width),height(t.height),cw(t.mode4CellSize?t.mode4CellSize/2:t.mode4Cell120?60:t.native16?8:12),ch(t.mode4CellSize?t.mode4CellSize:t.mode4Cell120?120:t.native16?16:24){
   ow=options.outWidth?options.outWidth:width*cw;oh=options.outHeight?options.outHeight:height*ch;nv12=options.nv12?1:0;
   if(ow>7680||oh>5760||(nv12&&((ow|oh)&1)))throw std::runtime_error("invalid output geometry");
   double scale=std::min(double(ow)/(width*cw),double(oh)/(height*ch));
@@ -31,7 +31,7 @@ struct GpuRaster {
   auto hr=D3DCompileFromFile(path.c_str(),nullptr,nullptr,"main","cs_5_0",D3DCOMPILE_ENABLE_STRICTNESS|D3DCOMPILE_OPTIMIZATION_LEVEL3,0,&code,&error);
   if(FAILED(hr))throw std::runtime_error(error?(char*)error->GetBufferPointer():"raster shader compile");
   checked(gpu.device->CreateComputeShader(code->GetBufferPointer(),code->GetBufferSize(),nullptr,&raster),"raster shader");
-  positioned=t.mode4Cell60&&!t.offsets.empty();
+  positioned=t.mode4CellSize&&!t.offsets.empty();
   glyphIds[" "]=0;if(!positioned){fastGlyphs.assign(65536,0xffffffff);fastGlyphs[32]=0;}
   for(int frame=0;frame<t.count;frame++){
    size_t at=0;
@@ -44,7 +44,7 @@ struct GpuRaster {
    if(positioned&&at!=size_t(width)*height)throw std::runtime_error("Mode4 positioned frame size invalid");
   }
   if(glyphIds.size()>12000)throw std::runtime_error("glyph atlas too large");
-  Surface font(2,1,t.native16,t.mode4Cell120,t.mode4Cell60);std::vector<uint32_t> atlas(glyphIds.size()*cw*2*ch);
+  Surface font(2,1,t.native16,t.mode4Cell120,t.mode4CellSize,t.halftoneCalibrated);std::vector<uint32_t> atlas(glyphIds.size()*cw*2*ch);
   for(const auto& pair:glyphIds){
    if(positioned&&pair.first.size()==4){std::vector<unsigned char> offset{(unsigned char)pair.first[2],(unsigned char)pair.first[3]};font.draw(pair.first.substr(0,2)+"\r\n",2,1,&offset);}
    else font.draw(pair.first+"\r\n",2,1);GdiFlush();

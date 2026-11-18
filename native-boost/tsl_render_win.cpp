@@ -20,6 +20,7 @@
 #include <io.h>
 #include "tasl_private_font.hpp"
 #include "mode4_grid_raster.hpp"
+#include "halftone_raster.hpp"
 
 static int positive(const std::string& x){
  const int n=std::stoi(x);
@@ -67,7 +68,7 @@ struct TSL{
  std::vector<int> ticks;
  std::vector<std::vector<unsigned char>> offsets;
  int count=0,width=0,height=0,durationTicks=0;
- bool native16=false,mode4Cell120=false,mode4Cell60=false;double mode4Fps=0,mode4Duration=0;
+ bool native16=false,mode4Cell120=false,halftoneCalibrated=false;int mode4CellSize=0;double mode4Fps=0,mode4Duration=0;
  explicit TSL(const std::string& filename){
   std::ifstream src(filename,std::ios::binary);
   if(!src)throw std::runtime_error("TSL file not found");
@@ -80,18 +81,20 @@ struct TSL{
   count=positive(header[1]);width=positive(header[2]);height=positive(header[3]);
   if(count>10000||width>480||height>240||chunks.size()<size_t(count+3))
    throw std::runtime_error("TSL size/count invalid");
-  for(const auto& s:header){if(s=="# PC98_FONT_16X16")native16=true;if(s=="# TASL_MODE4_CELL120")mode4Cell120=true;if(s=="# TASL_MODE4_CELL60")mode4Cell60=true;}
+  for(const auto& s:header){if(s=="# PC98_FONT_16X16")native16=true;if(s=="# TASL_MODE4_CELL120")mode4Cell120=true;if(s=="# TASL_MODE4_CELL60")mode4CellSize=60;if(s=="# TASL_MODE4_CELL40")mode4CellSize=40;if(s=="# TASL_MODE4_CELL30")mode4CellSize=30;}
   for(const auto& s:header)if(s.rfind("# TASL_MODE4_TIMING ",0)==0){
    std::istringstream is(s.substr(20));is>>mode4Fps>>mode4Duration;
    if(!is||!std::isfinite(mode4Fps)||mode4Fps<1||mode4Fps>30||!std::isfinite(mode4Duration)||mode4Duration<=0||mode4Duration>7200||int(std::ceil(mode4Duration*mode4Fps))!=count)throw std::runtime_error("Mode4 timing invalid");
   }
+  for(const auto& s:header)if(s=="# TASL_HALFTONE_PROFILE 2001")halftoneCalibrated=true;
+  if(halftoneCalibrated&&(mode4CellSize||mode4Cell120))throw std::runtime_error("Conflicting render profiles");
   int positionFrames=0;
   for(const auto& s:header)if(s.rfind("# TASL_MODE4_OFFSETS ",0)==0){
-   if(!mode4Cell60||width%2)throw std::runtime_error("Mode4 positions require 60px grid");
+   if(!mode4CellSize||width%2)throw std::runtime_error("Mode4 positions require a supported grid");
    if(offsets.empty())offsets.resize(count);
    std::istringstream is(s.substr(std::string("# TASL_MODE4_OFFSETS ").size()));int index=-1;std::string encoded,extra;is>>index>>encoded;
    if(!is||index<0||index>=count||!offsets[index].empty()||(is>>extra))throw std::runtime_error("Mode4 position frame invalid");
-   offsets[index]=grid60DecodeOffsets(encoded,size_t(width)*height);positionFrames++;
+   offsets[index]=grid60DecodeOffsets(encoded,size_t(width)*height,mode4CellSize);positionFrames++;
   }
   if(positionFrames&&positionFrames!=count)throw std::runtime_error("Mode4 position frame count invalid");
   ticks.reserve(count+1);
@@ -119,9 +122,9 @@ struct Surface{
  HBRUSH brush=nullptr;
  void* pixels=nullptr;
  int width=0,height=0,cw=0,ch=0;
- bool mode4Cell120=false,mode4Cell60=false;
- Surface(int cols,int rows,bool native,bool grid120=false,bool grid60=false):mode4Cell120(grid120),mode4Cell60(grid60){
-  cw=grid60?30:grid120?60:native?8:12;ch=grid60?60:grid120?120:native?16:24;
+ bool mode4Cell120=false,halftoneCalibrated=false;int mode4CellSize=0;
+ Surface(int cols,int rows,bool native,bool grid120=false,int gridSize=0,bool tone=false):mode4Cell120(grid120),halftoneCalibrated(tone),mode4CellSize(gridSize){
+  cw=gridSize?gridSize/2:grid120?60:native?8:12;ch=gridSize?gridSize:grid120?120:native?16:24;
   width=cols*cw;height=rows*ch;
   if(width<=0||height<=0||width>7680||height>5760)
    throw std::runtime_error("TSL output dimensions invalid");
@@ -159,7 +162,8 @@ struct Surface{
   if(hdc)DeleteDC(hdc);
  }
  void draw(std::string_view frame,int columns,int rows,const std::vector<unsigned char>* offsets=nullptr){
-  if(mode4Cell60||mode4Cell120){grid120Draw(pixels,width,height,frame,rows,mode4Cell60?60:120,offsets);return;}
+  if(halftoneCalibrated){calibratedHalftoneDraw(pixels,width,height,frame,rows,ch);return;}
+  if(mode4CellSize||mode4Cell120){grid120Draw(pixels,width,height,frame,rows,mode4CellSize?mode4CellSize:120,offsets);return;}
   RECT rect{0,0,width,height};
   FillRect(hdc,&rect,brush);
   size_t pos=0;
@@ -198,7 +202,7 @@ int main(int argc,char** argv){
   _setmode(_fileno(stdout),_O_BINARY);
   const auto a=args(argc,argv);
   const TSL t(a.input);
-  Surface surface(t.width,t.height,t.native16,t.mode4Cell120,t.mode4Cell60);
+  Surface surface(t.width,t.height,t.native16,t.mode4Cell120,t.mode4CellSize,t.halftoneCalibrated);
   int frames=t.mode4Fps?int(std::ceil(t.mode4Duration*a.fps)):int((int64_t(t.durationTicks)*a.fps+59)/60);
   if(!t.mode4Fps&&t.count==frames+1)frames=t.count;
   if(frames<1||frames>216000)throw std::runtime_error("bad requested frame count");

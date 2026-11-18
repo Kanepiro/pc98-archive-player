@@ -49,7 +49,8 @@ export async function exportTslInWorker(current,{signal,onProgress,onResolution,
  if(typeof Worker==='undefined'||typeof OffscreenCanvas==='undefined'||typeof VideoEncoder==='undefined')
   throw Error('このブラウザーはMP4のバックグラウンド書き出しに対応していません。Chrome最新版で開いてください');
  let lastError=null;
- const fixedOutput=parseTSL(new TextDecoder('shift_jis').decode(current.bytes)).outputWidth;
+ const parsed=parseTSL(new TextDecoder('shift_jis').decode(current.bytes));
+ const fixedOutput=parsed.outputWidth||parsed.mode4CellSize||parsed.mode4Cell60||parsed.mode4Cell120;
  for(const [attempt,maxPixels] of (fixedOutput?[Infinity]:[Infinity,HD_PIXELS]).entries()){
 
   if(signal?.aborted)throw new DOMException('MP4書き出しを中止しました','AbortError');
@@ -61,7 +62,7 @@ export async function exportTslInWorker(current,{signal,onProgress,onResolution,
    if(fixedOutput)throw Error('指定解像度でのMP4書き出しに失敗しました：'+e.message);
    lastError=e;
    // Fail fast on malformed files rather than unnecessarily retrying them.
-   if(/5分を超える|画面データが不足|TSLの|元動画|音声トラック|音声データ|音声コーデック/.test(e.message))throw e;
+   if(/300秒を超える|画面データが不足|TSLの|元動画|音声トラック|音声データ|音声コーデック/.test(e.message))throw e;
   }
  }
  throw Error('MP4の書き出しに失敗しました（高画質・HDとも）：'+lastError.message);

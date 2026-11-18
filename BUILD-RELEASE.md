@@ -1,19 +1,12 @@
-# v0.3.46 ビルド・配布
-Webソースはmain（タグ web-v0.3.46）、Windowsソースはタグ windows-v0.3.46。Node.js 22と固定package-lock.jsonを使用。
+# Windows v0.3.47 build
 
-    npm ci
-    npm test
-    npm run build
+Run npm ci, npm test, npm run build. Use Python 3.11+ and the LLVM-mingw x86_64 UCRT toolchain:
 
-Web/PWAはdistをHTTPSで配布します。既存vercel.jsonとService Workerの内容ハッシュ方式を維持。
-Windowsは上記後、llvm-mingw-20241015-ucrt-x86_64とPythonで実行：
+```text
+python scripts/build-public-release.py --toolchain <llvm-mingw-folder> --out <new-native-output>
+python scripts/package-public-release.py --baseline-zip <official-v0.3.46-Windows-x64.zip> --native-build <new-native-output> --out <new-package-directory> --zip <new-v0.3.47-Windows-x64.zip>
+```
 
-    python scripts/build-public-release.py --toolchain <LLVMディレクトリ> --out <新しいnative-build>
-    python scripts/package-public-release.py --baseline-zip <公式v0.3.45 ZIP> --native-build <native-build> --out <新しいpackage> --zip <新しいZIP>
+The packager checks the official v0.3.46 runtime ZIP SHA-256 and refuses to overwrite an existing output. The six native executables use generic x64/SSE2 flags. The launcher embeds native-boost/resources/TASL_public_icon.ico through the Windows resource compiler. Runtime libraries, FFmpeg and models retain the official baseline versions. No private owner build is used as a runtime source.
 
-公式v0.3.45 ZIPのSHA-256をパッケージスクリプトで検証。汎用x64/SSE2向けの既存フラグ・MP4互換性設定を維持。
-起動はTASL-PC-Boost.exe。既定ポート39083、保存先 %LOCALAPPDATA%\TASL-Faithful-Boost。検証時はTASL_BOOST_PORT、TASL_BOOST_DATA_DIR、TASL_NO_BROWSER=1で隔離する。
-Windows ZIPにRELEASE-BUILD.jsonとSHA256SUMS.json、ReleaseにSHA256SUMS.txtを添付。旧版のRelease・タグ・ZIPは保持する。
-候補版での全性能・品質測定はverification/public-performance-v0.3.45を参照。正式化で追加の高速化や変換仕様変更は行っていない。
-
-今回の比較元：Windows 4a323dc0dc2885edce4c72bdbca5292404df0745、Web 3dda1405d9cabf648e73b7899061e4ea8fb5a79f。4:3試験はverification/public-4x3-v0.3.46を参照。
+Default port:39083. Data:%LOCALAPPDATA%/TASL-Faithful-Boost. For isolated tests set TASL_BOOST_PORT and TASL_BOOST_DATA_DIR. See verification/public-v0.3.47/TEST-RESULTS.md.

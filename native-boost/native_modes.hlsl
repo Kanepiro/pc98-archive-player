@@ -29,8 +29,16 @@ void tones(uint3 id:SV_DispatchThreadID){
   uint D=W/2;if(i>=D*H)return;uint x=i%D,y=i/D;
   float lum=(F(1,(y*W+x*2)*4+3)+F(1,(y*W+x*2+1)*4+3))/510;
   float value=pow(saturate((lum-.5)*contrast+.5+brightness/100),gamma);
-  value=saturate(value+(Bayer[(y%4)*4+x%4]-7.5)/16*.08);
-  A[O(25)+i]=min(4,(uint)floor(value*5));
+  // Same measured, tagged glyph masks and local interval dithering as JavaScript.
+  const float levels24[5]={0,0.213543843854,0.569375221068,0.805074118139,1};
+  const float levels16[5]={0,0.218713395493,0.568757906574,0.799559574568,1};
+  float dither=(Bayer[(y%4)*4+x%4]-7.5)/16*.25;
+  uint selected=0;
+  for(uint k=0;k<4;k++){
+   float lo=reserved==16?levels16[k]:levels24[k],hi=reserved==16?levels16[k+1]:levels24[k+1];
+   if(value>=(lo+hi)*.5-dither*(hi-lo))selected=k+1;
+  }
+  A[O(25)+i]=selected;
  }else{
   uint x=i%W,y=i/W;float value=clamp((F(1,i*4+3)-127.5)*contrast+127.5+brightness*2.55,0,255);
   float difference=0;

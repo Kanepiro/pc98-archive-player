@@ -43,8 +43,8 @@ def metadata(tsl):
     if not 1 <= width <= 480 or not 1 <= height <= 240:
         raise ValueError("TSL grid out of range")
     grid120 = "# TASL_MODE4_CELL120" in lines
-    grid60 = "# TASL_MODE4_CELL60" in lines
-    return width * (30 if grid60 else 60 if grid120 else 8 if native16 else 12), height * (60 if grid60 else 120 if grid120 else 16 if native16 else 24)
+    gridcell = next((cell for cell in (30,40,60) if "# TASL_MODE4_CELL"+str(cell) in lines),0)
+    return width * (gridcell//2 if gridcell else 60 if grid120 else 8 if native16 else 12), height * (gridcell if gridcell else 120 if grid120 else 16 if native16 else 24)
 
 
 def nvenc_probe(ffmpeg):
@@ -181,7 +181,7 @@ def run_mp4(job, executable):
         out_height = max(2, int(job.plan["sourceHeight"]) // 2 * 2)
         with job.output.open("rb") as stream:
             header = stream.read(8192)
-        grid120 = any(tag in header for tag in [b"# TASL_MODE4_CELL120",b"# TASL_MODE4_CELL60"])
+        grid120 = any(tag in header for tag in [b"# TASL_MODE4_CELL120",b"# TASL_MODE4_CELL60",b"# TASL_MODE4_CELL40",b"# TASL_MODE4_CELL30"])
         if grid120:
             out_width, out_height = native_width, native_height
         if "outputWidth" in job.plan:
@@ -246,7 +246,7 @@ def run_mp4(job, executable):
              message=str(exc)[:800])
     finally:
         try:
-            report=metrics.finish(measurement,{"appVersion":"0.3.46","stage":"MP4","status":job.mp4_state,
+            report=metrics.finish(measurement,{"appVersion":"0.3.47","stage":"MP4","status":job.mp4_state,
                 "totalMp4Seconds":time.perf_counter()-started,"encoder":job.mp4_encoder,"message":job.mp4_message,
                 "attempts":getattr(job,"mp4_attempts",[]),"preparation":getattr(job,"mp4_preparation",{}),"plan":job.plan})
             job.output.with_suffix(".mp4-report.json").write_bytes(report.read_bytes())

@@ -46,7 +46,7 @@ export class NativeModeConverter {
   u.set([0x4d475354,this.resident?2:1,this.mode,W,H,S,G,+old]);
   if(this.resident)u.set([this.session,this.sequence,(atlasInput?1:0)|(oldInput?2:0)],13);
   f.set([options.brightness??0,options.contrast??1,options.gamma??1,options.edge??0],8);
-  u[12]=G?this.atlas.findIndex(a=>a.char===' '):0;
+  u[12]=G?this.atlas.findIndex(a=>a.char===' '):this.mode===2?(options.native16?16:24):0;
   new Uint8Array(buffer,64,N*4).set(pixels);
   let offset=16+N;
   if(G&&atlasInput){

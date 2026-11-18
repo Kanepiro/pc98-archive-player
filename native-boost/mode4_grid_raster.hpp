@@ -7,7 +7,8 @@ inline const std::vector<unsigned char>& grid120Masks(int cell=120){
  auto masks=[cell](){
   std::vector<wchar_t> exe(32768);DWORD n=GetModuleFileNameW(nullptr,exe.data(),DWORD(exe.size()));
   auto dir=std::filesystem::path(std::wstring(exe.data(),n)).parent_path();
-  const auto name=cell==60?L"mode4-atlas60.bin":L"mode4-atlas.bin";
+  if(cell!=30&&cell!=40&&cell!=60&&cell!=120)throw std::runtime_error("Invalid cell size");
+  const auto name=cell==120?std::wstring(L"mode4-atlas.bin"):L"mode4-atlas"+std::to_wstring(cell)+L".bin";
   auto path=dir/L"app"/name;
   if(!std::filesystem::is_regular_file(path))path=dir/name;
   std::ifstream f(path,std::ios::binary);if(!f)throw std::runtime_error("Mode4 canonical masks missing");
@@ -34,8 +35,8 @@ inline void grid120Draw(void* buffer,int width,int height,std::string_view frame
   if(a==32){col++;continue;}
   if(i>=frame.size())throw std::runtime_error("Truncated Mode4 character");
   unsigned b=(unsigned char)frame[i++];int dx=0,dy=0;
-  if(offsets){size_t at=(row*(width/cell)+col)*2;if(at+1>=offsets->size())throw std::runtime_error("Mode4 offsets missing");dx=int((*offsets)[at])-60;dy=int((*offsets)[at+1])-60;if(dx%5||dy%5||std::abs(dx)>55||std::abs(dy)>55)throw std::runtime_error("Mode4 offsets invalid");}
-  if(cell==60&&a==0x81&&b==0x40){if(dx||dy)throw std::runtime_error("Mode4 blank offset invalid");col++;continue;}int g=grid120Id(a*256+b);
+  if(offsets){size_t at=(row*(width/cell)+col)*2;if(at+1>=offsets->size())throw std::runtime_error("Mode4 offsets missing");dx=int((*offsets)[at])-60;dy=int((*offsets)[at+1])-60;if(dx%(cell==60?5:cell/10)||dy%(cell==60?5:cell/10)||std::abs(dx)>=cell||std::abs(dy)>=cell)throw std::runtime_error("Mode4 offsets invalid");}
+  if(cell!=120&&a==0x81&&b==0x40){if(dx||dy)throw std::runtime_error("Mode4 blank offset invalid");col++;continue;}int g=grid120Id(a*256+b);
   for(int y=0;y<cell;y++)for(int x=0;x<cell;x++){
    unsigned ink=masks[g*cell*cell+y*cell+x];int nx=x+dx,ny=y+dy;if(nx<0||nx>=cell||ny<0||ny>=cell){if(ink)throw std::runtime_error("Mode4 glyph leaves its cell");continue;}int d=((row*cell+ny)*width+col*cell+nx)*4;
    p[d]=(18*(255-ink)+232*ink+127)/255;
@@ -45,7 +46,7 @@ inline void grid120Draw(void* buffer,int width,int height,std::string_view frame
  }
 }
 
-inline std::vector<unsigned char> grid60DecodeOffsets(const std::string& text,size_t expected){
+inline std::vector<unsigned char> grid60DecodeOffsets(const std::string& text,size_t expected,int cell=60){
  if(text.size()!=((expected+2)/3)*4)throw std::runtime_error("Mode4 offset length invalid");
  const std::string alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
  std::vector<unsigned char> out;out.reserve(expected);unsigned value=0;int bits=0;bool padding=false;
@@ -55,6 +56,6 @@ inline std::vector<unsigned char> grid60DecodeOffsets(const std::string& text,si
   value=(value<<6)|unsigned(at);bits+=6;if(bits>=8){bits-=8;out.push_back((value>>bits)&255);}
  }
  if(out.size()!=expected)throw std::runtime_error("Mode4 offset data missing");
- for(unsigned x:out)if(x<5||x>115||(int(x)-60)%5)throw std::runtime_error("Mode4 offset range invalid");
+ for(unsigned x:out)if(std::abs(int(x)-60)>=cell||(int(x)-60)%(cell==60?5:cell/10))throw std::runtime_error("Mode4 offset range invalid");
  return out;
 }

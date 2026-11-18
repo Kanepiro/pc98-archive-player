@@ -26,6 +26,7 @@ from gpu_metrics import RunMetrics
 from fullgpu_bridge import ContourGpuClient, ModesGpuClient, Grid120GpuClient
 from resident_bridge import ResidentFullGpuClient
 from portable_bridge import PortableClient
+from ultimate_small_bridge import SmallUltimateClient
 from resident_modes import ResidentModesClient
 
 HOST = "127.0.0.1"
@@ -205,6 +206,8 @@ CONTOUR = ContourGpuClient(executable)
 MODES = ResidentModesClient(executable)
 GRID120 = Grid120GpuClient(executable)
 PORTABLE = PortableClient(executable)
+SMALL = {cell:SmallUltimateClient(executable,cell) for cell in (30,40)}
+for client in SMALL.values():atexit.register(client.close)
 atexit.register(PORTABLE.close)
 atexit.register(GRID120.close)
 VISION = None
@@ -226,7 +229,7 @@ atexit.register(GPU.close)
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TASL-FullGPU-Boost/0.3.46"
+    server_version = "TASL-FullGPU-Boost/0.3.47"
     protocol_version = "HTTP/1.1"
     disable_nagle_algorithm = True
 
@@ -321,6 +324,10 @@ class Handler(BaseHTTPRequestHandler):
         if route == "/health/modes":
             ready=MODES.probe()
             return self.response(200,{"nativeModes":ready,"modesName":MODES.name,"modesSoftware":MODES.software,"modesReason":MODES.reason,"modesResidentVersion":2,"modesCompact":True})
+        if route in ("/health/mode4/30","/health/mode4/40"):
+            client=SMALL[int(route.rsplit("/",1)[1])]
+            ready=client.probe()
+            return self.response(200,{"ultimate":ready,"ultimateName":client.name,"software":client.software,"reason":client.reason})
         if route == "/health/mode4":
             ready=PORTABLE.probe()
             fallback=False if ready else GRID120.probe()
@@ -331,7 +338,7 @@ class Handler(BaseHTTPRequestHandler):
         if route == "/health":
             return self.response(200, {
                 "name": "TASL Native GPU PC Boost",
-                "version": "0.3.46", "originalMode4": False,
+                "version": "0.3.47", "originalMode4": False,
                 "mode4Engine": 6005, "mode4CellSize": 60, "mode4PaletteCount": 170,
                 "nativeExact": bool(executable("mode4_score_exact")),
                 "nativeGpu": GPU.probe(),
@@ -412,6 +419,15 @@ class Handler(BaseHTTPRequestHandler):
                 return self.response(200,MODES.state(int(request["session"]),int(request["sequence"])),"application/octet-stream")
             except (ValueError,KeyError,TypeError) as e:
                 return self.response(409,{"error":str(e)[:300]})
+        if route in ("/api/mode4/ultimate/30","/api/mode4/ultimate/40"):
+            try:
+                length=int(self.headers.get("Content-Length","0"))
+                if self.headers.get("Content-Type","").split(";")[0]!="application/octet-stream" or not 32<=length<=MAX_SCORE_REQUEST:
+                    raise ValueError("Portable request invalid")
+                payload=self.rfile.read(length)
+                return self.response(200,SMALL[int(route.rsplit("/",1)[1])].compute(payload),"application/octet-stream",{"X-TASL-Compute-Backend":"Small-DirectCompute"})
+            except (ValueError,OSError,RuntimeError) as e:
+                return self.response(503,{"error":str(e)[:450]})
         if route == "/api/mode4/portable":
             try:
                 length=int(self.headers.get("Content-Length","0"))

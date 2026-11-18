@@ -1,6 +1,6 @@
 import {rgbaToASCII} from './tsl-converter-core.js';
 import {QualityConverter} from './tsl-quality.js';
-import {Grid60Converter} from './tsl-mode4-grid60.js';
+import {createMode4Converter,isMode4Grid} from './tsl-mode4.js';
 import {rgbaToHalftone} from './tsl-halftone.js';
 import {NativeModeConverter} from './tsl-native-modes.js';
 let quality=null,tones=null,gpuUnavailableReason='';
@@ -11,7 +11,7 @@ self.onmessage=async({data:d})=>{
     tones=null;gpuUnavailableReason='';
     try{tones=await NativeModeConverter.create(d.mode==='legacy'?1:2,d.sample,d.width,d.height);}catch(e){gpuUnavailableReason=String(e);}
    }else{
-    quality=d.mode==='artisan'?new Grid60Converter(d.atlas):new QualityConverter(d.atlas,d.sample);
+    quality=d.mode==='artisan'?createMode4Converter(d.atlas,d.mode4CellSize??60):new QualityConverter(d.atlas,d.sample);
     quality.restore(d.state);
     // PC Boost: real Windows DirectCompute D3D11, NOT WebGPU.
     // Fall back to exact C++ CPU when the native GPU is unavailable.
@@ -20,7 +20,7 @@ self.onmessage=async({data:d})=>{
     else await quality.enableNativeGPU(d.width,d.height);
     if(d.mode==='artisan'&&d.exactNative&&d.legacyLayout){quality.fullGpuLayout=null;quality.nativeContour=null;}
    }
-   self.postMessage({ready:true,gpuAvailable:!!quality?.nativeMode||!!quality?.gpuMatcher||!!tones});return;
+   self.postMessage({ready:true,gpuAvailable:!!quality?.native||!!quality?.nativeMode||!!quality?.gpuMatcher||!!tones});return;
   }
   if(d.type==='snapshot'){
    if(!quality)throw Error('モード3が初期化されていません');
@@ -42,7 +42,7 @@ self.onmessage=async({data:d})=>{
     ?rgbaToHalftone(pixels,d.width,d.height,d.options)
     :rgbaToASCII(pixels,d.width,d.height,d.options);
   }
-  self.postMessage({frame,offsets:d.options.mode4Cell60?quality?.lastOffsets:null,acceleration,audit:quality?.lastAudit||null,
+  self.postMessage({frame,offsets:isMode4Grid(d.options)?quality?.lastOffsets:null,acceleration,audit:quality?.lastAudit||null,
    perf:quality?.lastPerf||tones?.lastPerf||null,
    adapterInfo:quality?.nativeGpuInfo||quality?.gpuMatcher?.adapterInfo||tones?.adapterInfo||null,
    gpuReason:quality?.gpuError||gpuUnavailableReason||''});
