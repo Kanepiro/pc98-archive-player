@@ -1,6 +1,6 @@
 {
   "name": "pc98-archive-player",
-  "version": "0.3.48-rc.1",
+  "version": "0.3.48",
   "private": true,
   "type": "module",
   "scripts": {

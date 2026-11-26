@@ -1,14 +1,13 @@
-# TASL Archive Player Boost v0.3.48-rc.1
+# TASL Archive Player Boost v0.3.48
 
-公開前の検証候補です。配布リンクは正式版 v0.3.47 を指しています。動画をTSLに変換した後、同じ操作でMP4も作る場合は「MP4へ自動変換」をONにしてください。初期設定はOFFで、選択は1回の変換に適用されます。画面の再読み込みや再起動後はOFFになります。
+動画をTSLに変換した後、同じ操作でMP4も作る場合は「MP4へ自動変換」をONにしてください。初期設定はOFFで、選択は1回の変換に適用されます。画面の再読み込みや再起動後はOFFになります。
 
 MAG・TSL・MMSの再生、動画からTSL文字アニメーションへの変換、MP4出力に対応するフリーウェアです。Windowsネイティブ版とWeb/PWA版があります。素材は端末内で処理します。
 
 - [Web/PWAを開く](https://pc98-archive-player-seven.vercel.app/mobile/)
-- [Windows版をダウンロード](https://github.com/Kanepiro/pc98-archive-player/releases/tag/windows-v0.3.47)
-- [v0.3.47の更新内容](RELEASE-v0.3.47.md)
-- [検証結果と対応環境](verification/public-v0.3.47/TEST-RESULTS.md)
-- [以前の正式版 v0.3.46](https://github.com/Kanepiro/pc98-archive-player/releases/tag/windows-v0.3.46)
+- [Windows版をダウンロード](https://github.com/Kanepiro/pc98-archive-player/releases/tag/windows-v0.3.48)
+- [v0.3.48の更新内容と確認範囲](RELEASE-v0.3.48.md)
+- [以前の正式版 v0.3.47](https://github.com/Kanepiro/pc98-archive-player/releases/tag/windows-v0.3.47)
 
 ## 使い方
 
