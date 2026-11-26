@@ -55,6 +55,9 @@ metadata={'version':version,'baselineVersion':'0.3.46','baselineWindowsCommit':'
 (app/'RELEASE-BUILD.json').write_text(json.dumps(metadata,indent=2),encoding='utf-8')
 channel='Public Boost release candidate.' if '-' in version else 'Official public Boost release.'
 (app/'README-RELEASE.txt').write_text('TASL Archive Player v'+version+'\n\nLaunch TASL-PC-Boost.exe. '+channel+'\nDefault port: 39083\nData: %LOCALAPPDATA%\\TASL-Faithful-Boost\nExtract into a new directory and close the old app before launching.\n',encoding='utf-8')
+guide_name='はじめにお読みください.txt'
+guide=(source/'native-boost'/guide_name).read_text(encoding='utf-8')
+(app/guide_name).write_text('v'+version+'\n'+guide,encoding='utf-8-sig',newline='\r\n')
 manifest={path.relative_to(app).as_posix():sha(path) for path in sorted(app.rglob('*')) if path.is_file()}
 (app/'SHA256SUMS.json').write_text(json.dumps(manifest,indent=2),encoding='utf-8')
 if a.zip_path:

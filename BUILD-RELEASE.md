@@ -1,4 +1,4 @@
-# v0.3.48-rc.1 公開候補のビルド
+# v0.3.48 正式版のビルド
 
 Webは web-v0.3.47、Windowsは windows-v0.3.47 を基準とする各作業ブランチを使います。Node.js 22 と package-lock.json の依存関係でビルドします。
 
@@ -15,4 +15,4 @@ Windows用ソースで上記を実行した後、Python 3.11以上と llvm-mingw
 
 パッケージ作成時に公式ランタイムZIPのSHA-256を検証します。起動ファイルは TASL-PC-Boost.exe です。実機試験では TASL_BOOST_PORT、TASL_BOOST_DATA_DIR、TASL_NO_BROWSER=1 を設定して通常の保存先から隔離できます。
 
-ローカルで候補版を起動し、PLAYER_URL と CHROME_PATH を設定して node tests/public-stability.browser.mjs を実行してください。FFmpeg と ffprobe を使用します。試験専用のブラウザープロファイルと入力動画を作成します。
+ローカルで正式版を起動し、PLAYER_URL と CHROME_PATH を設定して node tests/public-stability.browser.mjs を実行してください。FFmpeg と ffprobe を使用します。試験専用のブラウザープロファイルと入力動画を作成します。

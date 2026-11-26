@@ -71,7 +71,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   metricsId=null;
   // A per-frame report can exceed the keepalive byte budget on page exit.
   fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-   appVersion:'0.3.48-rc.1',status:'interrupted',framesProcessed:metricFrames.length}),keepalive:true}).catch(()=>{});
+   appVersion:'0.3.48',status:'interrupted',framesProcessed:metricFrames.length}),keepalive:true}).catch(()=>{});
  };
  if(input.exactNative)window.addEventListener('pagehide',finishInterrupted);
  try {
@@ -267,7 +267,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   let metricsUrl=null;
   if(metricsId)try{
    const r=await fetch('/api/metrics/'+metricsId+'/finish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-    appVersion:'0.3.48-rc.1',source:{name:file.name,bytes:file.size,width:video.videoWidth,height:video.videoHeight,duration:video.duration},
+    appVersion:'0.3.48',source:{name:file.name,bytes:file.size,width:video.videoWidth,height:video.videoHeight,duration:video.duration},
     settings:options,plan,resumedFrom:resumeStart,totalConversionSeconds:(performance.now()-taskStarted)/1000,frames:metricFrames,status:'completed'})});
    if(r.ok){metricsUrl=(await r.json()).url;metricsId=null;}
   }catch{}

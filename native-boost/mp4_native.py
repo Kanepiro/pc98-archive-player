@@ -252,7 +252,7 @@ def run_mp4(job, executable):
     finally:
         try:
             if metrics is not None:
-                report=metrics.finish(measurement,{"appVersion":"0.3.48-rc.1","stage":"MP4","status":job.mp4_state,
+                report=metrics.finish(measurement,{"appVersion":"0.3.48","stage":"MP4","status":job.mp4_state,
                 "totalMp4Seconds":time.perf_counter()-started,"encoder":job.mp4_encoder,"message":job.mp4_message,
                 "attempts":getattr(job,"mp4_attempts",[]),"preparation":getattr(job,"mp4_preparation",{}),"plan":job.plan})
                 job.output.with_suffix(".mp4-report.json").write_bytes(report.read_bytes())
