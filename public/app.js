@@ -12,7 +12,7 @@ import {exportTslInWorker} from './tsl-export-controller.js';
 const $=id=>document.getElementById(id),canvas=$('screen'),ctx=canvas.getContext('2d',{alpha:false});
 let current=null,session=null,serial=0,loadSerial=0,frameRequest=0,installPrompt=null,swRegistration=null;
 let exportController=null, exportDownloadUrl=null;
-const events=[],metrics={version:'0.3.47',kind:null,frames:0,seconds:0,underruns:0,gapSamples:0};
+const events=[],metrics={version:'0.3.48-rc.1',kind:null,frames:0,seconds:0,underruns:0,gapSamples:0};
 function log(type,detail={}){events.push({time:new Date().toISOString(),type,...detail});if(events.length>120)events.shift();}
 function status(s){$('status').textContent=s;}
 function clock(t){metrics.seconds=t;$('clock').textContent=formatSeconds(t);}
@@ -77,11 +77,16 @@ function failure(e){
  log('error',{message:String(e.message||e)});stop();status('再生できません: '+String(e.message||e));
 }
 async function openFile(file){
+ if(exportController)return;
  const id=++loadSerial;stop();current=null;buttons();status('読み込み中…');
  if(exportDownloadUrl)URL.revokeObjectURL(exportDownloadUrl);
  exportDownloadUrl=null;$('mp4-download').hidden=true;
  try{
   if(!file||file.size>256*1024*1024)throw Error('256MiB以下のファイルを選んでください');
+  if(file.size>128*1024*1024&&/\.mms$/i.test(file.name)){
+   const magic=new TextDecoder().decode(await file.slice(0,8).arrayBuffer());
+   if(magic!=='MAKI02  ')throw Error('MMSファイルの上限は128 MiBです');
+  }
   const bytes=await file.arrayBuffer();if(id!==loadSerial)return;
   const head=String.fromCharCode(...new Uint8Array(bytes,0,Math.min(16,bytes.byteLength))),ext=file.name.split('.').pop().toUpperCase();
   let kind,data;
@@ -97,7 +102,12 @@ async function openFile(file){
   else if(kind==='TSL'){drawTSL(canvas,data,tslFrameAt(data,0),tslAppearance());ratio(canvas.width,canvas.height);status('再生できます（TSLには音声がありません）');}
   else status('再生できます');
   buttons();log('open',{name:file.name,kind,size:file.size});
- }catch(e){if(id===loadSerial){current=null;buttons();failure(e);}}
+ }catch(e){if(id===loadSerial){
+  current=null;$('empty').hidden=false;$('filename').textContent='ファイル未選択';
+  $('kind').textContent='MAG / TSL / MMS';$('keys').hidden=true;
+  $('volume').disabled=true;$('loop').disabled=true;clock(0);
+  buttons();failure(e);
+ }}
 }
 function finish(s){
  if(session!==s)return;
@@ -195,7 +205,7 @@ $('export-mp4').onclick=async()=>{
 $('cancel-mp4').onclick=()=>{exportController?.abort();status('MP4変換を中止しています…');};
 $('volume').oninput=()=>{if(session?.gain)session.gain.gain.setTargetAtTime(Number($('volume').value)/100,session.audio.currentTime,.015);};
 $('fullscreen').onclick=()=>{const p=document.fullscreenElement?document.exitFullscreen():$('stage').requestFullscreen?.();p?.catch(e=>status('全画面表示: '+e.message));};
-$('demo').onclick=async()=>{try{const r=await fetch('/ContinuityTest.MMS');if(!r.ok)throw Error('動作確認データを取得できません');await openFile(new File([await r.arrayBuffer()],'ContinuityTest.MMS'));}catch(e){failure(e);}};
+$('demo').onclick=async()=>{const request=++loadSerial;try{const r=await fetch('/ContinuityTest.MMS');if(!r.ok)throw Error('動作確認データを取得できません');const bytes=await r.arrayBuffer();if(request===loadSerial&&!exportController)await openFile(new File([bytes],'ContinuityTest.MMS'));}catch(e){if(request===loadSerial)failure(e);}};
 function key(code,down){session?.worker?.postMessage({type:'key',key:code,down});}
 for(const b of document.querySelectorAll('[data-key]')){
  const code=Number(b.dataset.key);
@@ -222,17 +232,27 @@ async function setupOffline(){
   swRegistration.addEventListener('updatefound',()=>swRegistration.installing?.addEventListener('statechange',show));
  }catch(e){$('offline').textContent='オフライン保存は利用できません';log('offline-error',{message:e.message});}
 }
-$('update').onclick=()=>{stop();if(swRegistration?.waiting)swRegistration.waiting.postMessage({type:'activate'});else location.reload();};
+let applyingUpdate=false;
+$('update').onclick=()=>{
+ if(exportController||converter.isBusy()){
+  $('offline').textContent='処理の完了後に更新を適用してください';return;
+ }
+ stop();
+ if(swRegistration?.waiting){
+  applyingUpdate=true;
+  swRegistration.waiting.postMessage({type:'activate'});
+ }else location.reload();
+};
 let hadServiceWorkerController=!!navigator.serviceWorker?.controller;
 navigator.serviceWorker?.addEventListener('controllerchange',()=>{
  // First install is not an update: do not reset the active tab or file selection.
  if(!hadServiceWorkerController){hadServiceWorkerController=true;return;}
  // An existing PWA was upgraded; refresh only when no user work can be lost.
- if(!current&&!exportController)location.reload();
+ if(!exportController&&!converter.isBusy()&&(applyingUpdate||(!current&&!converter.hasSelection())))location.reload();
  else { $('update').hidden=false; $('offline').textContent='新版を取得しました。作業後に更新を適用してください'; }
 });
 setupOffline();
 // Read-only operational metrics used by browser verification and the diagnostic download.
 Object.defineProperty(window,'playerDiagnostics',{get:()=>JSON.parse(JSON.stringify({...metrics,events}))});
 const enterImmersive=setupImmersive({stage:$('stage'),stop:()=>stop()});
-setupConverter({enterImmersive,openPreview:async file=>{await openFile(file);if(current?.kind==='TSL')await play();},stopPlayback:()=>stop(),isExporting:()=>!!exportController});
+const converter=setupConverter({enterImmersive,openPreview:async file=>{await openFile(file);if(current?.kind==='TSL')await play();},stopPlayback:()=>stop(),isExporting:()=>!!exportController});

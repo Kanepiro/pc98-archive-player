@@ -1,4 +1,4 @@
-import {Input,BlobSource,ALL_FORMATS,CanvasSink} from 'mediabunny';
+import {Input,BlobSource,ALL_FORMATS,EncodedPacketSink,CanvasSink} from 'mediabunny';
 import {frameRequestTime,verifyDecodedFrame} from './video-frame-timing.js';
 
 // Decode the file timeline directly. A paused/hidden HTML video can report a
@@ -43,4 +43,30 @@ export async function createVideoFrameReader(file,times,{signal}={}){
    }
   };
  }catch(e){dispose();throw e;}
+}
+
+// Seek the HTML decoder inside the selected packet's presentation interval.
+// Keep the original HTML video colors and scaling for modes 1–3.
+export async function createSeekTimeline(file){
+ const input=new Input({source:new BlobSource(file),formats:ALL_FORMATS});
+ try{
+  const track=await input.getPrimaryVideoTrack();
+  if(!track){input.dispose();return null;}
+  const sink=new EncodedPacketSink(track);
+  let packet=null;
+  return {
+   async at(time){
+    // HTML seek targets truncate to microseconds. Presented packet timestamps
+    // round to that clock. Keep the original choice at fractional boundaries.
+    const us=Math.floor(time*1e6);
+    const contains=()=>packet&&us>=Math.round(packet.timestamp*1e6)&&us<Math.round((packet.timestamp+packet.duration)*1e6);
+    if(!contains()){
+     packet=await sink.getPacket((us+0.499999)/1e6,{metadataOnly:true});
+    }
+    if(!contains())return null;
+    return {seek:packet.timestamp+packet.duration/2,timestamp:packet.timestamp};
+   },
+   close(){input.dispose();}
+  };
+ }catch(error){input.dispose();throw error;}
 }

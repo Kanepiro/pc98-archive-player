@@ -27,7 +27,7 @@ try{
  await page.setInputFiles('#video-file',source);
  assert.equal(await page.locator('#auto-tune').isDisabled(),false);
  await page.click('#auto-tune');
- await page.waitForFunction(()=>/場面を解析|解析できませんでした|濃淡が少なく/.test(document.querySelector('#auto-tune-status').textContent),null,{timeout:120000});
+ await page.waitForFunction(()=>!document.querySelector('#convert-tsl').disabled&&/場面を解析|解析できませんでした|濃淡が少なく/.test(document.querySelector('#auto-tune-status').textContent),null,{timeout:120000});
  const status=await page.locator('#auto-tune-status').textContent();
  assert.match(status,/場面を解析/,status);
  const vals=await page.evaluate(()=>['video-brightness','video-contrast','video-gamma'].map(id=>Number(document.getElementById(id).value)));
@@ -47,12 +47,12 @@ try{
  const download=await downloadEvent;
  const data=parseTSL(new TextDecoder('shift_jis').decode(await readFile(await download.path())));
  const chars=new Set([...data.frames.join('').replaceAll('\n','')]);
- assert.ok([...chars].every(x=>['　','。','ｏ','○','◎'].includes(x)));
+ assert.ok([...chars].every(x=>['　','。','ｏ','Ｏ','◎'].includes(x)));
  // One more analysis using the existing Mode 1 and Mode 3 options.
  for(const mode of ['legacy','quality']){
   await page.selectOption('#video-style',mode);
   await page.click('#auto-tune');
-  await page.waitForFunction(()=>/場面を解析|解析できませんでした|濃淡が少なく/.test(document.querySelector('#auto-tune-status').textContent),null,{timeout:120000});
+  await page.waitForFunction(()=>!document.querySelector('#convert-tsl').disabled&&/場面を解析|解析できませんでした|濃淡が少なく/.test(document.querySelector('#auto-tune-status').textContent),null,{timeout:120000});
   assert.match(await page.locator('#auto-tune-status').textContent(),/場面を解析/);
  }
  // Analysis cancel never overwrites a previously accepted manual value.

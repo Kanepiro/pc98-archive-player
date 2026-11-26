@@ -27,7 +27,7 @@ export function ensureMode4Atlas(){
   const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(x=>x.toString(16).padStart(2,'0')).join('');
   if(hash!==GRID120_MASK_SHA256)throw Error('モード4字形のハッシュが一致しません');
   state.masks=bytes;return bytes;
- })();return state.promise;
+ })().catch(error=>{state.promise=null;throw error;});return state.promise;
 }
 function canvasOf(w,h){
  const c=typeof document==='undefined'?new OffscreenCanvas(w,h):document.createElement('canvas');

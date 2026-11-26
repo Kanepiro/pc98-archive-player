@@ -38,6 +38,7 @@ function convertFrame(worker,pixels,width,height,options,signal) {
  });
 }
 function readQualityState(worker,signal){
+ check(signal);
  return new Promise((resolve,reject)=>{
   check(signal);
   const finish=(error,state)=>{
@@ -63,7 +64,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
  if(!/\.(mp4|m4v|webm)$/i.test(file.name))throw Error('MP4を選んでください。WebMはこのブラウザーで読み取れる場合に利用できます。');
  const video=document.createElement('video'),url=URL.createObjectURL(file);
  video.muted=true;video.playsInline=true;video.preload='auto';
- let worker,vision,frameReader=null;
+ let worker,vision,timeline=null,frameReader=null;
  try {
   onProgress({phase:'loading'});
   await mediaEvent(video,'loadeddata',signal,()=>{video.src=url;video.load();});
@@ -95,8 +96,8 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
    const signature=JSON.stringify([engineVersion,identity,await fingerprint(file),
     [options.mode4ScoreLimit,options.mode4BlurSigma,options.mode4EdgeHigh,options.mode4EdgeLow,options.mode4MinEdge,options.width,options.height,options.fps,options.brightness,options.contrast,options.gamma,options.edge,options.conversionMode,options.native16,sourceGrid,fit,positionX,positionY,...(options.outputWidth?[options.outputWidth,options.outputHeight]:[])],
     [video.videoWidth,video.videoHeight,video.duration,plan.count]]);
-   const previous=await readCheckpoint();
-   if(previous?.job.signature===signature){
+   const previous=await readCheckpoint(signature);
+   if(previous){
     try{
      for(const chunk of previous.chunks)writer.resumeChunk(chunk);
      if(writer.frames!==previous.job.done)throw Error('途中データの画面数が一致しません');
@@ -112,6 +113,7 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
     }
    }
    if(!checkpoint){
+    check(signal);
     checkpoint={id:crypto.randomUUID(),signature,identity,engineVersion,config:checkpointConfig,
      total:plan.count,width:plan.width,height:plan.height,createdAt:Date.now()};
     await beginCheckpoint(checkpoint);
@@ -151,6 +153,12 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
    frameReader=await createVideoFrameReader(file,
     plan.steps.slice(resumeStart).map(s=>s.time),{signal});
   }
+  if(options.conversionMode!=='artisan'&&resumeStart<plan.count){
+   try{
+    const {createSeekTimeline}=await import('./video-frame-reader.js');
+    timeline=await createSeekTimeline(file);
+   }catch{} // Retain HTML-only decoding when the container lacks a usable index.
+  }
   const readAhead=()=>{const start=performance.now();return frameReader.read().then(frame=>({frame,decodeMs:performance.now()-start}),error=>({error}));};
   let nextRead=frameReader&&resumeStart<plan.count?readAhead():null;
   // One captured frame may overlap the previous worker/GPU conversion.
@@ -167,7 +175,29 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
      await mediaEvent(video,'seeked',signal,()=>{video.currentTime=time;});
     }else{decodedFrame=decoded.frame;decodeMs=decoded.decodeMs;sourceFrame=decodedFrame.image;}
    }
-   else if(i>0||time!==video.currentTime)await mediaEvent(video,'seeked',signal,()=>{video.currentTime=time;});
+   else if(i>0||time!==video.currentTime){
+    let interval=null;
+    if(timeline){
+     try{interval=await timeline.at(time);}catch{timeline.close();timeline=null;}
+    }
+    const seekTime=Math.min(interval?.seek??time,video.duration-.000001);
+    await mediaEvent(video,'seeked',signal,()=>{video.currentTime=seekTime;});
+    if(interval&&typeof VideoFrame!=='undefined'){
+     // seeked can precede the decoded surface being presented. Use the
+     // indexed PTS to distinguish a delayed surface from repeated VFR frames.
+     const expected=Math.round(interval.timestamp*1e6);
+     for(let attempt=0;;attempt++){
+      check(signal);
+      let presented;
+      try{presented=new VideoFrame(video);}catch{break;}
+      const valid=Math.abs(presented.timestamp-expected)<=1;
+      presented.close();
+      if(valid)break;
+      if(attempt===100)throw Error('指定時刻の動画フレームを読み取れませんでした（'+time.toFixed(3)+'秒）');
+      await new Promise(resolve=>setTimeout(resolve,10));
+     }
+    }
+   }
    check(signal);
    const decodeWaitMs=performance.now()-decodeWaitStart,captureStart=performance.now();
    const detections=await vision?.detect(sourceFrame,rect,canvas.width,canvas.height,time)||[];
@@ -222,5 +252,5 @@ export async function convertVideo(file,{signal,onProgress=()=>{},onCheckpointIs
   check(signal);
   const blob=writer.finish();
   return {blob,plan,ramp,source:{width:video.videoWidth,height:video.videoHeight,duration:video.duration},elapsed:(performance.now()-started)/1000};
- } finally {worker?.terminate();vision?.close();await frameReader?.close();video.pause();video.removeAttribute('src');video.load();URL.revokeObjectURL(url);}
+ } finally {worker?.terminate();vision?.close();timeline?.close();await frameReader?.close();video.pause();video.removeAttribute('src');video.load();URL.revokeObjectURL(url);}
 }
