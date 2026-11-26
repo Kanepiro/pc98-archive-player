@@ -1,5 +1,5 @@
 """Package the public Boost release from an official runtime ZIP and built sources."""
-from pathlib import Path,PurePosixPath
+from pathlib import Path,PurePosixPath,PureWindowsPath
 import argparse,hashlib,json,re,shutil,zipfile
 p=argparse.ArgumentParser()
 p.add_argument('--baseline-zip',type=Path,required=True)
@@ -38,9 +38,23 @@ for path in dist.rglob('*'):
 for path in (source/'native-boost').glob('*.py'):shutil.copy2(path,app/'python-source'/path.name)
 for path in a.native_build.iterdir():
  if path.suffix in {'.exe','.hlsl'}:shutil.copy2(path,app/path.name)
-metadata={'version':version,'baselineVersion':'0.3.46','baselineWindowsCommit':'4e834d6681d08ed672ab75abf8afa82b8c6dd7f7','baselineRuntimeZipSHA256':expected,'nativeAssets':native_assets,'nativeBuild':json.loads((a.native_build/'build-report.json').read_text(encoding='utf-8'))}
+build_report=json.loads((a.native_build/'build-report.json').read_text(encoding='utf-8'))
+# Publish the compiler identity, reproducible flags and file names without local workstation paths.
+build_report['compiler']='\n'.join(line for line in build_report['compiler'].splitlines() if not line.startswith('InstalledDir:'))
+def publish_command(command):
+ result=[PureWindowsPath(command[0]).name]
+ for arg in command[1:]:
+  path=PureWindowsPath(arg)
+  if len(path.parts)>1:
+   folder='native-boost' if path.parent.name=='native-boost' else 'build'
+   arg=folder+'/'+path.name
+  result.append(arg)
+ return result
+build_report['commands']=[publish_command(cmd) for cmd in build_report['commands']]
+metadata={'version':version,'baselineVersion':'0.3.46','baselineWindowsCommit':'4e834d6681d08ed672ab75abf8afa82b8c6dd7f7','baselineRuntimeZipSHA256':expected,'nativeAssets':native_assets,'nativeBuild':build_report}
 (app/'RELEASE-BUILD.json').write_text(json.dumps(metadata,indent=2),encoding='utf-8')
-(app/'README-RELEASE.txt').write_text('TASL Archive Player v'+version+'\n\nLaunch TASL-PC-Boost.exe. Official public Boost release.\nDefault port: 39083\nData: %LOCALAPPDATA%\\TASL-Faithful-Boost\nExtract into a new directory and close the old app before launching. Refer to the performance reports for validation and limitations.\n',encoding='utf-8')
+channel='Public Boost release candidate.' if '-' in version else 'Official public Boost release.'
+(app/'README-RELEASE.txt').write_text('TASL Archive Player v'+version+'\n\nLaunch TASL-PC-Boost.exe. '+channel+'\nDefault port: 39083\nData: %LOCALAPPDATA%\\TASL-Faithful-Boost\nExtract into a new directory and close the old app before launching.\n',encoding='utf-8')
 manifest={path.relative_to(app).as_posix():sha(path) for path in sorted(app.rglob('*')) if path.is_file()}
 (app/'SHA256SUMS.json').write_text(json.dumps(manifest,indent=2),encoding='utf-8')
 if a.zip_path:

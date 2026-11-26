@@ -1,10 +1,9 @@
 // Isolate TSL decoding, canvas drawing and H.264 encoding from the UI thread.
 // If the Full-HD encoder stalls, terminate it and retry at HD resolution.
-import {parseTSL} from './tsl.js';
 const IDLE_LIMIT_MS=35000;
 const HD_PIXELS=1280*720;
 
-function onceInWorker(current,{signal,onProgress,onResolution,onStage,maxPixels,tslAppearance,sourceAudioFile}){
+function onceInWorker(current,{signal,onProgress,onResolution,onStage,onParsed,maxPixels,tslAppearance,sourceAudioFile}){
  return new Promise((resolve,reject)=>{
   if(signal?.aborted){reject(new DOMException('MP4書き出しを中止しました','AbortError'));return;}
   let worker,watchdog,settled=false;
@@ -29,7 +28,8 @@ function onceInWorker(current,{signal,onProgress,onResolution,onStage,maxPixels,
    worker.onmessage=({data:d})=>{
     if(settled)return;
     pulse();
-    if(d.type==='progress')onProgress?.(d.seconds,d.total);
+    if(d.type==='parsed')onParsed(d.fixedOutput);
+    else if(d.type==='progress')onProgress?.(d.seconds,d.total);
     else if(d.type==='resolution')onResolution?.(d.width,d.height);
     else if(d.type==='stage')onStage?.(d.stage);
     else if(d.type==='error')finish(Error(d.message));
@@ -49,16 +49,15 @@ export async function exportTslInWorker(current,{signal,onProgress,onResolution,
  if(typeof Worker==='undefined'||typeof OffscreenCanvas==='undefined'||typeof VideoEncoder==='undefined')
   throw Error('このブラウザーはMP4のバックグラウンド書き出しに対応していません。Chrome最新版で開いてください');
  let lastError=null;
- const parsed=parseTSL(new TextDecoder('shift_jis').decode(current.bytes));
- const fixedOutput=parsed.outputWidth||parsed.mode4CellSize||parsed.mode4Cell60||parsed.mode4Cell120;
- for(const [attempt,maxPixels] of (fixedOutput?[Infinity]:[Infinity,HD_PIXELS]).entries()){
-
+ let fixedOutput;
+ for(const [attempt,maxPixels] of [Infinity,HD_PIXELS].entries()){
   if(signal?.aborted)throw new DOMException('MP4書き出しを中止しました','AbortError');
   if(attempt)onRetry?.();
   try{
-   return await onceInWorker(current,{signal,onProgress,onResolution,onStage,maxPixels,tslAppearance,sourceAudioFile});
+   return await onceInWorker(current,{signal,onProgress,onResolution,onStage,maxPixels,tslAppearance,sourceAudioFile,
+    onParsed:fixed=>{fixedOutput=fixed;}});
   }catch(e){
-   if(e.name==='AbortError')throw e;
+   if(e.name==='AbortError'||fixedOutput===undefined)throw e;
    if(fixedOutput)throw Error('指定解像度でのMP4書き出しに失敗しました：'+e.message);
    lastError=e;
    // Fail fast on malformed files rather than unnecessarily retrying them.

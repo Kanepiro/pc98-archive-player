@@ -12,9 +12,10 @@ function openDb(){
    if(!db.objectStoreNames.contains('chunks'))db.createObjectStore('chunks',{keyPath:'start'});
    if(!db.objectStoreNames.contains('state'))db.createObjectStore('state',{keyPath:'key'});
   };
-  request.onsuccess=()=>resolve(request.result);
+  let blocked=false;
+  request.onsuccess=()=>{if(blocked)request.result.close();else resolve(request.result);};
   request.onerror=()=>reject(request.error||Error('保存領域を開けません'));
-  request.onblocked=()=>reject(Error('別のタブで保存領域を使用中です'));
+  request.onblocked=()=>{blocked=true;reject(Error('別のタブで保存領域を使用中です'));};
  });
 }
 async function transact(mode,enqueue){
@@ -49,16 +50,24 @@ export function readCheckpointSummary(){
   tx.objectStore('job').get(KEY).onsuccess=e=>set(e.target.result||null);
  });
 }
-export function readCheckpoint(){
+export function readCheckpoint(signature){
  return transact('readonly',(tx,set)=>{
-  let job=null,chunks=null,qualityState=null,loadedState=false;
-  const report=()=>{if(chunks!==null&&loadedState)set(job?{job,chunks,qualityState}:null);};
-  tx.objectStore('job').get(KEY).onsuccess=e=>{job=e.target.result||null;report();};
-  tx.objectStore('chunks').getAll().onsuccess=e=>{
-   chunks=e.target.result.map(c=>c.bytes instanceof ArrayBuffer?{...c,blob:new Blob([c.bytes],{type:'application/octet-stream'})}:c);report();
-  };
-  tx.objectStore('state').get(KEY).onsuccess=e=>{
-   qualityState=e.target.result?.value||null;loadedState=true;report();
+  // Check the signature before loading large chunks, in the same snapshot.
+  tx.objectStore('job').get(KEY).onsuccess=event=>{
+   const job=event.target.result;
+   if(!job||(signature!==undefined&&job.signature!==signature)){set(null);return;}
+   const result={job,chunks:[],qualityState:null};
+   set(result);
+   tx.objectStore('chunks').getAll().onsuccess=event=>{
+    result.chunks=event.target.result.map(chunk=>{
+     if(!(chunk.bytes instanceof ArrayBuffer))return chunk;
+     const {bytes,...metadata}=chunk;
+     return {...metadata,blob:new Blob([bytes],{type:'application/octet-stream'})};
+    });
+   };
+   tx.objectStore('state').get(KEY).onsuccess=event=>{
+    result.qualityState=event.target.result?.value??null;
+   };
   };
  });
 }

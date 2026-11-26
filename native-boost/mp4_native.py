@@ -167,7 +167,12 @@ def _encode(job, executable, fps, native_width, native_height,
 
 
 def run_mp4(job, executable):
-    metrics=RunMetrics(job.output.parent);measurement=metrics.start();started=time.perf_counter()
+    started=time.perf_counter()
+    try:
+        metrics=RunMetrics(job.output.parent)
+        measurement=metrics.start()
+    except Exception:
+        metrics=None
     try:
         with job.lock:
             job.mp4_state = "preparing"
@@ -246,19 +251,31 @@ def run_mp4(job, executable):
              message=str(exc)[:800])
     finally:
         try:
-            report=metrics.finish(measurement,{"appVersion":"0.3.47","stage":"MP4","status":job.mp4_state,
+            if metrics is not None:
+                report=metrics.finish(measurement,{"appVersion":"0.3.48-rc.1","stage":"MP4","status":job.mp4_state,
                 "totalMp4Seconds":time.perf_counter()-started,"encoder":job.mp4_encoder,"message":job.mp4_message,
                 "attempts":getattr(job,"mp4_attempts",[]),"preparation":getattr(job,"mp4_preparation",{}),"plan":job.plan})
-            job.output.with_suffix(".mp4-report.json").write_bytes(report.read_bytes())
+                job.output.with_suffix(".mp4-report.json").write_bytes(report.read_bytes())
         except Exception:
             pass
         with job.lock:
-            finished = job.mp4_state == "done"
-        # Do not delete user-provided files, only our own hashed temp video.
-        if finished and (job.source.parent.resolve() == job.output.parent.resolve()
-                         and re.fullmatch(r"[0-9a-f]{64}", job.source.stem)
-                         and job.source.suffix == ".video"):
+            discard_source = job.mp4_state in ("done","cancelled")
+        for suffix in (".gpu.tmp.mp4", ".cpu.tmp.mp4"):
             try:
-                job.source.unlink(missing_ok=True)
+                job.output.with_suffix(suffix).unlink(missing_ok=True)
             except OSError:
                 pass
+        if discard_source:
+            discard_job_source(job)
+        with job.lock:
+            job.report_finished = True
+            job.mp4_active = False
+
+
+def discard_job_source(job):
+    if (job.source == job.output.with_suffix(".source") and
+            re.fullmatch(r"[0-9a-f]{24}", job.id) and job.source.stem == job.id):
+        try:
+            job.source.unlink(missing_ok=True)
+        except OSError:
+            pass

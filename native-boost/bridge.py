@@ -68,6 +68,8 @@ class Job:
     mp4_width: int = 0
     mp4_height: int = 0
     mp4_cancel: bool = False
+    mp4_active: bool = False
+    report_finished: bool = False
     mp4_procs: list = field(default_factory=list)
 
 
@@ -83,7 +85,7 @@ def parse_mp4_plan(header):
         for key, maximum in (
             ("width", 480), ("height", 240), ("count", 10000),
             ("ticks", 432000), ("sourceWidth", 3840),
-            ("sourceHeight", 2160)):
+            ("sourceHeight", 3840)):
             value = raw.get(key)
             if not isinstance(value, int) or isinstance(value, bool) or not 1 <= value <= maximum:
                 raise ValueError("MP4 metadata field is invalid: " + key)
@@ -96,10 +98,10 @@ def parse_mp4_plan(header):
                 raise ValueError("Requested output aspect does not match the TSL grid")
             result["outputWidth"], result["outputHeight"] = output
         fps = raw.get("fps")
-        if not isinstance(fps, (float, int)) or not math.isfinite(fps) or not 1 <= fps <= 30:
+        if type(fps) not in (float, int) or not math.isfinite(fps) or not 1 <= fps <= 30:
             raise ValueError("MP4 fps is invalid")
         result["fps"] = float(fps)
-        if raw.get("native16") not in (True, False):
+        if type(raw.get("native16")) is not bool:
             raise ValueError("MP4 character font setting is invalid")
         result["native16"] = raw["native16"]
         if result["width"]*result["height"] > 480*240:
@@ -229,7 +231,7 @@ atexit.register(GPU.close)
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TASL-FullGPU-Boost/0.3.47"
+    server_version = "TASL-FullGPU-Boost/0.3.48-rc.1"
     protocol_version = "HTTP/1.1"
     disable_nagle_algorithm = True
 
@@ -338,7 +340,7 @@ class Handler(BaseHTTPRequestHandler):
         if route == "/health":
             return self.response(200, {
                 "name": "TASL Native GPU PC Boost",
-                "version": "0.3.47", "originalMode4": False,
+                "version": "0.3.48-rc.1", "originalMode4": False,
                 "mode4Engine": 6005, "mode4CellSize": 60, "mode4PaletteCount": 170,
                 "nativeExact": bool(executable("mode4_score_exact")),
                 "nativeGpu": GPU.probe(),
@@ -370,6 +372,7 @@ class Handler(BaseHTTPRequestHandler):
                         "message": job.mp4_message, "encoder": job.mp4_encoder,
                         "done": job.mp4_done, "total": job.mp4_total,
                         "width": job.mp4_width, "height": job.mp4_height,
+                        "reportFinished": job.report_finished,
                         "reportReady": job.output.with_suffix(".mp4-report.json").is_file(),
                         "size": ready.stat().st_size
                         if job.mp4_state == "done" and ready.is_file() else 0})
@@ -529,6 +532,7 @@ class Handler(BaseHTTPRequestHandler):
                 with job.lock:
                     if job.state != "waiting_tsl":
                         return self.response(409, {"error": "TSL already submitted"})
+                    job.state = "receiving_tsl"
                 try:
                     length = int(self.headers.get("Content-Length", "0"))
                     if not 128 < length <= MAX_TSL:
@@ -554,21 +558,29 @@ class Handler(BaseHTTPRequestHandler):
                         check.seek(-1, os.SEEK_END)
                         if check.read(1) != b"\x1a":
                             raise ValueError("Original TSL file is incomplete")
-                    temporary.replace(job.output)
                     with job.lock:
+                        if job.mp4_cancel:
+                            raise ValueError("TSL transfer cancelled")
+                        temporary.replace(job.output)
                         job.state = "done"
                     return self.response(200, {"state": "done"})
                 except (ValueError, OSError) as exc:
+                    job.output.with_suffix(".upload").unlink(missing_ok=True)
+                    with job.lock:
+                        job.state = "cancelled" if job.mp4_cancel else "waiting_tsl"
                     return self.response(422, {"error": str(exc)})
             if parts[4] == "start":
                 with job.lock:
                     if job.state != "done" or not job.output.is_file():
                         return self.response(409, {"error": "Original TSL not yet saved"})
-                    if job.mp4_state in ("queued", "preparing", "encoding"):
+                    if job.mp4_active:
                         return self.response(202, {"state": job.mp4_state})
                     if job.mp4_state == "done" and job.output.with_suffix(".mp4").is_file():
                         return self.response(200, {"state": "done"})
-                    job.mp4_cancel = False
+                    if job.mp4_cancel:
+                        return self.response(409, {"error": "MP4 job cancelled"})
+                    job.mp4_active = True
+                    job.report_finished = False
                     job.mp4_state = "queued"
                 threading.Thread(target=mp4_native.run_mp4,
                                  args=(job, executable), daemon=True).start()
@@ -576,6 +588,9 @@ class Handler(BaseHTTPRequestHandler):
             if parts[4] == "cancel":
                 with job.lock:
                     job.mp4_cancel = True
+                    if job.mp4_state == "not_started":
+                        job.mp4_state = "cancelled"
+                        mp4_native.discard_job_source(job)
                     for proc in job.mp4_procs:
                         if proc.poll() is None:
                             proc.terminate()

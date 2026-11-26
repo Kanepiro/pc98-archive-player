@@ -1,12 +1,18 @@
-# Windows v0.3.47 build
+# v0.3.48-rc.1 公開候補のビルド
 
-Run npm ci, npm test, npm run build. Use Python 3.11+ and the LLVM-mingw x86_64 UCRT toolchain:
+Webは web-v0.3.47、Windowsは windows-v0.3.47 を基準とする各作業ブランチを使います。Node.js 22 と package-lock.json の依存関係でビルドします。
 
-```text
-python scripts/build-public-release.py --toolchain <llvm-mingw-folder> --out <new-native-output>
-python scripts/package-public-release.py --baseline-zip <official-v0.3.46-Windows-x64.zip> --native-build <new-native-output> --out <new-package-directory> --zip <new-v0.3.47-Windows-x64.zip>
-```
+    npm ci
+    npm test
+    npm run build
 
-The packager checks the official v0.3.46 runtime ZIP SHA-256 and refuses to overwrite an existing output. The six native executables use generic x64/SSE2 flags. The launcher embeds native-boost/resources/TASL_public_icon.ico through the Windows resource compiler. Runtime libraries, FFmpeg and models retain the official baseline versions. No private owner build is used as a runtime source.
+Web/PWA の配布物は dist です。ローカルでは npm run dev で起動し、/mobile/ を開きます。
 
-Default port:39083. Data:%LOCALAPPDATA%/TASL-Faithful-Boost. For isolated tests set TASL_BOOST_PORT and TASL_BOOST_DATA_DIR. See verification/public-v0.3.47/TEST-RESULTS.md.
+Windows用ソースで上記を実行した後、Python 3.11以上と llvm-mingw-20241015-ucrt-x86_64 を使います。
+
+    python scripts/build-public-release.py --toolchain <LLVMディレクトリ> --out <新しいnative-build>
+    python scripts/package-public-release.py --baseline-zip <公式v0.3.46 Windows ZIP> --native-build <native-build> --out <新しいpackage> --zip <新しいZIP>
+
+パッケージ作成時に公式ランタイムZIPのSHA-256を検証します。起動ファイルは TASL-PC-Boost.exe です。実機試験では TASL_BOOST_PORT、TASL_BOOST_DATA_DIR、TASL_NO_BROWSER=1 を設定して通常の保存先から隔離できます。
+
+ローカルで候補版を起動し、PLAYER_URL と CHROME_PATH を設定して node tests/public-stability.browser.mjs を実行してください。FFmpeg と ffprobe を使用します。試験専用のブラウザープロファイルと入力動画を作成します。

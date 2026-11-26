@@ -53,8 +53,8 @@ export async function exportFaithfulNativeMp4({
    onProgress(state);
    if(state.state==='error')throw Error(state.message||'PC版MP4変換に失敗しました');
    if(state.state==='cancelled')throw aborted();
-   if(state.state==='done'&&state.reportReady!==false){
-    return {url:url+'/result',reportUrl:url+'/report',encoder:state.encoder||'',
+   if(state.state==='done'&&(state.reportReady!==false||state.reportFinished)){
+    return {url:url+'/result',reportUrl:state.reportReady===false?null:url+'/report',encoder:state.encoder||'',
      size:state.size||0,width:state.width,height:state.height,total:state.total};
    }
    await nap(550,signal);
